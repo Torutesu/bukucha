@@ -4,3 +4,6 @@ node_modules
 *.tsbuildinfo
 playwright-report
 test-results
+
+# 生スクリーンショット(共有用の圧縮版は shots_web/ に置く)
+shots/

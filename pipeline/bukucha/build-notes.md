@@ -64,3 +64,16 @@ npm run test:e2e
 - **実LLM接続**: `LLM_PROVIDER` を外して `LLM_BASE_URL`/`LLM_API_KEY`/モデルIDを設定するだけで動く(`src/lib/llm/openai.ts`)。E2E-090(実API smoke)は未実行。
 - **1ターン原価の実測**が00-prd.mdの成功基準に入っている。`StoryMessage.modelUsed` は記録済みだが**トークン数の記録は未実装** — 課金設計に進む前に追加が必要。
 - **R18派生**(`variants/web-r18-variant.md`)の前提5点は実装済み: ContentLevel3値 / サーバー側フィルタ(`src/lib/policy.ts`) / 年齢確認の独立化 / LLM抽象化レイヤ / Web直販前提(ストア決済なし)。
+
+## 共有用スクリーンショット
+
+実際に動作しているWeb版の全画面を撮影し、共有ページ(Artifact)を生成できる:
+
+```bash
+cd app
+npm run shots                  # screenshots/capture.spec.ts → shots/*.png (gitignore)
+python3 build-share-page.py    # shots_web/*.webp に圧縮し、data URI埋め込みHTMLを出力
+```
+
+- 撮影は通常のE2E(`npm run test:e2e`)には含めない(`playwright.shots.config.ts` で分離)
+- `next.config.ts` の `devIndicators: false` は開発バッジの写り込み防止
