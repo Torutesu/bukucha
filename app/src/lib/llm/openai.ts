@@ -97,7 +97,7 @@ export class OpenAICompatProvider implements LlmProvider {
     }
     let content = full;
     let choices: { id: string; text: string }[] | undefined;
-    const m = full.match(/CHOICES:(\[.*\])\s*$/s);
+    const m = full.match(/CHOICES:(\[[\s\S]*\])\s*$/);
     if (m) {
       content = full.slice(0, m.index).trimEnd();
       try {

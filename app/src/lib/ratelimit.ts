@@ -7,8 +7,13 @@ import { HttpError } from "./auth";
  * 上限はenvで調整可能(E2Eでは3に設定)。
  */
 
-export async function assertMessageQuota(userId: string) {
-  const limit = Number(process.env.MESSAGE_RATE_LIMIT ?? 60);
+export async function assertMessageQuota(user: { id: string; email: string | null }) {
+  const userId = user.id;
+  // E2E-017: E2Eモードでは ratelimit* ユーザーの上限を3に固定
+  const limit =
+    process.env.E2E_MODE === "1" && user.email?.startsWith("ratelimit")
+      ? 3
+      : Number(process.env.MESSAGE_RATE_LIMIT ?? 60);
   const since = new Date(Date.now() - 60 * 60 * 1000);
   const count = await db.storyMessage.count({
     where: {
