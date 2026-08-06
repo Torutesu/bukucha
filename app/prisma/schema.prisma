@@ -1,0 +1,257 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============ enums ============
+
+enum ContentLevel {
+  ALL_AGES
+  R15
+  R18 // MVP未使用。派生用に予約
+}
+
+enum SituationStatus {
+  DRAFT
+  PUBLISHED
+  PRIVATE
+  SUSPENDED
+}
+
+enum StoryStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum MessageRole {
+  USER
+  AI
+  SYSTEM
+}
+
+enum ModerationKind {
+  IP_DETECTED
+  CONTENT_OVER_LINE
+  BANNED_EXPRESSION
+}
+
+enum ModerationStatus {
+  FLAGGED
+  APPROVED
+  REJECTED
+}
+
+enum ReportStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+// ============ User / Auth ============
+
+model User {
+  id             String    @id @default(cuid())
+  email          String?   @unique
+  nickname       String
+  avatarUrl      String?
+  birthDate      DateTime?
+  safeFilterOff  Boolean   @default(false)
+  preferenceTags String[]
+  isCreatorBadge Boolean   @default(false)
+  role           String    @default("USER")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  accounts   AuthAccount[]
+  personas   Persona[]
+  situations Situation[]
+  stories    Story[]
+  likes      Like[]
+  reports    Report[]
+}
+
+model AuthAccount {
+  id                String @id @default(cuid())
+  userId            String
+  provider          String
+  providerAccountId String
+  user              User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Persona {
+  id        String  @id @default(cuid())
+  userId    String
+  name      String
+  callName  String?
+  profile   String?
+  isDefault Boolean @default(false)
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stories   Story[]
+}
+
+// ============ Situation ============
+
+model Situation {
+  id            String          @id @default(cuid())
+  authorId      String
+  title         String
+  catchphrase   String          @default("")
+  worldSetting  String          @default("")
+  coverImageUrl String?
+  contentLevel  ContentLevel    @default(ALL_AGES)
+  status        SituationStatus @default(DRAFT)
+  aiDraftInput  String?
+  publishedAt   DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  likeCount   Int @default(0)
+  storyCount  Int @default(0)
+  readerCount Int @default(0)
+
+  author     User             @relation(fields: [authorId], references: [id])
+  characters Character[]
+  intros     IntroVariant[]
+  tags       SituationTag[]
+  stories    Story[]
+  likes      Like[]
+  flags      ModerationFlag[]
+
+  @@index([status, contentLevel, publishedAt])
+  @@index([authorId])
+}
+
+model Character {
+  id              String    @id @default(cuid())
+  situationId     String
+  name            String
+  profileImageUrl String?
+  personality     String    @default("")
+  speechStyle     String    @default("")
+  relationship    String    @default("")
+  exampleDialogs  Json      @default("[]")
+  sortOrder       Int       @default(0)
+  situation       Situation @relation(fields: [situationId], references: [id], onDelete: Cascade)
+}
+
+model IntroVariant {
+  id           String    @id @default(cuid())
+  situationId  String
+  label        String
+  introText    String    @default("")
+  firstMessage String    @default("")
+  sortOrder    Int       @default(0)
+  situation    Situation @relation(fields: [situationId], references: [id], onDelete: Cascade)
+  stories      Story[]
+}
+
+model Tag {
+  id         String         @id @default(cuid())
+  name       String         @unique
+  category   String
+  isR15      Boolean        @default(false)
+  situations SituationTag[]
+}
+
+model SituationTag {
+  situationId String
+  tagId       String
+  situation   Situation @relation(fields: [situationId], references: [id], onDelete: Cascade)
+  tag         Tag       @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([situationId, tagId])
+}
+
+// ============ Story ============
+
+model Story {
+  id                  String      @id @default(cuid())
+  userId              String
+  situationId         String
+  introVariantId      String
+  personaId           String?
+  status              StoryStatus @default(ACTIVE)
+  lastRecap           String?
+  lastRecapAtIdx      Int         @default(0)
+  branchedFromStoryId String?
+  lastMessageAt       DateTime    @default(now())
+  createdAt           DateTime    @default(now())
+
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  situation    Situation      @relation(fields: [situationId], references: [id])
+  introVariant IntroVariant   @relation(fields: [introVariantId], references: [id])
+  persona      Persona?       @relation(fields: [personaId], references: [id])
+  messages     StoryMessage[]
+  memory       StoryMemory?
+
+  @@index([userId, lastMessageAt])
+}
+
+model StoryMessage {
+  id             String      @id @default(cuid())
+  storyId        String
+  idx            Int
+  role           MessageRole
+  content        String
+  choices        Json?
+  selectedChoice String?
+  isDeleted      Boolean     @default(false)
+  modelUsed      String?
+  createdAt      DateTime    @default(now())
+
+  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  @@unique([storyId, idx])
+}
+
+model StoryMemory {
+  storyId      String @id
+  summary      String @default("")
+  summaryAtIdx Int    @default(0)
+  userNote     String @default("")
+  story        Story  @relation(fields: [storyId], references: [id], onDelete: Cascade)
+}
+
+// ============ Social ============
+
+model Like {
+  userId      String
+  situationId String
+  createdAt   DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  situation   Situation @relation(fields: [situationId], references: [id], onDelete: Cascade)
+
+  @@id([userId, situationId])
+}
+
+// ============ Trust & Safety ============
+
+model Report {
+  id         String       @id @default(cuid())
+  reporterId String
+  targetType String
+  targetId   String
+  reason     String
+  detail     String?
+  status     ReportStatus @default(OPEN)
+  createdAt  DateTime     @default(now())
+  reporter   User         @relation(fields: [reporterId], references: [id])
+}
+
+model ModerationFlag {
+  id          String           @id @default(cuid())
+  situationId String?
+  targetType  String
+  targetId    String
+  kind        ModerationKind
+  detail      String
+  status      ModerationStatus @default(FLAGGED)
+  createdAt   DateTime         @default(now())
+  situation   Situation?       @relation(fields: [situationId], references: [id], onDelete: Cascade)
+}
