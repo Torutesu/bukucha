@@ -31,12 +31,21 @@ function relative(iso: string): string {
 export default function BookshelfPage() {
   const router = useRouter();
   const [tab, setTab] = useState<"ACTIVE" | "ARCHIVED">("ACTIVE");
-  const [stories, setStories] = useState<ShelfStory[] | null>(null);
+  const [shelf, setShelf] = useState<{ tab: string; items: ShelfStory[] } | null>(null);
   const [error, setError] = useState(false);
   const [menuFor, setMenuFor] = useState<string | null>(null);
 
+  const setStories = (
+    updater: ShelfStory[] | null | ((prev: ShelfStory[] | null) => ShelfStory[] | null)
+  ) => {
+    setShelf((prev) => {
+      const current = prev?.items ?? null;
+      const next = typeof updater === "function" ? updater(current) : updater;
+      return next ? { tab, items: next } : null;
+    });
+  };
+
   const load = async (status: "ACTIVE" | "ARCHIVED") => {
-    setStories(null);
     const r = await fetch(`/api/stories?status=${status}`);
     if (r.status === 401) {
       router.replace(`/login?returnTo=${encodeURIComponent("/bookshelf")}`);
@@ -47,7 +56,7 @@ export default function BookshelfPage() {
       return;
     }
     const j = await r.json();
-    setStories(j.items);
+    setShelf({ tab: status, items: j.items });
     // AIF-004: 古いあらすじをバックグラウンド更新
     for (const st of j.items as ShelfStory[]) {
       const latest = st.messages[0]?.idx ?? 0;
@@ -67,9 +76,13 @@ export default function BookshelfPage() {
   };
 
   useEffect(() => {
-    load(tab);
+    (async () => {
+      await load(tab);
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
+
+  const stories = shelf && shelf.tab === tab ? shelf.items : null;
 
   return (
     <div className="flex min-h-dvh flex-col">

@@ -27,7 +27,7 @@ function SearchInner() {
 
   const [input, setInput] = useState(q);
   const [tags, setTags] = useState<Tag[]>([]);
-  const [results, setResults] = useState<CardData[] | null>(null);
+  const [resultData, setResultData] = useState<{ key: string; items: CardData[] } | null>(null);
   const [error, setError] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -55,19 +55,21 @@ function SearchInner() {
   }, []);
 
   useEffect(() => {
-    if (!executed) {
-      setResults(null);
-      return;
-    }
-    setError(false);
+    if (!executed) return;
     fetch(
       `/api/search?q=${encodeURIComponent(q)}&tags=${encodeURIComponent(selectedTags.join(","))}&sort=${sort}`
     )
       .then((r) => r.json())
-      .then((j) => setResults(j.items))
+      .then((j) => {
+        setError(false);
+        setResultData({ key: `${q}|${selectedTags.join(",")}|${sort}`, items: j.items });
+      })
       .catch(() => setError(true));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q, params.get("tags"), sort]);
+
+  const resultKey = `${q}|${selectedTags.join(",")}|${sort}`;
+  const results = resultData && resultData.key === resultKey ? resultData.items : null;
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -150,26 +152,23 @@ function SearchInner() {
               >
                 新着
               </button>
-              {/* タグ追加(検索中も) */}
-              <details className="ml-auto">
-                <summary className="chip cursor-pointer list-none">＋タグ</summary>
-                <div
-                  className="card absolute right-4 z-20 mt-1 flex max-h-64 w-64 flex-wrap gap-1.5 overflow-y-auto p-3"
-                >
-                  {tags
-                    .filter((t) => !selectedTags.includes(t.name))
-                    .map((t) => (
-                      <button
-                        key={t.id}
-                        data-testid="tag-option"
-                        className="chip"
-                        onClick={() => navigate({ tags: [...selectedTags, t.name] })}
-                      >
-                        {t.name}
-                      </button>
-                    ))}
-                </div>
-              </details>
+            </div>
+
+            {/* さらに絞り込むタグ(常時表示) */}
+            <div className="hide-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-2">
+              {tags
+                .filter((t) => !selectedTags.includes(t.name))
+                .map((t) => (
+                  <button
+                    key={t.id}
+                    data-testid="tag-option"
+                    className="chip"
+                    onClick={() => navigate({ tags: [...selectedTags, t.name] })}
+                  >
+                    <span aria-hidden>＋</span>
+                    <span>{t.name}</span>
+                  </button>
+                ))}
             </div>
 
             {error && (

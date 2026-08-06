@@ -143,9 +143,9 @@ export async function* storyTurn(
     userInput,
   });
 
-  // AIF-005: 選択肢は2応答に1回(決定的)
-  const priorAiCount = live.filter((m) => m.role === "AI").length;
-  const wantChoices = rerollTarget === null && priorAiCount % 2 === 1;
+  // AIF-005: 選択肢はユーザーの2ターンに1回(この往復を含めて偶数ターン目に提示)
+  const userTurnsIncludingThis = live.filter((m) => m.role === "USER").length + 1;
+  const wantChoices = rerollTarget === null && userTurnsIncludingThis % 2 === 0;
 
   const timeoutMs = Number(process.env.GENERATION_TIMEOUT_MS ?? 20_000);
   const abort = new AbortController();

@@ -231,7 +231,7 @@ export async function seed(db: PrismaClient) {
   }
 }
 
-if (require.main === module) {
+if (typeof require !== "undefined" && require.main === module) {
   const db = new PrismaClient();
   seed(db)
     .then(async () => {

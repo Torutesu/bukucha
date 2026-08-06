@@ -139,7 +139,8 @@ test.describe("リーダー(コア体験)", () => {
     await page.getByRole("button", { name: "この物語をはじめる" }).click();
     await sendMessage(page, "2冊目のセリフ");
 
-    await page.getByTestId("bottom-tab").getByText("本棚").click();
+    // SCR-006は没入のため下部タブ非表示。←で本棚に戻る
+    await page.getByRole("button", { name: "戻る", exact: true }).click();
     await expect(page).toHaveURL(/\/bookshelf/);
     const cards = page.getByTestId("story-card");
     await expect(cards).toHaveCount(2);

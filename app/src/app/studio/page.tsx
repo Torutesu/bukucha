@@ -23,7 +23,7 @@ interface Summary {
 export default function StudioPage() {
   const router = useRouter();
   const [tab, setTab] = useState<"PUBLISHED" | "DRAFT" | "PRIVATE">("PUBLISHED");
-  const [works, setWorks] = useState<Work[] | null>(null);
+  const [worksData, setWorksData] = useState<{ tab: string; items: Work[] } | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [openStats, setOpenStats] = useState<string | null>(null);
   const [stats, setStats] = useState<Record<string, { date: string; storyCount: number }[]>>({});
@@ -39,11 +39,18 @@ export default function StudioPage() {
   }, [router]);
 
   useEffect(() => {
-    setWorks(null);
-    fetch(`/api/studio/situations?status=${tab}`)
-      .then((r) => (r.ok ? r.json() : { items: [] }))
-      .then((j) => setWorks(j.items));
+    let cancelled = false;
+    (async () => {
+      const r = await fetch(`/api/studio/situations?status=${tab}`);
+      const j = r.ok ? await r.json() : { items: [] };
+      if (!cancelled) setWorksData({ tab, items: j.items });
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [tab]);
+
+  const works = worksData && worksData.tab === tab ? worksData.items : null;
 
   const loadStats = async (id: string) => {
     if (openStats === id) {

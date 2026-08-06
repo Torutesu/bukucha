@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { brand } from "@/lib/theme";
 
@@ -116,13 +117,13 @@ function LoginInner() {
 
       <p className="mt-6 text-center text-[11px]" style={{ color: "var(--c-textMuted)" }}>
         登録すると
-        <a href="/legal/terms" className="underline">
+        <Link href="/legal/terms" className="underline">
           利用規約
-        </a>
+        </Link>
         と
-        <a href="/legal/privacy" className="underline">
+        <Link href="/legal/privacy" className="underline">
           プライバシーポリシー
-        </a>
+        </Link>
         に同意したことになります
       </p>
     </main>

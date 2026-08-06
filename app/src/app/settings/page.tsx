@@ -30,8 +30,10 @@ export default function SettingsPage() {
   };
 
   useEffect(() => {
-    load();
-    setTheme(localStorage.getItem("bukucha_theme") ?? "system");
+    (async () => {
+      await load();
+      setTheme(localStorage.getItem("bukucha_theme") ?? "system");
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

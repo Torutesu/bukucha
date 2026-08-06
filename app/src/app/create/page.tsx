@@ -42,7 +42,6 @@ function CreateInner() {
   const [drafting, setDrafting] = useState(false);
   const [draftError, setDraftError] = useState(false);
   const [allTags, setAllTags] = useState<{ id: string; name: string }[]>([]);
-  const [editingChar, setEditingChar] = useState<Character | null>(null);
   const [testMessages, setTestMessages] = useState<{ role: "USER" | "AI"; content: string }[]>([]);
   const [testInput, setTestInput] = useState("");
   const [testGenerating, setTestGenerating] = useState(false);
@@ -51,6 +50,22 @@ function CreateInner() {
   const [publishResult, setPublishResult] = useState<
     { status: string } | { blocked: { kind: string; detail: string }[] } | null
   >(null);
+  const [publishError, setPublishError] = useState<string | null>(null);
+  // 保存中のリクエストを追跡し、ステップ移動・公開の前に必ず完了させる(取りこぼし防止)
+  const pendingSaves = useRef<Promise<unknown>[]>([]);
+  const track = <T,>(p: Promise<T>): Promise<T> => {
+    pendingSaves.current.push(p);
+    return p;
+  };
+  const flushSaves = async () => {
+    const all = pendingSaves.current;
+    pendingSaves.current = [];
+    await Promise.allSettled(all);
+  };
+  const goStep = async (n: number) => {
+    await flushSaves();
+    setStep(n);
+  };
 
   useEffect(() => {
     fetch("/api/tags")
@@ -68,7 +83,8 @@ function CreateInner() {
         .then((d) => {
           if (d) {
             setSituation(normalize(d));
-            setStep(1);
+            const q = Number(params.get("step"));
+            setStep(Number.isFinite(q) && q >= 1 && q <= 5 ? q : 1);
           }
         });
     }
@@ -94,11 +110,11 @@ function CreateInner() {
     async (data: Partial<Situation> & { tagIds?: string[] }) => {
       if (!situation) return;
       setSituation({ ...situation, ...data } as Situation);
-      await fetch(`/api/situations/${situation.id}`, {
+      await track(fetch(`/api/situations/${situation.id}`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(data),
-      });
+      }));
     },
     [situation]
   );
@@ -153,15 +169,21 @@ function CreateInner() {
 
   const publish = async (visibility: "PUBLISHED" | "PRIVATE") => {
     if (!situation) return;
+    await flushSaves();
     setPublishing(true);
     setPublishResult(null);
+    setPublishError(null);
     const r = await fetch(`/api/situations/${situation.id}/publish`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ visibility }),
     });
     const j = await r.json();
-    setPublishResult(j);
+    if (!r.ok || j.error) {
+      setPublishError(j?.error?.message ?? "公開できませんでした");
+    } else {
+      setPublishResult(j);
+    }
     setPublishing(false);
   };
 
@@ -170,11 +192,14 @@ function CreateInner() {
     return (
       <main className="flex min-h-dvh flex-col px-5 py-8">
         <StepBar step={0} />
-        <h1 className="mt-6 text-lg font-bold">あなたの妄想を、一文で。</h1>
+        <label htmlFor="fantasy" className="mt-6 block text-lg font-bold">
+          あなたの妄想を、一文で。
+        </label>
         <p className="mt-1 text-xs" style={{ color: "var(--c-textMuted)" }}>
           AIが世界観・登場人物・冒頭シーンまで下書きします
         </p>
         <textarea
+          id="fantasy"
           className="input mt-4 h-28"
           placeholder="例: 没落令嬢の私を買ったのは、冷酷と噂の若き公爵だった"
           maxLength={200}
@@ -244,7 +269,7 @@ function CreateInner() {
             field="worldSetting"
             onAiResult={(v) => patch({ worldSetting: v })}
           />
-          <NavButtons onNext={() => setStep(2)} />
+          <NavButtons onNext={() => goStep(2)} />
         </div>
       )}
 
@@ -255,11 +280,11 @@ function CreateInner() {
           {situation.characters
             .sort((a, b) => a.sortOrder - b.sortOrder)
             .map((c) => (
-              <button
+              <Link
                 key={c.id}
+                href={`/create/${situation.id}/characters/${c.id}`}
                 data-testid="character-item"
                 className="card flex w-full items-center justify-between p-3 text-left"
-                onClick={() => setEditingChar(c)}
               >
                 <div>
                   <p className="text-sm font-semibold">
@@ -270,7 +295,7 @@ function CreateInner() {
                   </p>
                 </div>
                 <span>›</span>
-              </button>
+              </Link>
             ))}
           {situation.characters.length < 3 && (
             <button
@@ -290,7 +315,7 @@ function CreateInner() {
               ＋ 人物を追加
             </button>
           )}
-          <NavButtons onBack={() => setStep(1)} onNext={() => setStep(3)} />
+          <NavButtons onBack={() => goStep(1)} onNext={() => goStep(3)} />
         </div>
       )}
 
@@ -301,8 +326,11 @@ function CreateInner() {
           {situation.intros.map((iv, idx) => (
             <div key={iv.id} className="card space-y-2 p-3">
               <div>
-                <span className="label">ラベル</span>
+                <label className="label" htmlFor={`intro-label-${iv.id}`}>
+                  ラベル
+                </label>
                 <input
+                  id={`intro-label-${iv.id}`}
                   className="input"
                   value={iv.label}
                   onChange={(e) => {
@@ -311,17 +339,20 @@ function CreateInner() {
                     setSituation({ ...situation, intros });
                   }}
                   onBlur={(e) =>
-                    fetch(`/api/situations/${situation.id}/intros/${iv.id}`, {
+                    track(fetch(`/api/situations/${situation.id}/intros/${iv.id}`, {
                       method: "PATCH",
                       headers: { "content-type": "application/json" },
                       body: JSON.stringify({ label: e.target.value }),
-                    })
+                    }))
                   }
                 />
               </div>
               <div>
-                <span className="label">導入の地の文</span>
+                <label className="label" htmlFor={`intro-text-${iv.id}`}>
+                  導入の地の文
+                </label>
                 <textarea
+                  id={`intro-text-${iv.id}`}
                   className="input h-20"
                   value={iv.introText}
                   onChange={(e) => {
@@ -330,17 +361,20 @@ function CreateInner() {
                     setSituation({ ...situation, intros });
                   }}
                   onBlur={(e) =>
-                    fetch(`/api/situations/${situation.id}/intros/${iv.id}`, {
+                    track(fetch(`/api/situations/${situation.id}/intros/${iv.id}`, {
                       method: "PATCH",
                       headers: { "content-type": "application/json" },
                       body: JSON.stringify({ introText: e.target.value }),
-                    })
+                    }))
                   }
                 />
               </div>
               <div>
-                <span className="label">最初の返答</span>
+                <label className="label" htmlFor={`intro-first-${iv.id}`}>
+                  最初の返答
+                </label>
                 <textarea
+                  id={`intro-first-${iv.id}`}
                   className="input h-20"
                   value={iv.firstMessage}
                   onChange={(e) => {
@@ -349,11 +383,11 @@ function CreateInner() {
                     setSituation({ ...situation, intros });
                   }}
                   onBlur={(e) =>
-                    fetch(`/api/situations/${situation.id}/intros/${iv.id}`, {
+                    track(fetch(`/api/situations/${situation.id}/intros/${iv.id}`, {
                       method: "PATCH",
                       headers: { "content-type": "application/json" },
                       body: JSON.stringify({ firstMessage: e.target.value }),
-                    })
+                    }))
                   }
                 />
               </div>
@@ -374,7 +408,7 @@ function CreateInner() {
               ＋ はじまりを追加
             </button>
           )}
-          <NavButtons onBack={() => setStep(2)} onNext={() => setStep(4)} />
+          <NavButtons onBack={() => goStep(2)} onNext={() => goStep(4)} />
         </div>
       )}
 
@@ -398,7 +432,7 @@ function CreateInner() {
               )
             )}
             {testGenerating && (
-              <p className="whitespace-pre-wrap">
+              <p data-testid="generating" className="whitespace-pre-wrap">
                 {testStream}
                 <span className="caret">▌</span>
               </p>
@@ -407,16 +441,16 @@ function CreateInner() {
           <div className="flex gap-2">
             <input
               className="input flex-1"
-              placeholder="話しかけてみる"
+              placeholder="セリフか、*動作* を書く…"
               value={testInput}
               onChange={(e) => setTestInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && runTest()}
             />
-            <button className="btn-primary px-4" onClick={runTest} disabled={testGenerating}>
+            <button aria-label="送信" className="btn-primary px-4" onClick={runTest} disabled={testGenerating}>
               ▶
             </button>
           </div>
-          <NavButtons onBack={() => setStep(3)} onNext={() => setStep(5)} />
+          <NavButtons onBack={() => goStep(3)} onNext={() => goStep(5)} />
         </div>
       )}
 
@@ -479,6 +513,12 @@ function CreateInner() {
             )}
           </div>
 
+          {publishError && (
+            <div data-testid="publish-error" className="card p-3 text-sm" style={{ borderColor: "var(--c-danger)" }}>
+              {publishError}
+            </div>
+          )}
+
           {publishResult && "blocked" in publishResult && (
             <div data-testid="moderation-error" className="card p-3 text-sm" style={{ borderColor: "var(--c-danger)" }}>
               {publishResult.blocked.map((b, i) => (
@@ -522,38 +562,17 @@ function CreateInner() {
               </button>
             </>
           )}
-          <NavButtons onBack={() => setStep(4)} />
+          <NavButtons onBack={() => goStep(4)} />
         </div>
       )}
 
-      {editingChar && (
-        <CharacterEditor
-          situationId={situation.id}
-          character={editingChar}
-          canDelete={situation.characters.length > 1}
-          onClose={(updated, deleted) => {
-            setEditingChar(null);
-            if (deleted) {
-              setSituation({
-                ...situation,
-                characters: situation.characters.filter((c) => c.id !== editingChar.id),
-              });
-            } else if (updated) {
-              setSituation({
-                ...situation,
-                characters: situation.characters.map((c) => (c.id === updated.id ? updated : c)),
-              });
-            }
-          }}
-        />
-      )}
     </main>
   );
 }
 
 function StepBar({ step }: { step: number }) {
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-1" data-testid="step-indicator" data-step={step}>
       {STEPS.map((s, i) => (
         <div key={s} className="flex flex-1 flex-col items-center gap-1">
           <div
@@ -606,8 +625,14 @@ function FieldWithAi({
   field: string;
 }) {
   const [local, setLocal] = useState(value);
+  const [syncedValue, setSyncedValue] = useState(value);
   const [loading, setLoading] = useState(false);
-  useEffect(() => setLocal(value), [value]);
+  const fieldId = `field-${field}`;
+  // 外部(AI下書き等)でvalueが変わったらレンダー中に追従させる
+  if (syncedValue !== value) {
+    setSyncedValue(value);
+    setLocal(value);
+  }
   const runAi = async () => {
     setLoading(true);
     const r = await fetch(`/api/situations/${situationId}/rewrite-field`, {
@@ -625,13 +650,16 @@ function FieldWithAi({
   return (
     <div>
       <div className="flex items-center justify-between">
-        <label className="label">{label}</label>
+        <label className="label" htmlFor={fieldId}>
+          {label}
+        </label>
         <button className="text-[11px]" style={{ color: "var(--c-accent)" }} onClick={runAi} disabled={loading}>
           {loading ? "…" : "✦ AIに書き直してもらう"}
         </button>
       </div>
       {textarea ? (
         <textarea
+          id={fieldId}
           className="input h-32"
           value={local}
           onChange={(e) => setLocal(e.target.value)}
@@ -639,6 +667,7 @@ function FieldWithAi({
         />
       ) : (
         <input
+          id={fieldId}
           className="input"
           maxLength={maxLength}
           value={local}
@@ -646,148 +675,6 @@ function FieldWithAi({
           onBlur={() => onSave(local)}
         />
       )}
-    </div>
-  );
-}
-
-function CharacterEditor({
-  situationId,
-  character,
-  canDelete,
-  onClose,
-}: {
-  situationId: string;
-  character: Character;
-  canDelete: boolean;
-  onClose: (updated: Character | null, deleted?: boolean) => void;
-}) {
-  const [c, setC] = useState<Character>(character);
-  const save = async () => {
-    const r = await fetch(`/api/situations/${situationId}/characters/${c.id}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        name: c.name,
-        personality: c.personality,
-        speechStyle: c.speechStyle,
-        relationship: c.relationship,
-        exampleDialogs: c.exampleDialogs,
-        sortOrder: c.sortOrder,
-      }),
-    });
-    onClose(r.ok ? { ...c, ...(await r.json()) } : null);
-  };
-  const genSamples = async () => {
-    const r = await fetch(`/api/situations/${situationId}/characters/${c.id}/sample-dialogs`, {
-      method: "POST",
-    });
-    if (r.ok) {
-      const { dialogs } = await r.json();
-      setC({ ...c, exampleDialogs: [...(c.exampleDialogs ?? []), ...dialogs].slice(0, 5) });
-    }
-  };
-  return (
-    <div className="fixed inset-0 z-40 overflow-y-auto" style={{ background: "var(--c-bg)" }}>
-      <div className="mx-auto max-w-[var(--shell-max)] px-5 py-6">
-        <button className="text-sm" onClick={() => onClose(null)}>
-          ← 作成にもどる
-        </button>
-        <h2 className="mt-3 text-lg font-bold">キャラ編集</h2>
-        <div className="mt-4 space-y-4">
-          <div>
-            <label className="label" htmlFor="cname">
-              名前
-            </label>
-            <input id="cname" className="input" value={c.name} onChange={(e) => setC({ ...c, name: e.target.value })} />
-          </div>
-          <div className="flex gap-4 text-sm">
-            <label className="flex items-center gap-2">
-              <input type="radio" checked={c.sortOrder === 0} onChange={() => setC({ ...c, sortOrder: 0 })} /> 主演
-            </label>
-            <label className="flex items-center gap-2">
-              <input type="radio" checked={c.sortOrder !== 0} onChange={() => setC({ ...c, sortOrder: 1 })} /> 脇役
-            </label>
-          </div>
-          <div>
-            <label className="label" htmlFor="cpers">
-              性格
-            </label>
-            <textarea id="cpers" className="input h-24" value={c.personality} onChange={(e) => setC({ ...c, personality: e.target.value })} />
-          </div>
-          <div>
-            <label className="label" htmlFor="cspeech">
-              口調・話し方
-            </label>
-            <textarea
-              id="cspeech"
-              className="input h-20"
-              placeholder="一人称、語尾、敬語/タメ口、呼び方"
-              value={c.speechStyle}
-              onChange={(e) => setC({ ...c, speechStyle: e.target.value })}
-            />
-          </div>
-          <div>
-            <label className="label" htmlFor="crel">
-              主人公との関係
-            </label>
-            <textarea id="crel" className="input h-20" value={c.relationship} onChange={(e) => setC({ ...c, relationship: e.target.value })} />
-          </div>
-          <div>
-            <p className="label">会話例(最大5組)</p>
-            {(c.exampleDialogs ?? []).map((d, i) => (
-              <div key={i} className="mb-1 flex gap-1">
-                <input
-                  className="input text-xs"
-                  placeholder="あなた"
-                  value={d.user}
-                  onChange={(e) => {
-                    const ex = [...c.exampleDialogs];
-                    ex[i] = { ...d, user: e.target.value };
-                    setC({ ...c, exampleDialogs: ex });
-                  }}
-                />
-                <input
-                  className="input text-xs"
-                  placeholder="キャラ"
-                  value={d.char}
-                  onChange={(e) => {
-                    const ex = [...c.exampleDialogs];
-                    ex[i] = { ...d, char: e.target.value };
-                    setC({ ...c, exampleDialogs: ex });
-                  }}
-                />
-              </div>
-            ))}
-            {(c.exampleDialogs?.length ?? 0) < 5 && (
-              <button
-                className="mt-1 text-xs"
-                style={{ color: "var(--c-accent)" }}
-                onClick={() => setC({ ...c, exampleDialogs: [...(c.exampleDialogs ?? []), { user: "", char: "" }] })}
-              >
-                ＋ 追加
-              </button>
-            )}
-            <button className="ml-3 mt-1 text-xs" style={{ color: "var(--c-accent)" }} onClick={genSamples}>
-              ✦ 口調サンプルをAIに作らせる
-            </button>
-          </div>
-          <button className="btn-primary w-full" onClick={save}>
-            保存して戻る
-          </button>
-          {canDelete && (
-            <button
-              className="w-full text-center text-xs"
-              style={{ color: "var(--c-danger)" }}
-              onClick={async () => {
-                await fetch(`/api/situations/${situationId}/characters/${c.id}`, { method: "DELETE" });
-                onClose(null, true);
-              }}
-            >
-              このキャラを削除
-            </button>
-          )}
-        </div>
-      </div>
     </div>
   );
 }

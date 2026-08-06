@@ -474,7 +474,7 @@ export function StoryReader(props: {
             className="input max-h-28 flex-1 resize-none"
             placeholder="セリフか、*動作* を書く…"
             value={input}
-            disabled={generating}
+            disabled={generating || !messages}
             onChange={(e) => {
               setInput(e.target.value);
               e.target.style.height = "auto";
@@ -482,13 +482,18 @@ export function StoryReader(props: {
             }}
           />
           {input.trim() ? (
-            <button aria-label="送信" className="btn-primary px-4 py-2.5" disabled={generating} onClick={() => send(input)}>
+            <button
+              aria-label="送信"
+              className="btn-primary px-4 py-2.5"
+              disabled={generating || !messages}
+              onClick={() => send(input)}
+            >
               ▶
             </button>
           ) : (
             <button
               className="btn-ghost whitespace-nowrap px-3 py-2.5 text-sm"
-              disabled={generating}
+              disabled={generating || !messages}
               onClick={() => send("")}
             >
               つづきを読む
@@ -561,7 +566,7 @@ export function StoryReader(props: {
                   });
                   if (r.ok) {
                     const st = await r.json();
-                    location.href = `/story/${st.id}`;
+                    router.push(`/story/${st.id}`);
                   }
                 }}
               >

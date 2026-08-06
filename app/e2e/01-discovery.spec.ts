@@ -55,10 +55,18 @@ test.describe("発見フロー", () => {
 
     await page.getByTestId("tag-option").getByText("秘密", { exact: true }).click();
     await expect(page.getByTestId("selected-tag").getByText("秘密")).toBeVisible();
-    // AND検索: 両タグを持つ作品のみ
-    for (const el of await page.getByTestId("search-result").all()) {
-      await expect(el).toBeVisible();
-    }
+
+    // AND検索: 表示結果が「執着かつ秘密」の集合と一致する
+    const expected = await page
+      .request.get("/api/search?tags=" + encodeURIComponent("執着,秘密"))
+      .then((r) => r.json())
+      .then((j: { items: { title: string }[] }) => j.items.map((i) => i.title).sort());
+    expect(expected.length).toBeGreaterThan(0);
+    await expect(page.getByTestId("search-result")).toHaveCount(expected.length);
+    const shown = (await page.getByTestId("search-result").allInnerTexts())
+      .map((t) => t.split("\n")[0])
+      .sort();
+    expect(shown).toEqual(expected);
 
     await page.getByRole("button", { name: "新着" }).click();
     await expect(page).toHaveURL(/sort=new/);

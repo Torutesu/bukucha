@@ -17,18 +17,30 @@ export default defineConfig({
     viewport: { width: 390, height: 844 }, // SPファースト
     locale: "ja-JP",
   },
-  projects: [{ name: "mobile-chrome", use: { ...devices["Pixel 7"] } }],
+  projects: [
+    {
+      name: "mobile-chrome",
+      use: {
+        ...devices["Pixel 7"],
+        // 画像同梱のchromiumを使用(playwright 1.62のpinビルドとズレるため)
+        launchOptions: { executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome" },
+      },
+    },
+  ],
   webServer: {
     command: `npm run dev -- -p ${PORT}`,
     url: `http://localhost:${PORT}`,
     reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    timeout: 180_000,
     env: {
       DATABASE_URL: E2E_DB,
       AUTH_SECRET: "e2e-secret",
       AUTH_DEV_MODE: "true",
+      AUTH_TRUST_HOST: "true",
       LLM_PROVIDER: "mock",
       E2E_MODE: "1",
+      GENERATION_TIMEOUT_MS: "15000",
+      NODE_ENV: "development",
     },
   },
 });
