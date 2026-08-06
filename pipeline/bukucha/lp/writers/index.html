@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Bukucha 公認クリエイター第0期募集 — その妄想、待ってる読者がいる。</title>
+  <meta name="description" content="文章力はいりません。妄想を一文送るだけで応募完了。AIと一緒に「自分の欲望どおりのシチュエーション」を物語にする Bukucha が、公認クリエイター第0期と編集メンバーを募集します。制作料と収益分配を最初から公約。">
+
+  <!-- [要確認] 公開ドメイン確定後に差し替え -->
+  <link rel="canonical" href="https://bukucha.example/writers/">
+
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://bukucha.example/writers/">
+  <meta property="og:title" content="Bukucha 公認クリエイター第0期募集">
+  <meta property="og:description" content="その妄想、待ってる読者がいる。文章力不要・匿名OK・報酬あり。応募は妄想一文だけ。">
+  <meta property="og:image" content="https://bukucha.example/writers/og-ja.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:locale" content="ja_JP">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "name": "Bukucha 公認クリエイター第0期募集",
+    "description": "シチュエーション起点のAIノベルチャット Bukucha による公認クリエイター・編集メンバー募集ページ",
+    "inLanguage": "ja"
+  }
+  </script>
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%238E3A55'/%3E%3Ctext x='16' y='22' font-size='16' text-anchor='middle' fill='%23FAF6F2' font-family='serif'%3E簿%3C/text%3E%3C/svg%3E">
+
+  <style>
+    :root {
+      --bg: #FAF6F2;
+      --bg-soft: #F3E4E9;
+      --ink: #33262B;
+      --ink-soft: #6B555E;
+      --accent: #8E3A55;
+      --accent-deep: #6E2B42;
+      --line: #E4D5DB;
+      --serif: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "BIZ UDPMincho", serif;
+      --sans: "Hiragino Kaku Gothic ProN", "Yu Gothic", "YuGothic", system-ui, sans-serif;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 16px;
+      line-height: 1.9;
+      letter-spacing: 0.02em;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrap { max-width: 640px; margin: 0 auto; padding: 0 24px; }
+    a:focus-visible, button:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--accent);
+      outline-offset: 3px;
+      border-radius: 4px;
+    }
+
+    header.site {
+      padding: 20px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    header.site .wrap { display: flex; align-items: baseline; gap: 12px; }
+    .logo { font-family: var(--serif); font-size: 1.4rem; font-weight: 700; color: var(--accent-deep); }
+    .logo-tag { font-size: 0.78rem; color: var(--ink-soft); }
+
+    .hero { padding: 72px 0 56px; text-align: center; }
+    .hero .kicker {
+      display: inline-block;
+      font-size: 0.8rem;
+      letter-spacing: 0.18em;
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      border-radius: 999px;
+      padding: 4px 16px;
+      margin-bottom: 28px;
+    }
+    h1 {
+      font-family: var(--serif);
+      font-size: clamp(1.7rem, 6vw, 2.5rem);
+      line-height: 1.6;
+      font-weight: 700;
+      margin-bottom: 20px;
+    }
+    .hero .lede { color: var(--ink-soft); margin-bottom: 36px; }
+    .hero .lede strong { color: var(--ink); }
+
+    .cta {
+      display: inline-block;
+      background: var(--accent);
+      color: #FFFFFF;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 1.05rem;
+      padding: 16px 44px;
+      border-radius: 999px;
+      transition: background 0.2s;
+    }
+    .cta:hover { background: var(--accent-deep); }
+    .cta-note { margin-top: 14px; font-size: 0.82rem; color: var(--ink-soft); }
+
+    section { padding: 56px 0; }
+    section + section { border-top: 1px solid var(--line); }
+    h2 {
+      font-family: var(--serif);
+      font-size: 1.45rem;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 12px;
+    }
+    .h2-sub { text-align: center; font-size: 0.85rem; color: var(--accent); letter-spacing: 0.14em; margin-bottom: 32px; }
+
+    .about p + p { margin-top: 1em; }
+    .about .quote {
+      font-family: var(--serif);
+      background: var(--bg-soft);
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin: 24px 0;
+      color: var(--accent-deep);
+    }
+
+    .cards { display: grid; gap: 20px; }
+    .card {
+      background: #FFFFFF;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 26px 24px;
+    }
+    .card .num {
+      font-family: var(--serif);
+      color: var(--accent);
+      font-size: 0.85rem;
+      letter-spacing: 0.14em;
+      display: block;
+      margin-bottom: 6px;
+    }
+    .card h3 { font-family: var(--serif); font-size: 1.15rem; margin-bottom: 10px; }
+    .card p { font-size: 0.95rem; color: var(--ink-soft); }
+    .card p strong { color: var(--ink); }
+
+    .want ul { list-style: none; }
+    .want li {
+      padding: 14px 0 14px 34px;
+      border-bottom: 1px dashed var(--line);
+      position: relative;
+    }
+    .want li::before {
+      content: "♥";
+      position: absolute;
+      left: 4px;
+      color: var(--accent);
+    }
+    .want .note { margin-top: 20px; font-size: 0.88rem; color: var(--ink-soft); }
+
+    table.reqs { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+    table.reqs th, table.reqs td { padding: 13px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    table.reqs th { width: 8em; color: var(--accent-deep); font-weight: 700; white-space: nowrap; }
+
+    .flow ol { list-style: none; counter-reset: step; }
+    .flow li {
+      counter-increment: step;
+      display: flex;
+      gap: 18px;
+      padding: 18px 0;
+      border-bottom: 1px dashed var(--line);
+      align-items: baseline;
+    }
+    .flow li::before {
+      content: counter(step);
+      font-family: var(--serif);
+      color: #FFFFFF;
+      background: var(--accent);
+      min-width: 2em;
+      height: 2em;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      align-self: flex-start;
+      margin-top: 0.3em;
+    }
+    .flow li strong { display: block; font-family: var(--serif); font-size: 1.05rem; }
+    .flow li span { font-size: 0.92rem; color: var(--ink-soft); }
+
+    details {
+      border-bottom: 1px solid var(--line);
+      padding: 4px 0;
+    }
+    summary {
+      cursor: pointer;
+      font-weight: 700;
+      padding: 14px 4px;
+      list-style: none;
+      position: relative;
+      padding-right: 2em;
+    }
+    summary::-webkit-details-marker { display: none; }
+    summary::after {
+      content: "+";
+      position: absolute;
+      right: 8px;
+      color: var(--accent);
+      font-family: var(--serif);
+    }
+    details[open] summary::after { content: "−"; }
+    details p { padding: 0 4px 18px; font-size: 0.95rem; color: var(--ink-soft); }
+
+    .last-cta { text-align: center; background: var(--bg-soft); }
+    .last-cta h2 { margin-bottom: 8px; }
+    .last-cta p { color: var(--ink-soft); margin-bottom: 30px; }
+
+    footer.site {
+      background: var(--ink);
+      color: #EFE6EA;
+      padding: 36px 0;
+      font-size: 0.82rem;
+      text-align: center;
+    }
+    footer.site .logo { color: #EFE6EA; margin-bottom: 8px; display: block; }
+    footer.site p { opacity: 0.75; }
+
+    @media (min-width: 560px) {
+      .cards { grid-template-columns: 1fr; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap">
+    <span class="logo">Bukucha</span>
+    <span class="logo-tag">シチュエーション起点のAIノベルチャット</span>
+  </div>
+</header>
+
+<main>
+  <div class="hero">
+    <div class="wrap">
+      <span class="kicker">公認クリエイター 第0期募集</span>
+      <h1>その妄想、<br>待ってる読者がいる。</h1>
+      <p class="lede">
+        文章力は、いりません。<br>
+        <strong>一番好きなシチュエーションを、一文だけ</strong>持ってきてください。<br>
+        AIとあなたで、それを「読める物語」にします。
+      </p>
+      <a class="cta" href="#apply">妄想一文で応募する</a>
+      <p class="cta-note">所要1分 ／ 匿名・ペンネームOK ／ 経験不問</p>
+    </div>
+  </div>
+
+  <section class="about" aria-labelledby="about-h">
+    <div class="wrap">
+      <h2 id="about-h">Bukuchaとは</h2>
+      <p class="h2-sub">SITUATION FIRST</p>
+      <p>
+        Bukuchaは、「執着」「身分差」「幼なじみ」——<em>自分の欲望どおりのシチュエーション</em>をAIと共作して読む、女性向けのノベル型AIチャットです。キャラが先ではなく、シチュエーションが先。有名IPも二次創作もない、オリジナルの妄想だけの場所です。
+      </p>
+      <p class="quote">
+        「政略結婚した冷徹な夫が、雨の夜だけ様子がおかしい」<br>
+        ——そんな一文から、物語は始まります。
+      </p>
+      <p>
+        あなたの一文をAIが下書きにし、あなたが「もっとこう」を重ねて仕上げる。書き上げた物語は読者と対話しながら無限に続いていきます。
+      </p>
+    </div>
+  </section>
+
+  <section aria-labelledby="promise-h">
+    <div class="wrap">
+      <h2 id="promise-h">3つの約束</h2>
+      <p class="h2-sub">OUR PROMISE</p>
+      <div class="cards">
+        <div class="card">
+          <span class="num">約束 01</span>
+          <h3>文章力は問いません</h3>
+          <p>作成は「一文 → AI下書き → あなたが監修」。要るのは文章力ではなく<strong>妄想力と、感情の機微への解像度</strong>です。BL・夢小説・TL・乙女ゲームを浴びて生きてきた、その蓄積こそが才能です。</p>
+        </div>
+        <div class="card">
+          <span class="num">約束 02</span>
+          <h3>編集者がつきます</h3>
+          <p>あなたの作品を読み、読者の反応データを見て、「ここを直すともっと読まれる」を具体的に返す<strong>専任の伴走者</strong>がつきます。投稿して終わり、伸びなくて放置——にはしません。国内のAIチャットサービスでこれをやるのは、私たちだけです。</p>
+        </div>
+        <div class="card">
+          <span class="num">約束 03</span>
+          <h3>ちゃんと報われます</h3>
+          <p>公認クリエイターには<strong>作品ごとの制作料</strong>をお支払いします。さらに、課金機能の開始と同時に<strong>収益分配（レベニューシェア）を開始することをいま公約</strong>します。あとから条件を悪くする「後出し」はしません。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="want" aria-labelledby="want-h">
+    <div class="wrap">
+      <h2 id="want-h">こんなあなたを探しています</h2>
+      <p class="h2-sub">WANTED</p>
+      <ul>
+        <li>「この関係性が最高」を語り始めると止まらない</li>
+        <li>好きなシチュエーションの妄想が、日常的に脳内再生されている</li>
+        <li>BL・夢小説・TL・乙女ゲームのいずれかの文化圏で長く生きてきた</li>
+        <li>作品の「どこで刺さるか／どこで冷めるか」を言葉にできる</li>
+        <li>小説を書いたことは、あってもなくてもいい</li>
+      </ul>
+      <p class="note">※「読むの専門」だった方こそ歓迎します。読者として鍛えた目は、そのまま作り手の武器になります。作品の診断・改善が得意な方は<strong>編集メンバー</strong>としての参加も打診します（選考は共通です）。</p>
+    </div>
+  </section>
+
+  <section aria-labelledby="req-h">
+    <div class="wrap">
+      <h2 id="req-h">募集要項</h2>
+      <p class="h2-sub">第0期</p>
+      <table class="reqs">
+        <tr><th>募集枠</th><td>公認クリエイター 20名 ／ 編集メンバー 若干名</td></tr>
+        <tr><th>契約形態</th><td>業務委託（副業・掛け持ち可、完全リモート）</td></tr>
+        <tr><th>お願いすること</th><td>シチュエーション作品の制作（月2本程度から相談）、編集メンバーは作品レビューと改善提案</td></tr>
+        <tr><th>報酬</th><td>作品ごとの制作料 ＋ 課金開始後の収益分配（詳細は面談時にご説明します）</td></tr>
+        <tr><th>活動名義</th><td>ペンネーム可・顔出し不要</td></tr>
+        <tr><th>禁止事項</th><td>二次創作（既存作品のキャラ・設定）は取り扱いません。オリジナルのみ</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section class="flow" aria-labelledby="flow-h">
+    <div class="wrap">
+      <h2 id="flow-h">応募から参加まで</h2>
+      <p class="h2-sub">3 STEPS</p>
+      <ol>
+        <li>
+          <div>
+            <strong>妄想を一文、送る</strong>
+            <span>フォームに「一番好きなシチュエーション」を一文で書いて送信。これだけで応募完了です。</span>
+          </div>
+        </li>
+        <li>
+          <div>
+            <strong>30分のミニ課題</strong>
+            <span>一文シチュから「最初の3往復」を箇条書きで設計していただきます。文章の上手さは見ません。</span>
+          </div>
+        </li>
+        <li>
+          <div>
+            <strong>オンラインでお話</strong>
+            <span>報酬・進め方をご説明して、合意できたら公認クリエイター契約へ。</span>
+          </div>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section aria-labelledby="faq-h">
+    <div class="wrap">
+      <h2 id="faq-h">よくある質問</h2>
+      <p class="h2-sub">FAQ</p>
+      <details>
+        <summary>小説を書いたことがありません</summary>
+        <p>問題ありません。Bukuchaの作成体験は「一文→AI下書き→監修」なので、必要なのは文章力ではなく「何が刺さるか」の解像度です。選考課題でも文章の巧拙は評価しません。</p>
+      </details>
+      <details>
+        <summary>本名や顔を出したくありません</summary>
+        <p>活動はペンネームで完結します。顔出しも不要です。契約・お支払いのために運営にのみ本名をお知らせいただきます（厳重に管理し、公開されることはありません）。</p>
+      </details>
+      <details>
+        <summary>報酬は具体的にいくらですか？</summary>
+        <p>作品ごとの制作料と、課金開始後の収益分配の二本立てです。金額と料率は選考を通過された方に面談で提示します。「収益分配を最初から公約する」ことが私たちの方針です。</p>
+      </details>
+      <details>
+        <summary>他の投稿サイトや同人活動と掛け持ちできますか？</summary>
+        <p>できます。専属契約ではありません（Bukuchaに書き下ろしていただいた作品の扱いのみ、契約時に取り決めます）。</p>
+      </details>
+      <details>
+        <summary>二次創作でも応募できますか？</summary>
+        <p>Bukuchaはオリジナル作品のみのプラットフォームのため、二次創作は取り扱えません。ただし「二次創作で鍛えた関係性の解像度」をオリジナルに向ける方は大歓迎です。</p>
+      </details>
+    </div>
+  </section>
+
+  <section class="last-cta" id="apply" aria-labelledby="apply-h">
+    <div class="wrap">
+      <h2 id="apply-h">さいごに</h2>
+      <p>
+        あなたの脳内にしかなかった「最高のシチュエーション」を、<br>
+        待っている読者に届けませんか。
+      </p>
+      <!-- [要確認] 応募フォームURL確定後に差し替え -->
+      <a class="cta" href="#apply">妄想一文で応募する</a>
+      <p class="cta-note">応募フォームは準備中です（URL確定後に有効化）</p>
+    </div>
+  </section>
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <span class="logo">Bukucha</span>
+    <p>運営: ［運営法人名 — 設立後に記載］<br>© 2026 Bukucha. All rights reserved.</p>
+  </div>
+</footer>
+
+</body>
+</html>
