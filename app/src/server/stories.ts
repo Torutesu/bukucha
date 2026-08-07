@@ -4,6 +4,7 @@ import { llm } from "@/lib/llm";
 import {
   buildChatMessages,
   buildRecapMessages,
+  buildSuggestMessages,
   buildSummaryMessages,
 } from "@/lib/prompt";
 import { expressionProfile, visibleLevels } from "@/lib/policy";
@@ -143,9 +144,12 @@ export async function* storyTurn(
     userInput,
   });
 
-  // AIF-005: 選択肢はユーザーの2ターンに1回(この往復を含めて偶数ターン目に提示)
+  // AIF-005: 選択肢はユーザーの2ターンに1回(この往復を含めて偶数ターン目に提示)。
+  // Story.choicesEnabled=false なら常に付けない(Zetaの選択肢ON/OFF切替)
   const userTurnsIncludingThis = live.filter((m) => m.role === "USER").length + 1;
-  const wantChoices = rerollTarget === null && userTurnsIncludingThis % 2 === 0;
+  const wantChoices =
+    story.choicesEnabled && rerollTarget === null && userTurnsIncludingThis % 2 === 0;
+  const tier = story.useMidModel ? ("mid" as const) : ("light" as const);
 
   const timeoutMs = Number(process.env.GENERATION_TIMEOUT_MS ?? 20_000);
   const abort = new AbortController();
@@ -158,6 +162,7 @@ export async function* storyTurn(
   try {
     const gen = llm().stream("chat", messages, {
       wantChoices,
+      tier,
       instruction: input.instruction,
       signal: abort.signal,
     });
@@ -198,7 +203,7 @@ export async function* storyTurn(
     if (rerollTarget !== null) {
       const msg = await tx.storyMessage.update({
         where: { storyId_idx: { storyId, idx: rerollTarget } },
-        data: { content: full, choices: choices ?? undefined, modelUsed: process.env.LLM_PROVIDER ?? "openai" },
+        data: { content: full, choices: choices ?? undefined, modelUsed: `${process.env.LLM_PROVIDER ?? "openai"}:${tier}` },
       });
       return msg;
     }
@@ -227,7 +232,7 @@ export async function* storyTurn(
         role: "AI",
         content: full,
         choices: choices ?? undefined,
-        modelUsed: process.env.LLM_PROVIDER ?? "openai",
+        modelUsed: `${process.env.LLM_PROVIDER ?? "openai"}:${tier}`,
       },
     });
     await tx.story.update({ where: { id: storyId }, data: { lastMessageAt: new Date() } });
@@ -297,6 +302,126 @@ export async function refreshRecap(user: User, storyId: string) {
     });
     return { lastRecap: fallback };
   }
+}
+
+/**
+ * AIF-008: 返信候補(ユーザー側セリフの代筆)。
+ * 1日50回・朝9時JSTリセット(=UTC 0時。dateKeyはUTC日付)。E2Eでは suggestlimit* ユーザーの上限を2に固定
+ */
+export async function suggestReplies(user: User, storyId: string) {
+  const story = await getStory(user, storyId);
+  const limit =
+    process.env.E2E_MODE === "1" && user.email?.startsWith("suggestlimit")
+      ? 2
+      : Number(process.env.SUGGEST_DAILY_LIMIT ?? 50);
+  const dateKey = new Date().toISOString().slice(0, 10);
+  const fresh = await db.user.findUniqueOrThrow({
+    where: { id: user.id },
+    select: { suggestDate: true, suggestUsed: true },
+  });
+  const used = fresh.suggestDate === dateKey ? fresh.suggestUsed : 0;
+  if (used >= limit) {
+    throw new HttpError(
+      429,
+      "suggest_quota",
+      "今日の返信候補はここまで。あす朝9時にまた使えます"
+    );
+  }
+
+  const recent = story.messages
+    .filter((m) => m.role !== "SYSTEM")
+    .slice(-RECENT_TURNS);
+  const raw = await llm().complete(
+    "suggest",
+    buildSuggestMessages({
+      situation: story.situation,
+      intro: story.introVariant,
+      memory: story.memory,
+      persona: story.persona,
+      recentMessages: recent,
+      expression: expressionProfile(story.situation.contentLevel, user),
+    }),
+    { json: true }
+  );
+  let suggestions: string[] = [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed?.suggestions)) {
+      suggestions = parsed.suggestions
+        .filter((s: unknown): s is string => typeof s === "string" && s.trim().length > 0)
+        .slice(0, 2);
+    }
+  } catch {
+    /* fall through */
+  }
+  if (!suggestions.length) throw new HttpError(502, "suggest_failed", "候補を作れませんでした");
+
+  await db.user.update({
+    where: { id: user.id },
+    data: { suggestDate: dateKey, suggestUsed: used + 1 },
+  });
+  return { suggestions, remaining: limit - used - 1 };
+}
+
+/** AI応答のペン編集(Zeta: AI返信のみ直接編集可) */
+export async function editMessage(user: User, storyId: string, idx: number, content: string) {
+  await getStory(user, storyId);
+  const body = content.trim();
+  if (!body || body.length > 4000) throw new HttpError(422, "invalid_content");
+  const target = await db.storyMessage.findUnique({
+    where: { storyId_idx: { storyId, idx } },
+  });
+  if (!target || target.isDeleted || target.role !== "AI")
+    throw new HttpError(422, "invalid_target", "AIの応答のみ編集できます");
+  return db.storyMessage.update({
+    where: { storyId_idx: { storyId, idx } },
+    data: { content: body },
+  });
+}
+
+/**
+ * ここから分岐(並行ルート)。atIdxまでのメッセージを新しいStoryへ複製する。
+ * Zetaの「キャラ毎に複数セッション=並行世界」+ USER-REQ「自分で物語の分岐を作れる」
+ */
+export async function branchStory(user: User, storyId: string, atIdx: number) {
+  const src = await getStory(user, storyId);
+  const copy = src.messages.filter((m) => m.idx <= atIdx);
+  if (!copy.length) throw new HttpError(422, "invalid_branch");
+  const branched = await db.$transaction(async (tx) => {
+    const st = await tx.story.create({
+      data: {
+        userId: user.id,
+        situationId: src.situationId,
+        introVariantId: src.introVariantId,
+        personaId: src.personaId,
+        branchedFromStoryId: src.id,
+        choicesEnabled: src.choicesEnabled,
+        useMidModel: src.useMidModel,
+        memory: {
+          create: {
+            summary: src.memory?.summary ?? "",
+            summaryAtIdx: Math.min(src.memory?.summaryAtIdx ?? 0, atIdx),
+            userNote: src.memory?.userNote ?? "",
+          },
+        },
+      },
+    });
+    await tx.storyMessage.createMany({
+      data: copy.map((m) => ({
+        storyId: st.id,
+        idx: m.idx,
+        role: m.role,
+        content: m.content,
+        selectedChoice: m.selectedChoice,
+      })),
+    });
+    await tx.situation.update({
+      where: { id: src.situationId },
+      data: { storyCount: { increment: 1 } },
+    });
+    return st;
+  });
+  return branched;
 }
 
 export async function rewindStory(user: User, storyId: string, toIdx: number) {

@@ -110,6 +110,28 @@ export function buildDraftMessages(fantasy: string): LlmMessage[] {
   ];
 }
 
+/** AIF-008: 返信候補(ユーザー側セリフの代筆)。JSONで2案返す */
+export function buildSuggestMessages(input: Omit<ChatPromptInput, "userInput">): LlmMessage[] {
+  const base = buildChatMessages({ ...input, userInput: "" });
+  const system = base[0].content;
+  const history = base.slice(1, -1); // 末尾の「続きを進めて」は除く
+  return [
+    {
+      role: "system",
+      content: `${system}
+
+【今回のタスク】
+あなたは物語の続きを書くのではなく、主人公(読者)の次の一手を代筆します。
+直近の展開に対する主人公側の返答・行動の候補を、方向性の異なる2案、JSONのみで出力:
+{"suggestions":["...","..."]}
+- 各案は60字以内。セリフは「」、行動・地の文は *〜* で書く(例: *目を伏せる* 「知らない」)
+- 1案は素直・従順な方向、もう1案は踏み込む・抗う方向にする`,
+    },
+    ...history,
+    { role: "user", content: "(主人公の次の返答候補を2案、JSONで)" },
+  ];
+}
+
 export function buildSummaryMessages(
   prevSummary: string,
   newMessages: Pick<StoryMessage, "role" | "content">[]

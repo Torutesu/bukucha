@@ -52,18 +52,22 @@ test.describe("安全・ソーシャル", () => {
     const like = page.getByTestId("like-button");
     const before = Number(await like.getAttribute("data-count"));
 
-    await like.click();
+    // クリックはハイドレーション前に空振りしうるため冪等リトライで収束させる
+    await expect(async () => {
+      if ((await like.getAttribute("data-liked")) === "false") await like.click();
+      await expect(like).toHaveAttribute("data-liked", "true", { timeout: 1_500 });
+    }).toPass({ timeout: 15_000 });
     await expect(like).toHaveAttribute("data-count", String(before + 1));
-    await expect(like).toHaveAttribute("data-liked", "true");
 
     await page.goto("/me");
     await expect(page.getByTestId("liked-row").getByTestId("situation-card")).toHaveCount(1);
 
     await page.goBack();
-    await page.getByTestId("like-button").click();
-    await expect(page.getByTestId("like-button")).toHaveAttribute(
-      "data-count",
-      String(before)
-    );
+    const like2 = page.getByTestId("like-button");
+    await expect(async () => {
+      if ((await like2.getAttribute("data-liked")) === "true") await like2.click();
+      await expect(like2).toHaveAttribute("data-liked", "false", { timeout: 1_500 });
+    }).toPass({ timeout: 15_000 });
+    await expect(like2).toHaveAttribute("data-count", String(before));
   });
 });

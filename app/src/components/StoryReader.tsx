@@ -20,6 +20,13 @@ interface GuestStory {
   messages: { role: "USER" | "AI"; content: string }[];
 }
 
+interface RouteItem {
+  id: string;
+  createdAt: string;
+  branchedFromStoryId: string | null;
+  messages: { idx: number; content: string }[];
+}
+
 /** ユーザー入力の *〜* を地の文(em)として描画 */
 function UserContent({ text }: { text: string }) {
   const parts = text.split(/(\*[^*]+\*)/g);
@@ -28,6 +35,25 @@ function UserContent({ text }: { text: string }) {
       {parts.map((p, i) =>
         p.startsWith("*") && p.endsWith("*") ? <em key={i}>{p.slice(1, -1)}</em> : <span key={i}>{p}</span>
       )}
+    </>
+  );
+}
+
+/** AI応答のノベル組版: 「」セリフを強調、*〜* は地の文(em)扱い */
+function AiContent({ text }: { text: string }) {
+  const parts = text.split(/(\*[^*]+\*|「[^」]*」)/g);
+  return (
+    <>
+      {parts.map((p, i) => {
+        if (p.startsWith("*") && p.endsWith("*")) return <em key={i}>{p.slice(1, -1)}</em>;
+        if (p.startsWith("「") && p.endsWith("」"))
+          return (
+            <span key={i} className="dialogue">
+              {p}
+            </span>
+          );
+        return <span key={i}>{p}</span>;
+      })}
     </>
   );
 }
@@ -60,11 +86,28 @@ export function StoryReader(props: {
   const [summary, setSummary] = useState("");
   const [savedToast, setSavedToast] = useState(false);
   const [guestGate, setGuestGate] = useState(false);
+  // Zeta詳細インタラクション
+  const [suggestions, setSuggestions] = useState<string[] | null>(null);
+  const [suggestLoading, setSuggestLoading] = useState(false);
+  const [suggestRemaining, setSuggestRemaining] = useState<number | null>(null);
+  const [suggestNotice, setSuggestNotice] = useState<string | null>(null);
+  const [selectedAiIdx, setSelectedAiIdx] = useState<number | null>(null);
+  const [editingIdx, setEditingIdx] = useState<number | null>(null);
+  const [editText, setEditText] = useState("");
+  const [routesOpen, setRoutesOpen] = useState(false);
+  const [routes, setRoutes] = useState<RouteItem[] | null>(null);
+  const [choicesEnabled, setChoicesEnabled] = useState(true);
+  const [useMidModel, setUseMidModel] = useState(false);
+  const [showLatestChip, setShowLatestChip] = useState(false);
+  const [headerHidden, setHeaderHidden] = useState(false);
   const guestRef = useRef<GuestStory | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const pressStartRef = useRef(0);
   const rerollingRef = useRef(false);
+  const atBottomRef = useRef(true);
+  const lastScrollYRef = useRef(0);
+  const programmaticScrollRef = useRef(false);
 
   // 初期ロード
   useEffect(() => {
@@ -106,6 +149,8 @@ export function StoryReader(props: {
         const st = await r.json();
         setTitle(st.situation.title);
         setSituationId(st.situation.id);
+        setChoicesEnabled(st.choicesEnabled ?? true);
+        setUseMidModel(st.useMidModel ?? false);
         setMessages(
           st.messages.map((m: ReaderMessage & { choices: unknown }) => ({
             idx: m.idx,
@@ -127,8 +172,42 @@ export function StoryReader(props: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.mode, props.storyId]);
 
+  // スクロール追従: ユーザーが上に戻ったら自動追従を止め「↓最新へ」チップを出す。
+  // 下方向スクロールでヘッダーを隠す(没入モード)
   useEffect(() => {
+    const onScroll = () => {
+      const el = document.documentElement;
+      const fromBottom = el.scrollHeight - window.scrollY - window.innerHeight;
+      const atBottom = fromBottom < 120;
+      atBottomRef.current = atBottom;
+      setShowLatestChip(!atBottom);
+      const y = window.scrollY;
+      // 自動スクロール(送信後・ロード後の追従)ではヘッダーを隠さない
+      if (programmaticScrollRef.current) {
+        programmaticScrollRef.current = false;
+        lastScrollYRef.current = y;
+        return;
+      }
+      setHeaderHidden(y > 56 && y > lastScrollYRef.current + 2);
+      if (y < lastScrollYRef.current - 2 || y <= 56) setHeaderHidden(false);
+      lastScrollYRef.current = y;
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const scrollToLatest = useCallback(() => {
+    programmaticScrollRef.current = true;
     bottomRef.current?.scrollIntoView({ block: "end" });
+    atBottomRef.current = true;
+    setShowLatestChip(false);
+  }, []);
+
+  useEffect(() => {
+    if (atBottomRef.current) {
+      programmaticScrollRef.current = true;
+      bottomRef.current?.scrollIntoView({ block: "end" });
+    }
   }, [messages, streamText]);
 
   const guestUserCount = messages?.filter((m) => m.role === "USER").length ?? 0;
@@ -139,6 +218,10 @@ export function StoryReader(props: {
       setBlockedMsg(null);
       setQuotaMsg(null);
       setErrorMsg(null);
+      setSuggestions(null);
+      setSuggestNotice(null);
+      setSelectedAiIdx(null);
+      setEditingIdx(null);
 
       if (props.mode === "guest" && guestUserCount >= 3 && content.trim()) {
         localStorage.setItem("bukucha_guest_pending", content);
@@ -161,6 +244,9 @@ export function StoryReader(props: {
       setInput("");
       setGenerating(true);
       setStreamText("");
+      // 送信時は最新に追従する(Zeta同様、送った瞬間は必ず最下部へ)
+      atBottomRef.current = true;
+      setShowLatestChip(false);
 
       const restore = () => {
         if (!isContinue) {
@@ -251,6 +337,8 @@ export function StoryReader(props: {
       if (!lastAi) return;
       setGenerating(true);
       setStreamText("");
+      setSelectedAiIdx(null);
+      setEditingIdx(null);
       rerollingRef.current = true;
       // 対象を一旦本文から外す
       setMessages((prev) => prev!.filter((m) => m.idx !== lastAi.idx));
@@ -295,20 +383,103 @@ export function StoryReader(props: {
       setMessages((prev) => prev!.filter((m) => m.idx <= rewindIdx));
       setRewindMode(false);
       setRewindIdx(null);
+      setSelectedAiIdx(null);
       inputRef.current?.focus();
     }
+  };
+
+  // AIF-008: 返信候補
+  const fetchSuggestions = useCallback(async () => {
+    if (generating || suggestLoading || props.mode === "guest") return;
+    setSuggestLoading(true);
+    setSuggestNotice(null);
+    try {
+      const r = await fetch(`/api/stories/${props.storyId}/suggest`, { method: "POST" });
+      const d = await r.json();
+      if (r.ok) {
+        setSuggestions(d.suggestions);
+        setSuggestRemaining(d.remaining);
+      } else {
+        setSuggestNotice(d?.error?.message ?? "候補を作れませんでした");
+      }
+    } catch {
+      setSuggestNotice("通信に失敗しました");
+    } finally {
+      setSuggestLoading(false);
+    }
+  }, [generating, suggestLoading, props.mode, props.storyId]);
+
+  // AI応答のペン編集
+  const startEdit = (m: ReaderMessage) => {
+    setEditingIdx(m.idx);
+    setEditText(m.content);
+    setSelectedAiIdx(null);
+  };
+  const saveEdit = async () => {
+    if (editingIdx === null) return;
+    const r = await fetch(`/api/stories/${props.storyId}/messages/${editingIdx}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ content: editText }),
+    });
+    if (r.ok) {
+      const d = await r.json();
+      setMessages((prev) => prev!.map((m) => (m.idx === d.idx ? { ...m, content: d.content } : m)));
+      setEditingIdx(null);
+    }
+  };
+
+  // ここから分岐(並行ルート)
+  const branchAt = async (atIdx: number) => {
+    const r = await fetch(`/api/stories/${props.storyId}/branch`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ atIdx }),
+    });
+    if (r.ok) {
+      const d = await r.json();
+      router.push(`/story/${d.id}`);
+    }
+  };
+
+  const openRoutes = async () => {
+    setMenuOpen(false);
+    setRoutesOpen(true);
+    setRoutes(null);
+    const r = await fetch(`/api/stories?situationId=${situationId}`);
+    if (r.ok) {
+      const d = await r.json();
+      setRoutes(d.items);
+    }
+  };
+
+  const patchStorySetting = async (patch: { choicesEnabled?: boolean; useMidModel?: boolean }) => {
+    if (typeof patch.choicesEnabled === "boolean") setChoicesEnabled(patch.choicesEnabled);
+    if (typeof patch.useMidModel === "boolean") setUseMidModel(patch.useMidModel);
+    await fetch(`/api/stories/${props.storyId}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(patch),
+    });
   };
 
   const lastAiWithChoices = messages
     ? [...messages].reverse().find((m) => m.role === "AI" && m.choices && m.choices.length)
     : undefined;
   const isLatest = lastAiWithChoices && messages && lastAiWithChoices.idx === messages[messages.length - 1].idx;
+  const inputHasNarration = /\*[^*]+\*/.test(input);
 
   return (
     <div className="flex min-h-dvh flex-col" style={{ background: "var(--c-novelBg)" }}>
       <header
         className="sticky top-0 z-10 flex items-center justify-between border-b px-4 py-2.5"
-        style={{ background: "color-mix(in oklab, var(--c-novelBg) 92%, transparent)", borderColor: "var(--c-border)", backdropFilter: "blur(6px)" }}
+        style={{
+          background: "color-mix(in oklab, var(--c-novelBg) 92%, transparent)",
+          borderColor: "var(--c-border)",
+          backdropFilter: "blur(6px)",
+          transform: headerHidden && !menuOpen ? "translateY(-110%)" : "translateY(0)",
+          transition: "transform 0.25s ease",
+        }}
       >
         <button
           aria-label="戻る"
@@ -319,6 +490,11 @@ export function StoryReader(props: {
         </button>
         <p className="mx-2 flex-1 truncate text-center text-xs" style={{ color: "var(--c-textMuted)" }}>
           {title}
+          {useMidModel && (
+            <span data-testid="model-chip" className="ml-1" title="高品質モデル">
+              🖋
+            </span>
+          )}
         </p>
         <button aria-label="メニュー" className="text-lg" onClick={() => setMenuOpen(true)}>
           ⋯
@@ -331,7 +507,7 @@ export function StoryReader(props: {
           {messages?.map((m) => {
             if (m.role === "SYSTEM")
               return (
-                <div key={m.idx} className="whitespace-pre-wrap opacity-90" data-testid="intro-line">
+                <div key={m.idx} className="fade-in whitespace-pre-wrap opacity-90" data-testid="intro-line">
                   <p className="mb-2 text-center text-xs tracking-widest" style={{ color: "var(--c-textMuted)" }}>
                     ── 導入 ──
                   </p>
@@ -356,16 +532,82 @@ export function StoryReader(props: {
                   </div>
                 </div>
               );
+            // AI応答: タップで編集/分岐/巻き戻しの操作列を出す(Zetaのペン編集+範囲削除+並行世界)
+            if (editingIdx === m.idx)
+              return (
+                <div key={m.idx} data-testid="edit-area" className="card p-3">
+                  <p className="label">応答を直接直す</p>
+                  <textarea
+                    className="input h-36 text-sm"
+                    style={{ fontFamily: "var(--font-novel)" }}
+                    value={editText}
+                    onChange={(e) => setEditText(e.target.value)}
+                  />
+                  <div className="mt-2 flex gap-2">
+                    <button data-testid="edit-save" className="btn-primary flex-1 py-2 text-sm" onClick={saveEdit}>
+                      保存
+                    </button>
+                    <button className="btn-ghost flex-1 py-2 text-sm" onClick={() => setEditingIdx(null)}>
+                      やめる
+                    </button>
+                  </div>
+                </div>
+              );
             return (
-              <div key={m.idx} data-testid="ai-line" className="whitespace-pre-wrap">
-                {m.content}
+              <div key={m.idx}>
+                <div
+                  data-testid="ai-line"
+                  className="whitespace-pre-wrap"
+                  style={{
+                    cursor: rewindMode ? "pointer" : undefined,
+                    outline: rewindMode ? "1px dashed var(--c-primary)" : "none",
+                    background:
+                      rewindMode && rewindIdx === m.idx
+                        ? "color-mix(in oklab, var(--c-primary) 14%, transparent)"
+                        : undefined,
+                    borderRadius: rewindMode ? 8 : undefined,
+                  }}
+                  onClick={() => {
+                    if (rewindMode) setRewindIdx(m.idx);
+                    else if (props.mode === "auth" && !generating)
+                      setSelectedAiIdx((cur) => (cur === m.idx ? null : m.idx));
+                  }}
+                >
+                  <AiContent text={m.content} />
+                </div>
+                {selectedAiIdx === m.idx && !rewindMode && !generating && (
+                  <div data-testid="ai-action-row" className="mt-2 flex flex-wrap gap-2 text-xs">
+                    <button className="btn-ghost px-3 py-1.5 text-xs" onClick={() => startEdit(m)}>
+                      ✎ 直接直す
+                    </button>
+                    <button
+                      data-testid="branch-button"
+                      className="btn-ghost px-3 py-1.5 text-xs"
+                      onClick={() => branchAt(m.idx)}
+                    >
+                      🌱 ここから分岐
+                    </button>
+                    {m.idx !== messages[messages.length - 1].idx && (
+                      <button
+                        className="btn-ghost px-3 py-1.5 text-xs"
+                        onClick={() => {
+                          setRewindIdx(m.idx);
+                          setRewindMode(true);
+                          setSelectedAiIdx(null);
+                        }}
+                      >
+                        ↩ ここまで戻す
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}
 
           {generating && (
             <div data-testid="generating" className="whitespace-pre-wrap">
-              {streamText}
+              <AiContent text={streamText} />
               <span className="caret">▌</span>
             </div>
           )}
@@ -463,11 +705,69 @@ export function StoryReader(props: {
         </div>
       </main>
 
+      {/* 追従が切れている時の「↓最新へ」チップ */}
+      {showLatestChip && messages && messages.length > 2 && (
+        <button
+          data-testid="scroll-latest-chip"
+          className="chip fixed bottom-24 left-1/2 z-20 -translate-x-1/2 shadow-md"
+          style={{ background: "var(--c-surface)" }}
+          onClick={scrollToLatest}
+        >
+          ↓ 最新へ
+        </button>
+      )}
+
       <footer
         className="sticky bottom-0 z-10 border-t px-3 py-2.5"
         style={{ background: "var(--c-surface)", borderColor: "var(--c-border)" }}
       >
+        {/* 入力の *〜* ライブプレビュー(地の文として表示される見え方の確認) */}
+        {inputHasNarration && (
+          <p data-testid="input-preview" className="novel mb-1.5 truncate px-1 text-xs" style={{ color: "var(--c-textMuted)" }}>
+            <UserContent text={input} />
+          </p>
+        )}
+        {/* AIF-008: 返信候補チップ */}
+        {suggestions && (
+          <div data-testid="suggest-chips" className="mb-2 space-y-1.5">
+            {suggestions.map((s, i) => (
+              <button
+                key={i}
+                data-testid="suggest-chip"
+                className="card block w-full px-3 py-2 text-left text-xs"
+                onClick={() => {
+                  setInput(s);
+                  setSuggestions(null);
+                  inputRef.current?.focus();
+                }}
+              >
+                ✦ {s}
+              </button>
+            ))}
+            {suggestRemaining !== null && (
+              <p data-testid="suggest-remaining" className="px-1 text-right text-[0.68rem]" style={{ color: "var(--c-textMuted)" }}>
+                今日の残り {suggestRemaining} 回
+              </p>
+            )}
+          </div>
+        )}
+        {suggestNotice && (
+          <p data-testid="suggest-notice" className="mb-1.5 px-1 text-xs" style={{ color: "var(--c-textMuted)" }}>
+            {suggestNotice}
+          </p>
+        )}
         <div className="flex items-end gap-2">
+          {props.mode === "auth" && (
+            <button
+              aria-label="返信候補"
+              title="返信に迷ったら(AIが候補を書く)"
+              className="btn-ghost px-3 py-2.5"
+              disabled={generating || !messages || suggestLoading}
+              onClick={() => (suggestions ? setSuggestions(null) : fetchSuggestions())}
+            >
+              {suggestLoading ? <span className="caret">✦</span> : "✦"}
+            </button>
+          )}
           <textarea
             ref={inputRef}
             rows={1}
@@ -536,13 +836,14 @@ export function StoryReader(props: {
       {menuOpen && (
         <div className="fixed inset-0 z-30 bg-black/50" onClick={() => setMenuOpen(false)}>
           <div
-            className="card absolute right-0 top-0 h-full w-64 rounded-none p-4"
+            className="card absolute right-0 top-0 h-full w-72 overflow-y-auto rounded-none p-4"
             onClick={(e) => e.stopPropagation()}
           >
             <p className="mb-3 truncate text-sm font-bold">{title}</p>
             {props.mode === "auth" && (
               <button
-                className="block w-full py-2.5 text-left text-sm"
+                className="block w-full py-2.5 text-left text-sm disabled:opacity-40"
+                disabled={!messages}
                 onClick={() => {
                   setMenuOpen(false);
                   setMemoryOpen(true);
@@ -551,28 +852,114 @@ export function StoryReader(props: {
                 🧠 記憶
               </button>
             )}
+            {props.mode === "auth" && (
+              <button
+                className="block w-full py-2.5 text-left text-sm disabled:opacity-40"
+                disabled={!messages}
+                onClick={openRoutes}
+              >
+                🌱 ルート(並行世界)
+              </button>
+            )}
             <Link href={`/s/${situationId}`} className="block w-full py-2.5 text-left text-sm">
               📖 この作品ページへ
             </Link>
             {props.mode === "auth" && (
-              <button
-                className="block w-full py-2.5 text-left text-sm"
-                onClick={async () => {
-                  const detail = await fetch(`/api/situations/${situationId}`).then((r) => r.json());
-                  const r = await fetch("/api/stories", {
-                    method: "POST",
-                    headers: { "content-type": "application/json" },
-                    body: JSON.stringify({ situationId, introVariantId: detail.intros[0].id }),
-                  });
-                  if (r.ok) {
-                    const st = await r.json();
-                    router.push(`/story/${st.id}`);
-                  }
-                }}
-              >
-                🌱 最初から新しいルートで読む
-              </button>
+              <>
+                <div className="my-2 border-t" style={{ borderColor: "var(--c-border)" }} />
+                {/* 初期fetch完了前に押すと結果で上書きされるため、ロード中は無効 */}
+                <button
+                  data-testid="toggle-choices"
+                  className="flex w-full items-center justify-between py-2.5 text-left text-sm disabled:opacity-40"
+                  disabled={!messages}
+                  onClick={() => patchStorySetting({ choicesEnabled: !choicesEnabled })}
+                >
+                  <span>🔀 選択肢を表示</span>
+                  <span className="chip px-2.5 py-0.5 text-[0.7rem]" data-on={choicesEnabled}>
+                    {choicesEnabled ? "ON" : "OFF"}
+                  </span>
+                </button>
+                <button
+                  data-testid="toggle-midmodel"
+                  className="flex w-full items-center justify-between py-2.5 text-left text-sm disabled:opacity-40"
+                  disabled={!messages}
+                  onClick={() => patchStorySetting({ useMidModel: !useMidModel })}
+                >
+                  <span>🖋 高品質モデル(β)</span>
+                  <span className="chip px-2.5 py-0.5 text-[0.7rem]" data-on={useMidModel}>
+                    {useMidModel ? "ON" : "OFF"}
+                  </span>
+                </button>
+              </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ルート(並行世界)シート */}
+      {routesOpen && (
+        <div className="fixed inset-0 z-30 bg-black/50" onClick={() => setRoutesOpen(false)}>
+          <div
+            data-testid="route-sheet"
+            className="card absolute bottom-0 left-0 right-0 max-h-[70dvh] overflow-y-auto rounded-b-none p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-sm font-bold">🌱 ルート(並行世界)</p>
+            <p className="mt-0.5 text-xs" style={{ color: "var(--c-textMuted)" }}>
+              同じ物語を、違う選択で読み直せます
+            </p>
+            {!routes && (
+              <p className="mt-3 text-xs" style={{ color: "var(--c-textMuted)" }}>
+                読み込み中…
+              </p>
+            )}
+            <div className="mt-3 space-y-2">
+              {routes?.map((rt, i) => (
+                <button
+                  key={rt.id}
+                  data-testid="route-item"
+                  className="card block w-full px-3 py-2.5 text-left"
+                  style={rt.id === props.storyId ? { borderColor: "var(--c-primary)" } : undefined}
+                  onClick={() => {
+                    if (rt.id !== props.storyId) {
+                      setRoutesOpen(false);
+                      router.push(`/story/${rt.id}`);
+                    }
+                  }}
+                >
+                  <p className="text-xs font-bold">
+                    ルート{routes.length - i}
+                    {rt.branchedFromStoryId ? "(分岐)" : ""}
+                    {rt.id === props.storyId && (
+                      <span className="ml-1.5" style={{ color: "var(--c-primary)" }}>
+                        ● いま読んでいる
+                      </span>
+                    )}
+                  </p>
+                  <p className="mt-0.5 truncate text-xs" style={{ color: "var(--c-textMuted)" }}>
+                    {rt.messages[0]?.content ?? ""}
+                  </p>
+                </button>
+              ))}
+            </div>
+            <button
+              className="btn-ghost mt-3 w-full py-2.5 text-sm"
+              onClick={async () => {
+                const detail = await fetch(`/api/situations/${situationId}`).then((r) => r.json());
+                const r = await fetch("/api/stories", {
+                  method: "POST",
+                  headers: { "content-type": "application/json" },
+                  body: JSON.stringify({ situationId, introVariantId: detail.intros[0].id }),
+                });
+                if (r.ok) {
+                  const st = await r.json();
+                  setRoutesOpen(false);
+                  router.push(`/story/${st.id}`);
+                }
+              }}
+            >
+              ＋ 最初から新しいルートで読む
+            </button>
           </div>
         </div>
       )}
@@ -604,11 +991,12 @@ export function StoryReader(props: {
               <button
                 className="btn-primary flex-1 py-2 text-sm"
                 onClick={async () => {
-                  await fetch(`/api/stories/${props.storyId}/memory`, {
+                  const r = await fetch(`/api/stories/${props.storyId}/memory`, {
                     method: "PUT",
                     headers: { "content-type": "application/json" },
                     body: JSON.stringify({ userNote }),
                   });
+                  if (!r.ok) return; // 失敗時に「保存しました」を出さない
                   setSavedToast(true);
                   setTimeout(() => setSavedToast(false), 2500);
                 }}

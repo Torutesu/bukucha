@@ -13,6 +13,12 @@ const MODEL_BY_PROFILE: Record<LlmProfileKind, () => string> = {
   summary: () => process.env.LLM_MODEL_LIGHT ?? "gpt-4o-mini",
   recap: () => process.env.LLM_MODEL_LIGHT ?? "gpt-4o-mini",
   judge: () => process.env.LLM_MODEL_LIGHT ?? "gpt-4o-mini",
+  suggest: () => process.env.LLM_MODEL_LIGHT ?? "gpt-4o-mini",
+};
+
+const MODEL_BY_TIER: Record<"light" | "mid", () => string> = {
+  light: () => process.env.LLM_MODEL_LIGHT ?? "gpt-4o-mini",
+  mid: () => process.env.LLM_MODEL_MID ?? process.env.LLM_MODEL_LIGHT ?? "gpt-4o-mini",
 };
 
 export class OpenAICompatProvider implements LlmProvider {
@@ -40,7 +46,7 @@ export class OpenAICompatProvider implements LlmProvider {
       });
     }
     return {
-      model: MODEL_BY_PROFILE[profile](),
+      model: options?.tier ? MODEL_BY_TIER[options.tier]() : MODEL_BY_PROFILE[profile](),
       messages: msgs,
       temperature: profile === "chat" ? 0.9 : profile === "judge" ? 0 : 0.7,
       stream,

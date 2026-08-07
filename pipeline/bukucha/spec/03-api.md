@@ -26,7 +26,10 @@
 | GET | /api/stories/:id/memory | auth | - | { summary, userNote } | SCR-006 |
 | PUT | /api/stories/:id/memory | auth | { userNote } | { ok } | SCR-006 |
 | POST | /api/stories/:id/recap | auth | - | { lastRecap } (AIF-004。本棚がバックグラウンド呼出) | SCR-007 |
-| PATCH | /api/stories/:id | auth | { status?: ACTIVE\|ARCHIVED, personaId? } | Story | SCR-006, 007 |
+| PATCH | /api/stories/:id | auth | { status?: ACTIVE\|ARCHIVED, personaId?, choicesEnabled?, useMidModel? } | Story | SCR-006, 007 |
+| POST | /api/stories/:id/suggest | auth | - | { suggestions: string[2], remaining } (AIF-008。50回/日、朝9時JSTリセット。超過429 suggest_quota) | SCR-006 |
+| PATCH | /api/stories/:id/messages/:idx | auth | { content } | { idx, content } (AIロールのみ編集可。他は422) | SCR-006 |
+| POST | /api/stories/:id/branch | auth | { atIdx } | { id: 新StoryId } (atIdxまで複製した並行ルート作成) | SCR-006 |
 | DELETE | /api/stories/:id | auth | - | { ok } | SCR-007 |
 | POST | /api/stories/migrate-guest | auth | { guestStory: {situationId, introVariantId, messages[]} } | Story | SCR-017 |
 | POST | /api/guest/turn | public | { situationId, introVariantId, history: Message[](<=6), content } | SSE: token…→done ※3往復まで(超過は409)。非永続・IPレート制限 (AIF-001/007) | SCR-005, 006 |

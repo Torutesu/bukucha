@@ -228,6 +228,73 @@
   3. Then タイムアウト表示+「もう一度」ボタンが出る。押すと再送信され(モック復帰)応答が表示される
 - priority: P1
 
+## E2E-030: 返信候補→タップで入力欄に反映→送信 (Zeta詳細インタラクション)
+- screens: [SCR-006]
+- steps:
+  1. Given ログイン済みで物語を開始している
+  2. When 入力欄横の✦(返信候補)を押す
+  3. Then 候補チップが2件と「今日の残り n 回」が表示される
+  4. When 1件目をタップする
+  5. Then 入力欄に候補文が入る(編集可能)。送信すると通常の往復が進む
+- priority: P0
+
+## E2E-031: 返信候補の日次クォータ
+- screens: [SCR-006]
+- steps:
+  1. Given E2Eモードで上限2のユーザー(suggestlimit*)でログイン
+  2. When 返信候補を2回使い、3回目を押す
+  3. Then 「今日の返信候補はここまで」の通知が出る(429 suggest_quota)
+- priority: P0
+
+## E2E-032: AI応答のペン編集(直接直す)
+- screens: [SCR-006]
+- steps:
+  1. Given 1往復進めた物語でAI応答をタップする
+  2. When 操作列の「✎ 直接直す」→本文を書き換えて保存する
+  3. Then 本文が差し替わり、リロード後も編集内容が残る
+- priority: P0
+
+## E2E-033: 選択肢のON/OFF切替
+- screens: [SCR-006]
+- steps:
+  1. Given メニューで「選択肢を表示」をOFFにする
+  2. When 2往復送る(偶数ターン)
+  3. Then 選択肢カードが出ない
+  4. When ONに戻して2往復送る
+  5. Then 偶数ターンで選択肢カードが出る
+- priority: P0
+
+## E2E-034: ここから分岐→並行ルートの一覧と切替
+- screens: [SCR-006]
+- steps:
+  1. Given 1往復進めた物語でAI応答をタップし「🌱 ここから分岐」を押す
+  2. Then 新しいStoryに遷移し、分岐点までの本文が複製されている
+  3. When メニュー→「ルート(並行世界)」を開く
+  4. Then 2ルートが並び、現在ルートに印と「(分岐)」表示がある
+  5. When 別ルートをタップする
+  6. Then 元のStoryに切り替わる
+- priority: P0
+
+## E2E-035: 高品質モデル切替の反映と永続化
+- screens: [SCR-006]
+- steps:
+  1. Given メニューで「高品質モデル(β)」をONにする
+  2. Then ヘッダーに🖋チップが出る
+  3. When 1往復送る
+  4. Then 生成はmidティアで行われる(mock debugのmodelTier=midで検証)
+  5. When リロードする
+  6. Then 設定が保持されている
+- priority: P0
+
+## E2E-036: 入力ライブプレビューとセリフ強調組版
+- screens: [SCR-006]
+- steps:
+  1. When 入力欄に `*そっと近づく* こんばんは` と打つ
+  2. Then 入力欄上に地の文(斜体)プレビューが出る
+  3. When 送信する
+  4. Then AI応答の「」セリフが強調スパン(.dialogue)で描画される
+- priority: P1
+
 ## E2E-090: 実LLM smoke(参考・CI任意)
 - screens: [SCR-006]
 - steps:

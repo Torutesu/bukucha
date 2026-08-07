@@ -43,10 +43,13 @@ npm run dev                # http://localhost:3000
 
 ```bash
 cd app
-npm run test:e2e           # Playwright(LLMはモック) — P0 19件
+npm run test:e2e           # Playwright(LLMはモック) — 26件
 ```
 
 ## 状態
 
-MVP実装済み(13画面 / E2E P0 19件全通過 / build・型・lintクリーン)。
-課金・通知・ルート分岐UI・R18はスコープ外(`spec/00-prd.md` の out_of_scope 参照)。
+MVP実装済み(13画面 / E2E 26件全通過 / build・型・lintクリーン)。
+2026-08-07: Zeta詳細インタラクションを追補 — 返信候補(50回/日)、AI応答の直接編集、
+ここから分岐+並行ルート、選択肢ON/OFF、高品質モデル切替、組版・スクロール追従の強化
+(`pipeline/bukucha/decisions.md` の同日エントリ参照)。
+課金・通知・R18はスコープ外(`spec/00-prd.md` の out_of_scope 参照)。

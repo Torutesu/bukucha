@@ -1,8 +1,25 @@
 # Build Notes (Stage 3)
 
-- date: 2026-08-06
+- date: 2026-08-06 (MVP) / 2026-08-07 (Zeta詳細インタラクション追補)
 - 実装: `app/` (Next.js 16 App Router + PostgreSQL + Prisma 6 + Playwright)
-- 結果: **E2E P0 19件 全通過**(連続2回green) / `next build` 成功 / `tsc --noEmit` エラー0 / `eslint` エラー0
+- 結果: **E2E 26件 全通過**(連続2回green) / `next build` 成功 / `tsc --noEmit` エラー0 / `eslint` エラー0
+
+## 2026-08-07 追補: Zeta詳細インタラクション(decisions.md 同日エントリ参照)
+
+| 区分 | 内容 |
+|---|---|
+| AIF-008 返信候補 | ✦ボタン→候補2案→タップで入力欄へ。50回/日クォータ(User.suggestDate/suggestUsed)。`POST /api/stories/:id/suggest` |
+| AI応答の直接編集 | AI行タップ→操作列→インライン編集。`PATCH /api/stories/:id/messages/:idx`(AIロール限定) |
+| 分岐・並行ルート | AI行タップ→「ここから分岐」(`POST /api/stories/:id/branch`、atIdxまで複製+memory引き継ぎ)。メニュー→ルートシートで一覧・切替 |
+| 選択肢ON/OFF | `Story.choicesEnabled`。メニューのトグルで途中切替 |
+| 高品質モデル切替 | `Story.useMidModel` → LLM optionsの`tier`でlight/mid切替。`modelUsed`は`provider:tier`形式に |
+| 組版・追従 | 「」セリフ強調(.dialogue)/AI側`*〜*`地の文/入力ライブプレビュー/自動追従停止+「↓最新へ」チップ/ヘッダー自動非表示(自動スクロールでは隠さない)/導入フェードイン |
+| E2E | E2E-030〜036 追加(P0 6件+P1 1件)。トグル/いいねは冪等リトライヘルパーで安定化 |
+
+### 追補で見つけて直した実バグ
+1. **遅延fetchによる楽観更新の上書き**: 初期ロード完了前にメニューのトグルや記憶を操作すると、遅れて届いたfetch結果が上書き(空ノート保存も発生)。ロード完了までメニューのデータ依存項目をdisabledに。
+2. **記憶保存のエラー握りつぶし**: 保存失敗でも「保存しました」が出ていた。`r.ok`チェック追加。
+3. **自動スクロールでヘッダーが隠れる**: 送信後・ロード後のscrollIntoViewを下方向スクロールと誤認しヘッダーを隠していた。programmaticフラグで抑止。
 
 ## 実装したもの
 

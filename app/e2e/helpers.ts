@@ -26,5 +26,18 @@ export async function sendMessage(page: Page, text: string) {
   await expect(page.getByTestId("generating")).toBeHidden({ timeout: 30_000 });
 }
 
+/**
+ * SCR-006メニュー内トグルをON/OFFする(冪等リトライ)。
+ * クリック直後の再レンダーでイベントが落ちるレースがあっても目標状態に収束させる
+ */
+export async function setReaderToggle(page: Page, testId: string, on: boolean) {
+  const t = page.getByTestId(testId);
+  await expect(async () => {
+    const txt = (await t.textContent()) ?? "";
+    if (txt.includes(on ? "OFF" : "ON")) await t.click();
+    await expect(t).toContainText(on ? "ON" : "OFF", { timeout: 1_500 });
+  }).toPass({ timeout: 15_000 });
+}
+
 export const E2E_SITUATION = "sit_e2e_main";
 export const E2E_R15_SITUATION = "sit_e2e_r15";
