@@ -127,8 +127,11 @@ export class MockLlmProvider implements LlmProvider {
       return `前回まで——彼の秘密に触れてしまったあなた。次の一言が、二人の関係を変えようとしている。`;
     }
     if (profile === "suggest") {
-      // AIF-008: ユーザー側セリフ候補(決定的)。直近のAI応答冒頭を織り込む
-      const seed = user.replace(/\s+/g, " ").slice(0, 12);
+      // AIF-008: ユーザー側セリフ候補(決定的)。直近の実発言を織り込む(内部指示「(〜」は除外)
+      const lastReal = [...messages]
+        .reverse()
+        .find((m) => m.role === "user" && !m.content.startsWith("("));
+      const seed = (lastReal?.content ?? "").replace(/\s+/g, " ").slice(0, 12);
       return JSON.stringify({
         suggestions: [
           `「そんなふうに見つめられたら、困ります」*目を伏せる*`,
