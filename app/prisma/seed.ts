@@ -1,4 +1,6 @@
 import { PrismaClient } from "@prisma/client";
+import * as fs from "fs";
+import * as path from "path";
 
 /**
  * シードデータ(00-prd.md シードコンテンツ)。
@@ -68,7 +70,14 @@ interface SeedIntro {
   firstMessage: string;
 }
 
+/** public/covers/<slug>.webp が存在すればカバー/キャラ画像として使う */
+function coverPath(slug: string): string | null {
+  const file = path.join(__dirname, "..", "public", "covers", `${slug}.webp`);
+  return fs.existsSync(file) ? `/covers/${slug}.webp` : null;
+}
+
 const GENERATED: {
+  slug: string;
   title: string;
   catchphrase: string;
   tags: string[];
@@ -77,6 +86,7 @@ const GENERATED: {
   intro: SeedIntro;
 }[] = [
   {
+    slug: "dukes-return",
     title: "3年ぶりに帰還した夫は、私を毒婦と呼びました",
     catchphrase: "誤解から始まる、すれ違い溺愛譚。",
     tags: ["策略婚", "公爵", "西洋風", "溺愛"],
@@ -95,6 +105,7 @@ const GENERATED: {
     },
   },
   {
+    slug: "midnight-boss",
     title: "冷徹上司は、終電後だけ甘くなる",
     catchphrase: "オフィスの顔は、仮面でした。",
     tags: ["上司", "オフィス", "秘密", "焦らし"],
@@ -113,6 +124,7 @@ const GENERATED: {
     },
   },
   {
+    slug: "villainess-prince",
     title: "悪役令嬢の私に、断罪王子が跪いた",
     catchphrase: "断罪イベントが、溺愛ルートに変わる。",
     tags: ["悪役令嬢", "王子", "異世界", "溺愛"],
@@ -131,6 +143,7 @@ const GENERATED: {
     },
   },
   {
+    slug: "knight-childhood",
     title: "幼なじみの護衛騎士は、今夜も一線を越えない",
     catchphrase: "守るための距離が、もどかしい。",
     tags: ["幼なじみ", "護衛騎士", "西洋風", "焦らし"],
@@ -149,6 +162,7 @@ const GENERATED: {
     },
   },
   {
+    slug: "contract-marriage",
     title: "契約結婚の旦那様が、契約を破りたがっている",
     catchphrase: "書類上の夫婦、のはずでした。",
     tags: ["契約", "策略婚", "現代", "溺愛"],
@@ -167,6 +181,7 @@ const GENERATED: {
     },
   },
   {
+    slug: "shadow-emperor",
     title: "後宮の影帝は、私の名前だけを呼ぶ",
     catchphrase: "千の妃を持つ皇帝の、唯一。",
     tags: ["後宮", "主従", "和風", "独占欲"],
@@ -185,6 +200,7 @@ const GENERATED: {
     },
   },
   {
+    slug: "quiet-coworker",
     title: "隣の席の無口な同僚が、実は私の小説の読者でした",
     catchphrase: "秘密がバレた日から、距離がゼロに。",
     tags: ["同僚", "秘密", "現代", "日常"],
@@ -203,6 +219,7 @@ const GENERATED: {
     },
   },
   {
+    slug: "enemy-general",
     title: "敵国の将軍に捕らえられた夜",
     catchphrase: "捕虜のはずが、寵姫になっていく。",
     tags: ["敵", "復讐", "西洋風", "執着"],
@@ -221,6 +238,7 @@ const GENERATED: {
     },
   },
   {
+    slug: "sharehouse-ex",
     title: "元恋人と、同じシェアハウスに住むことになった",
     catchphrase: "終わったはずの恋の、続き。",
     tags: ["元恋人", "再会", "現代", "日常"],
@@ -239,6 +257,7 @@ const GENERATED: {
     },
   },
   {
+    slug: "stepbrother",
     title: "義兄は私を妹と呼ばなくなった",
     catchphrase: "家族の線を、越える夜。",
     tags: ["義兄", "秘密", "現代", "執着"],
@@ -257,6 +276,7 @@ const GENERATED: {
     },
   },
   {
+    slug: "wizard-disciple",
     title: "百年生きる魔法使いの、最後の弟子",
     catchphrase: "師匠の秘密は、私の寿命。",
     tags: ["師弟", "ファンタジー", "年の差", "秘密"],
@@ -275,6 +295,7 @@ const GENERATED: {
     },
   },
   {
+    slug: "rival-fiance",
     title: "許嫁は宿敵、のはずでした",
     catchphrase: "家同士は敵。心は——。",
     tags: ["許嫁", "敵", "和風", "身分差"],
@@ -293,6 +314,7 @@ const GENERATED: {
     },
   },
   {
+    slug: "rival-voice",
     title: "ライバル声優と、ユニットを組まされました",
     catchphrase: "マイクの前では、恋も演技も。",
     tags: ["ライバル", "オフィス", "現代", "焦らし"],
@@ -311,6 +333,7 @@ const GENERATED: {
     },
   },
   {
+    slug: "bought-duchess",
     title: "没落令嬢を買ったのは、冷酷と噂の若き公爵",
     catchphrase: "契約から始まる、束縛の溺愛。",
     tags: ["身分差", "公爵", "契約", "束縛"],
@@ -329,6 +352,7 @@ const GENERATED: {
     },
   },
   {
+    slug: "shadow-prince",
     title: "王子の影武者は、恋を知らない",
     catchphrase: "偽物の王子と、本物の恋。",
     tags: ["王子", "秘密", "西洋風", "身分差"],
@@ -347,6 +371,7 @@ const GENERATED: {
     },
   },
   {
+    slug: "neighbor-novelist",
     title: "隣人は売れない小説家",
     catchphrase: "壁越しに聞こえる、キーボードの音。",
     tags: ["隣人", "現代", "日常", "年の差"],
@@ -365,6 +390,7 @@ const GENERATED: {
     },
   },
   {
+    slug: "revenge-love",
     title: "復讐のために近づいたのに",
     catchphrase: "憎むはずの人を、好きになる誤算。",
     tags: ["復讐", "秘密", "現代", "執着"],
@@ -383,6 +409,7 @@ const GENERATED: {
     },
   },
   {
+    slug: "snow-lodge",
     title: "雪山の山荘に、二人きり",
     catchphrase: "遭難から始まる、7日間。",
     tags: ["ミステリー", "現代", "秘密", "焦らし"],
@@ -401,6 +428,7 @@ const GENERATED: {
     },
   },
   {
+    slug: "cinderella",
     title: "シンデレラの魔法は、0時に解けない",
     catchphrase: "魔法が解けても、恋は残った。",
     tags: ["シンデレラ", "王子", "ファンタジー", "溺愛"],
@@ -463,6 +491,7 @@ export async function seed(db: PrismaClient) {
     intros?: { id?: string; label: string; introText: string; firstMessage: string }[];
     characterName?: string;
     character?: SeedChar;
+    cover?: string | null;
     publishedAt?: Date;
   }) {
     const exists = opts.id
@@ -475,6 +504,7 @@ export async function seed(db: PrismaClient) {
         authorId: author.id,
         title: opts.title,
         catchphrase: opts.catchphrase,
+        coverImageUrl: opts.cover ?? null,
         worldSetting: opts.world,
         contentLevel: opts.contentLevel ?? "ALL_AGES",
         status: "PUBLISHED",
@@ -486,6 +516,7 @@ export async function seed(db: PrismaClient) {
           create: [
             opts.character
               ? {
+                  profileImageUrl: opts.cover ?? null,
                   name: opts.character.name,
                   personality: opts.character.personality,
                   speechStyle: opts.character.speechStyle,
@@ -541,6 +572,7 @@ export async function seed(db: PrismaClient) {
     world:
       "同じ美術部の一つ上の先輩。部室では素っ気ないのに、雨の日の帰り道だけ、彼は少しだけ本音を見せる。あなたはその横顔が見たくて、天気予報を確かめるようになった。",
     tags: ["先輩", "学園", "焦らし", "溺愛"],
+    cover: coverPath("rainy-senpai"),
     character: {
       name: "湊",
       personality: "美術部の一つ上の先輩。部室では素っ気ないのに、雨の日だけ饒舌になる。照れ隠しが下手。",
@@ -589,6 +621,7 @@ export async function seed(db: PrismaClient) {
       tags: g.tags,
       character: g.char,
       intros: [g.intro],
+      cover: coverPath(g.slug),
       publishedAt: new Date(Date.now() - Math.floor(Math.random() * 14) * 86400_000),
     });
   }
@@ -609,9 +642,14 @@ export async function syncSeedContent(db: PrismaClient) {
       include: { characters: { orderBy: { sortOrder: "asc" } }, intros: { orderBy: { sortOrder: "asc" } } },
     });
     if (!sit) continue;
+    const cover = coverPath(g.slug);
     await db.situation.update({
       where: { id: sit.id },
-      data: { worldSetting: g.world, catchphrase: g.catchphrase },
+      data: {
+        worldSetting: g.world,
+        catchphrase: g.catchphrase,
+        ...(cover ? { coverImageUrl: cover } : {}),
+      },
     });
     const mainChar = sit.characters[0];
     if (mainChar) {
@@ -623,6 +661,7 @@ export async function syncSeedContent(db: PrismaClient) {
           speechStyle: g.char.speechStyle,
           relationship: g.char.relationship,
           exampleDialogs: [g.char.example],
+          ...(cover ? { profileImageUrl: cover } : {}),
         },
       });
     }
@@ -634,6 +673,22 @@ export async function syncSeedContent(db: PrismaClient) {
       });
     }
     updated++;
+  }
+  const mainCover = coverPath("rainy-senpai");
+  if (mainCover) {
+    const main = await db.situation.findFirst({
+      where: { title: "帰り道の先輩は、雨の日だけ素直になる", authorId: author.id },
+      include: { characters: { orderBy: { sortOrder: "asc" } } },
+    });
+    if (main) {
+      await db.situation.update({ where: { id: main.id }, data: { coverImageUrl: mainCover } });
+      if (main.characters[0]) {
+        await db.character.update({
+          where: { id: main.characters[0].id },
+          data: { profileImageUrl: mainCover },
+        });
+      }
+    }
   }
   console.log(`content sync: ${updated} situations updated`);
 }
