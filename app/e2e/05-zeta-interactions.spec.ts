@@ -145,3 +145,73 @@ test.describe("Zeta詳細インタラクション", () => {
     await expect(page.getByTestId("ai-line").last().locator(".dialogue").first()).toContainText("「");
   });
 });
+
+test.describe("送信モードと物語進行", () => {
+  test("E2E-037: 動作モード→地の文として送信・描画される", async ({ page }) => {
+    await loginAs(page, "action-e2e037@test.com");
+    await page.goto(`/s/${E2E_SITUATION}`);
+    await page.getByRole("button", { name: "この物語をはじめる" }).click();
+    await expect(page).toHaveURL(/\/story\//);
+
+    await page.getByTestId("mode-action").click();
+    const input = page.getByPlaceholder(/主人公の動作/);
+    await input.fill("窓辺に近づいて外を見る");
+    // ライブプレビューが地の文(斜体)で出る
+    await expect(page.getByTestId("input-preview").locator("em")).toContainText("窓辺に近づいて");
+    const resPromise = page.waitForResponse(
+      (r) => r.url().includes("/messages") && r.request().method() === "POST"
+    );
+    await page.getByRole("button", { name: "送信" }).click();
+    await expect(page.getByTestId("generating")).toBeHidden({ timeout: 30_000 });
+    // プロンプトには *〜* として渡る(mock debug)
+    expect(await (await resPromise).text()).toContain('"promptedInput":"*窓辺に近づいて外を見る*"');
+    // バブル内は全体が斜体
+    await expect(page.getByTestId("user-line").last().locator("em")).toContainText("窓辺に近づいて外を見る");
+    // リロードしても斜体のまま(kind永続化)
+    await page.reload();
+    await expect(page.getByTestId("user-line").last().locator("em")).toContainText("窓辺に近づいて外を見る");
+  });
+
+  test("E2E-038: 展開モード→プリセット指示で物語が進む", async ({ page }) => {
+    await loginAs(page, "direction-e2e038@test.com");
+    await page.goto(`/s/${E2E_SITUATION}`);
+    await page.getByRole("button", { name: "この物語をはじめる" }).click();
+    await expect(page).toHaveURL(/\/story\//);
+
+    await page.getByTestId("mode-direction").click();
+    const presets = page.getByTestId("direction-preset");
+    await expect(presets.first()).toContainText("時間を少し進めて");
+    const resPromise = page.waitForResponse(
+      (r) => r.url().includes("/messages") && r.request().method() === "POST"
+    );
+    await presets.first().click();
+    await expect(page.getByTestId("generating")).toBeHidden({ timeout: 30_000 });
+    // 中央の演出行として描画され、プロンプトには (展開指示: …) で渡る
+    await expect(page.getByTestId("direction-line")).toContainText("時間を少し進めて");
+    expect(await (await resPromise).text()).toContain('"promptedInput":"(展開指示: 時間を少し進めて、次の場面へ)"');
+    // 送信後はセリフモードに戻る
+    await expect(page.getByTestId("mode-say")).toHaveAttribute("data-on", "true");
+    // リロードしても演出行のまま
+    await page.reload();
+    await expect(page.getByTestId("direction-line")).toContainText("時間を少し進めて");
+  });
+
+  test("E2E-039: 自分の発言をタップ→打ち直す", async ({ page }) => {
+    await loginAs(page, "retype-e2e039@test.com");
+    await page.goto(`/s/${E2E_SITUATION}`);
+    await page.getByRole("button", { name: "この物語をはじめる" }).click();
+    await sendMessage(page, "まちがえた発言です");
+
+    await page.getByTestId("user-line").last().click();
+    await page.getByRole("button", { name: "打ち直す" }).click();
+    // 発言と直後のAI応答が消え、本文が入力欄に復元される
+    await expect(page.getByTestId("novel-stream")).not.toContainText("まちがえた発言です");
+    await expect(page.getByPlaceholder(/セリフか/)).toHaveValue("まちがえた発言です");
+    // 打ち直して送信できる
+    await sendMessage(page, "正しい発言です");
+    await expect(page.getByTestId("user-line").last()).toContainText("正しい発言です");
+    await page.reload();
+    await expect(page.getByTestId("novel-stream")).not.toContainText("まちがえた発言です");
+    await expect(page.getByTestId("novel-stream")).toContainText("正しい発言です");
+  });
+});

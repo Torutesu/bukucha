@@ -204,6 +204,8 @@ model StoryMessage {
   storyId        String
   idx            Int
   role           MessageRole
+  // USERメッセージの種別: SAY(セリフ) / ACTION(動作・地の文) / DIRECTION(作者としての展開指示)
+  kind           String      @default("SAY")
   content        String
   choices        Json?
   selectedChoice String?

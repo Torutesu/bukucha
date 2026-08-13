@@ -20,7 +20,7 @@
 | POST | /api/stories | auth | { situationId, introVariantId, personaId? } | Story(初期メッセージ含む) | SCR-005 |
 | GET | /api/stories | auth | ?status=&situationId=&cursor= | { items: StoryWithRecap[], nextCursor } | SCR-005, 007 |
 | GET | /api/stories/:id | auth | ?afterIdx= | { story, messages[], memory } | SCR-006 |
-| POST | /api/stories/:id/messages | auth | { content: string(空=つづき生成), selectedChoiceId? } | SSE: token…→ done{ message, choices? } (AIF-001/005/007) | SCR-006 |
+| POST | /api/stories/:id/messages | auth | { content: string(空=つづき生成), selectedChoiceId?, kind?: SAY\|ACTION\|DIRECTION } | SSE: token…→ done{ message, choices? } (AIF-001/005/007) | SCR-006 |
 | POST | /api/stories/:id/messages/:idx/reroll | auth | { instruction?: string } | SSE: 同上(該当idxを差替) | SCR-006 |
 | POST | /api/stories/:id/rewind | auth | { toIdx } | { deletedCount } (toIdxより後を論理削除) | SCR-006 |
 | GET | /api/stories/:id/memory | auth | - | { summary, userNote } | SCR-006 |

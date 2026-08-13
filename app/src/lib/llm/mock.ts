@@ -82,6 +82,7 @@ export class MockLlmProvider implements LlmProvider {
         hasSummary: sys.includes("【これまでのあらすじ】") && !sys.includes("【これまでのあらすじ】\n(なし)"),
         personaCallName: sys.match(/呼び方:\s*([^\n]+)/)?.[1]?.trim() ?? null,
         modelTier: options?.tier ?? "light",
+        promptedInput: user.slice(0, 40),
       },
     };
   }

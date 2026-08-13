@@ -9,8 +9,32 @@ export interface ReaderMessage {
   idx: number;
   role: "USER" | "AI" | "SYSTEM";
   content: string;
+  kind?: string | null; // SAY / ACTION / DIRECTION
   choices?: { id: string; text: string }[] | null;
 }
+
+type ComposeMode = "SAY" | "ACTION" | "DIRECTION";
+
+const COMPOSE_MODES: { key: ComposeMode; label: string }[] = [
+  { key: "SAY", label: "💬 セリフ" },
+  { key: "ACTION", label: "✳️ 動作" },
+  { key: "DIRECTION", label: "🎬 展開" },
+];
+
+const MODE_PLACEHOLDER: Record<ComposeMode, string> = {
+  SAY: "セリフか、*動作* を書く…",
+  ACTION: "主人公の動作・情景を書く…(地の文になる)",
+  DIRECTION: "作者として展開を指示…(例: 雨を降らせて)",
+};
+
+// Zetaの「*あらすじ:〜*」裏ワザの製品化: 定番の進行ディレクティブ
+const DIRECTION_PRESETS = [
+  "時間を少し進めて、次の場面へ",
+  "場面を転換して、新しいシーンから",
+  "ここで予想外の出来事を起こして",
+  "ふたりの距離が縮まる展開にして",
+  "クライマックスに向けて盛り上げて",
+];
 
 interface GuestStory {
   situationId: string;
@@ -92,6 +116,8 @@ export function StoryReader(props: {
   const [suggestRemaining, setSuggestRemaining] = useState<number | null>(null);
   const [suggestNotice, setSuggestNotice] = useState<string | null>(null);
   const [selectedAiIdx, setSelectedAiIdx] = useState<number | null>(null);
+  const [selectedUserIdx, setSelectedUserIdx] = useState<number | null>(null);
+  const [mode, setMode] = useState<ComposeMode>("SAY");
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [editText, setEditText] = useState("");
   const [routesOpen, setRoutesOpen] = useState(false);
@@ -158,6 +184,7 @@ export function StoryReader(props: {
             idx: m.idx,
             role: m.role,
             content: m.content,
+            kind: m.kind ?? "SAY",
             choices: (m.choices as { id: string; text: string }[] | null) ?? null,
           }))
         );
@@ -235,14 +262,17 @@ export function StoryReader(props: {
   const guestUserCount = messages?.filter((m) => m.role === "USER").length ?? 0;
 
   const send = useCallback(
-    async (content: string, selectedChoiceId?: string) => {
+    async (content: string, selectedChoiceId?: string, kindOverride?: ComposeMode) => {
       if (generating || !messages) return;
+      const kind: ComposeMode =
+        props.mode === "guest" ? "SAY" : selectedChoiceId ? "SAY" : (kindOverride ?? mode);
       setBlockedMsg(null);
       setQuotaMsg(null);
       setErrorMsg(null);
       setSuggestions(null);
       setSuggestNotice(null);
       setSelectedAiIdx(null);
+      setSelectedUserIdx(null);
       setEditingIdx(null);
 
       if (props.mode === "guest" && guestUserCount >= 3 && content.trim()) {
@@ -260,10 +290,12 @@ export function StoryReader(props: {
       if (!isContinue) {
         setMessages((prev) => [
           ...prev!,
-          { idx: maxIdx + 1, role: "USER", content },
+          { idx: maxIdx + 1, role: "USER", content, kind },
         ]);
       }
       setInput("");
+      // 展開指示は一回性の操作なので、送ったらセリフモードに戻す
+      if (kind === "DIRECTION") setMode("SAY");
       setGenerating(true);
       streamTargetRef.current = "";
       setStreamText("");
@@ -315,7 +347,7 @@ export function StoryReader(props: {
       } else {
         await postSse(
           `/api/stories/${props.storyId}/messages`,
-          { content, selectedChoiceId },
+          { content, selectedChoiceId, kind },
           {
             onToken: (t) => void (streamTargetRef.current += t),
             onBlocked: (msg) => {
@@ -351,8 +383,28 @@ export function StoryReader(props: {
       setStreamText("");
       setGenerating(false);
     },
-    [generating, messages, props.mode, props.storyId, guestUserCount]
+    [generating, messages, props.mode, props.storyId, guestUserCount, mode]
   );
+
+  // ✍ 打ち直す: 自分の発言を取り消して入力欄に復元(Zetaは削除→手で再入力が必要な部分の解消)
+  const retypeMessage = async (m: ReaderMessage) => {
+    if (!messages || generating) return;
+    const i = messages.findIndex((x) => x.idx === m.idx);
+    if (i <= 0) return;
+    const prevIdx = messages[i - 1].idx;
+    const r = await fetch(`/api/stories/${props.storyId}/rewind`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ toIdx: prevIdx }),
+    });
+    if (r.ok) {
+      setMessages((prev) => prev!.filter((x) => x.idx <= prevIdx));
+      setInput(m.content);
+      setMode((m.kind as ComposeMode) || "SAY");
+      setSelectedUserIdx(null);
+      inputRef.current?.focus();
+    }
+  };
 
   const reroll = useCallback(
     async (withInstruction?: string) => {
@@ -548,24 +600,62 @@ export function StoryReader(props: {
                   {m.content}
                 </div>
               );
-            if (m.role === "USER")
-              return (
-                <div key={m.idx} className="flex justify-end">
-                  <div
-                    data-testid="user-line"
-                    onClick={() => rewindMode && setRewindIdx(m.idx)}
-                    className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-sm px-3.5 py-2 text-[0.92rem]"
-                    style={{
-                      background: rewindMode && rewindIdx === m.idx ? "var(--c-primary)" : "var(--c-userBubble)",
-                      color: rewindMode && rewindIdx === m.idx ? "#fff" : "var(--c-novelText)",
-                      cursor: rewindMode ? "pointer" : "default",
-                      outline: rewindMode ? "1px dashed var(--c-primary)" : "none",
-                    }}
-                  >
-                    <UserContent text={m.content} />
-                  </div>
+            if (m.role === "USER") {
+              const onUserTap = () => {
+                if (rewindMode) setRewindIdx(m.idx);
+                else if (props.mode === "auth" && !generating) {
+                  setSelectedAiIdx(null);
+                  setSelectedUserIdx((cur) => (cur === m.idx ? null : m.idx));
+                }
+              };
+              const userActions = selectedUserIdx === m.idx && !rewindMode && !generating && (
+                <div data-testid="user-action-row" className="modal-pop mt-1.5 flex justify-end gap-2 text-xs">
+                  <button className="btn-ghost px-3 py-1.5 text-xs" onClick={() => retypeMessage(m)}>
+                    ✍ 打ち直す
+                  </button>
                 </div>
               );
+              // 🎬 展開指示: 主人公の発言ではないので、バブルではなく中央の演出行として描画
+              if (m.kind === "DIRECTION")
+                return (
+                  <div key={m.idx}>
+                    <p
+                      data-testid="direction-line"
+                      onClick={onUserTap}
+                      className="text-center text-xs tracking-wide"
+                      style={{
+                        color: "var(--c-textMuted)",
+                        cursor: rewindMode || props.mode === "auth" ? "pointer" : "default",
+                        outline: rewindMode && rewindIdx === m.idx ? "1px dashed var(--c-primary)" : "none",
+                        borderRadius: 8,
+                      }}
+                    >
+                      ── 🎬 {m.content} ──
+                    </p>
+                    {userActions}
+                  </div>
+                );
+              return (
+                <div key={m.idx}>
+                  <div className="flex justify-end">
+                    <div
+                      data-testid="user-line"
+                      onClick={onUserTap}
+                      className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-sm px-3.5 py-2 text-[0.92rem]"
+                      style={{
+                        background: rewindMode && rewindIdx === m.idx ? "var(--c-primary)" : "var(--c-userBubble)",
+                        color: rewindMode && rewindIdx === m.idx ? "#fff" : "var(--c-novelText)",
+                        cursor: rewindMode || props.mode === "auth" ? "pointer" : "default",
+                        outline: rewindMode ? "1px dashed var(--c-primary)" : "none",
+                      }}
+                    >
+                      {m.kind === "ACTION" ? <em>{m.content}</em> : <UserContent text={m.content} />}
+                    </div>
+                  </div>
+                  {userActions}
+                </div>
+              );
+            }
             // AI応答: タップで編集/分岐/巻き戻しの操作列を出す(Zetaのペン編集+範囲削除+並行世界)
             if (editingIdx === m.idx)
               return (
@@ -603,8 +693,10 @@ export function StoryReader(props: {
                   }}
                   onClick={() => {
                     if (rewindMode) setRewindIdx(m.idx);
-                    else if (props.mode === "auth" && !generating)
+                    else if (props.mode === "auth" && !generating) {
+                      setSelectedUserIdx(null);
                       setSelectedAiIdx((cur) => (cur === m.idx ? null : m.idx));
+                    }
                   }}
                 >
                   <AiContent text={m.content} />
@@ -760,10 +852,43 @@ export function StoryReader(props: {
         className="sticky bottom-0 z-10 border-t px-3 py-2.5"
         style={{ background: "var(--c-surface)", borderColor: "var(--c-border)" }}
       >
-        {/* 入力の *〜* ライブプレビュー(地の文として表示される見え方の確認) */}
-        {inputHasNarration && (
+        {/* 送信モード: セリフ / 動作(地の文) / 展開(作者指示) */}
+        {props.mode === "auth" && (
+          <div data-testid="compose-modes" className="hide-scrollbar mb-2 flex gap-1.5 overflow-x-auto">
+            {COMPOSE_MODES.map((m) => (
+              <button
+                key={m.key}
+                data-testid={`mode-${m.key.toLowerCase()}`}
+                className="chip px-3 py-1 text-[0.72rem]"
+                data-on={mode === m.key}
+                disabled={generating || !messages}
+                onClick={() => setMode(m.key)}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+        )}
+        {/* 🎬 展開モード: 定番ディレクティブをワンタップで送れる */}
+        {props.mode === "auth" && mode === "DIRECTION" && !generating && (
+          <div data-testid="direction-presets" className="hide-scrollbar mb-2 flex gap-1.5 overflow-x-auto">
+            {DIRECTION_PRESETS.map((p) => (
+              <button
+                key={p}
+                data-testid="direction-preset"
+                className="chip whitespace-nowrap px-3 py-1.5 text-xs"
+                disabled={!messages}
+                onClick={() => send(p, undefined, "DIRECTION")}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+        )}
+        {/* 入力の *〜* / 動作モードのライブプレビュー(地の文として表示される見え方の確認) */}
+        {(inputHasNarration || (mode === "ACTION" && input.trim())) && (
           <p data-testid="input-preview" className="novel mb-1.5 truncate px-1 text-xs" style={{ color: "var(--c-textMuted)" }}>
-            <UserContent text={input} />
+            {mode === "ACTION" ? <em>{input}</em> : <UserContent text={input} />}
           </p>
         )}
         {/* AIF-008: 返信候補チップ */}
@@ -821,7 +946,7 @@ export function StoryReader(props: {
             ref={inputRef}
             rows={1}
             className="input max-h-28 flex-1 resize-none"
-            placeholder="セリフか、*動作* を書く…"
+            placeholder={props.mode === "auth" ? MODE_PLACEHOLDER[mode] : MODE_PLACEHOLDER.SAY}
             value={input}
             disabled={generating || !messages}
             onChange={(e) => {

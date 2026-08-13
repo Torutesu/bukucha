@@ -223,6 +223,7 @@ model StoryMessage {
   storyId        String
   idx            Int         // Story内連番(0始まり)。巻き戻し = idx以降を isDeleted
   role           MessageRole
+  kind           String      @default("SAY") // USER種別: SAY(セリフ)/ACTION(動作・地の文)/DIRECTION(作者の展開指示)
   content        String      // ノベル本文(地の文+「」セリフ)
   choices        Json?       // AIF-005: [{id, text}] 提示した選択肢
   selectedChoice String?     // ユーザーが選んだ選択肢id(自由入力ならnull)

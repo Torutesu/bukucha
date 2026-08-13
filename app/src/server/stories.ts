@@ -108,15 +108,29 @@ export async function listStories(
  * AIF-001+005+007: 1往復の生成(SSE)。
  * rerollIdx指定時は該当AI応答を差し替え(AIF-001 リロール)。
  */
+const USER_KINDS = ["SAY", "ACTION", "DIRECTION"] as const;
+type UserKind = (typeof USER_KINDS)[number];
+
+export function normalizeKind(kind: unknown): UserKind {
+  return USER_KINDS.includes(kind as UserKind) ? (kind as UserKind) : "SAY";
+}
+
 export async function* storyTurn(
   user: User,
   storyId: string,
-  input: { content: string; selectedChoiceId?: string; instruction?: string; rerollIdx?: number }
+  input: {
+    content: string;
+    selectedChoiceId?: string;
+    instruction?: string;
+    rerollIdx?: number;
+    kind?: string;
+  }
 ): AsyncGenerator<SseEvent> {
   const story = await getStory(user, storyId);
   const live = story.messages;
 
   let userInput = input.content;
+  let userKind: UserKind = normalizeKind(input.kind);
   let historyEnd = live.length;
   let rerollTarget: number | null = null;
 
@@ -127,6 +141,7 @@ export async function* storyTurn(
     historyEnd = live.findIndex((m) => m.idx === target.idx);
     const prevUser = [...live.slice(0, historyEnd)].reverse().find((m) => m.role === "USER");
     userInput = prevUser?.content ?? "";
+    userKind = normalizeKind(prevUser?.kind);
   }
 
   const recent = live
@@ -142,6 +157,7 @@ export async function* storyTurn(
     recentMessages: recent,
     expression,
     userInput,
+    userKind,
   });
 
   // AIF-005: 選択肢はユーザーの2ターンに1回(この往復を含めて偶数ターン目に提示)。
@@ -220,6 +236,7 @@ export async function* storyTurn(
           storyId,
           idx: base + 1,
           role: "USER",
+          kind: userKind,
           content: userInput,
           selectedChoice: input.selectedChoiceId ?? null,
         },

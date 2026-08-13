@@ -7,7 +7,7 @@
 
 ## AIF-001: ノベル応答生成(コア)
 - trigger: ユーザー操作(SCR-006送信 / 空欄送信 / SCR-009 Step4テスト)
-- input_context: システムプロンプト(ノベル文体規則: 地の文+「」セリフ、二人称視点、1応答300〜600字、`{user}`置換) + Situation.worldSetting + Characters(personality/speechStyle/relationship/exampleDialogs) + IntroVariant + StoryMemory.summary + StoryMemory.userNote + Persona(name/callName/profile) + 直近メッセージ20往復 + ユーザー入力(`*〜*`は行動描写として解釈)
+- input_context: システムプロンプト(ノベル文体規則: 地の文+「」セリフ、二人称視点、1応答300〜600字、`{user}`置換、`(展開指示: 〜)`は作者の演出指示として扱う規則) + Situation.worldSetting + Characters(personality/speechStyle/relationship/exampleDialogs) + IntroVariant + StoryMemory.summary + StoryMemory.userNote + Persona(name/callName/profile) + 直近メッセージ20往復(USER履歴はkindで整形: ACTION=`*〜*`/DIRECTION=`(展開指示:〜)`) + ユーザー入力(kindで同整形)
 - model_tier: light(既定)。[ASSUMED: 品質不足時はmidへの昇格をfeature flagで検証]
 - output: SSEストリーミングでノベル本文。完了時にStoryMessage永続化。空欄送信時は「物語を先へ進める」指示に切替
 - fallback: 20秒タイムアウト→「もう一度」ボタン(入力復元)。プロバイダ障害時は自動リトライ1回→エラーカード。連続失敗時はステータスバナー表示
