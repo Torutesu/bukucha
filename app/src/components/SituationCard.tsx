@@ -13,6 +13,10 @@ export interface CardData {
   tags: { tag: { id: string; name: string } }[];
 }
 
+export function coverGradient(title: string) {
+  return GRADIENTS[(title.charCodeAt(0) ?? 0) % GRADIENTS.length];
+}
+
 const GRADIENTS = [
   "linear-gradient(135deg, #b4436c, #7c5cbf)",
   "linear-gradient(135deg, #7c5cbf, #4361b4)",
