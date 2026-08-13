@@ -1,4 +1,5 @@
 "use client";
+import { Ellipsis, Trash2 } from "lucide-react";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -149,7 +150,7 @@ export default function BookshelfPage() {
                 style={{ color: "var(--c-textMuted)" }}
                 onClick={() => setMenuFor(menuFor === st.id ? null : st.id)}
               >
-                ⋯
+                <Ellipsis size={18} />
               </button>
               {menuFor === st.id && (
                 <div className="card absolute right-2 top-8 z-20 w-44 p-1">
@@ -165,10 +166,10 @@ export default function BookshelfPage() {
                       load(tab);
                     }}
                   >
-                    {tab === "ACTIVE" ? "✅ 完結にする" : "↩ 読んでいるに戻す"}
+                    {tab === "ACTIVE" ? "完結にする" : "読んでいるに戻す"}
                   </button>
                   <Link href={`/s/${st.situation.id}`} className="block w-full p-2 text-left text-xs">
-                    📖 作品ページへ
+                    作品ページへ
                   </Link>
                   <button
                     className="block w-full p-2 text-left text-xs"
@@ -180,7 +181,7 @@ export default function BookshelfPage() {
                       load(tab);
                     }}
                   >
-                    🗑 本棚から削除
+                    <Trash2 size={13} className="mr-1 inline align-[-2px]" /> 本棚から削除
                   </button>
                 </div>
               )}

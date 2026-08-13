@@ -1,4 +1,5 @@
 "use client";
+import { Search, ShieldCheck } from "lucide-react";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -84,8 +85,8 @@ export default function HomePage() {
           <h1 className="text-lg font-bold" style={{ color: "var(--c-primary)" }}>
             {brand.name}
           </h1>
-          <Link href="/search" aria-label="検索" className="pressable text-xl">
-            🔍
+          <Link href="/search" aria-label="検索" className="pressable p-1">
+            <Search size={20} strokeWidth={1.8} />
           </Link>
         </div>
 
@@ -134,7 +135,7 @@ export default function HomePage() {
           className="mx-4 mt-2 block rounded-lg px-3 py-1.5 text-[11px]"
           style={{ background: "var(--c-primarySoft)", color: "var(--c-primary)" }}
         >
-          🛡 安心フィルターを適用しています
+          <ShieldCheck size={13} className="mr-1 inline align-[-2px]" /> 安心フィルターを適用しています
         </Link>
       )}
 

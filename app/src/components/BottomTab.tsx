@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Home, Library, SquarePen, User } from "lucide-react";
 
 const TABS = [
-  { href: "/", label: "ホーム", icon: "🏠" },
-  { href: "/bookshelf", label: "本棚", icon: "📚" },
-  { href: "/create", label: "作る", icon: "＋" },
-  { href: "/me", label: "マイ", icon: "👤" },
+  { href: "/", label: "ホーム", Icon: Home },
+  { href: "/bookshelf", label: "本棚", Icon: Library },
+  { href: "/create", label: "作る", Icon: SquarePen },
+  { href: "/me", label: "マイ", Icon: User },
 ];
 
 export function BottomTab() {
@@ -35,7 +36,7 @@ export function BottomTab() {
               transition: "color 0.2s ease",
             }}
           >
-            <span aria-hidden>{t.icon}</span>
+            <t.Icon aria-hidden size={20} strokeWidth={1.8} />
             <span>{t.label}</span>
             <span
               aria-hidden

@@ -247,7 +247,7 @@ test.describe("メッセージ周りのUI", () => {
     const users = await page.getByTestId("user-line").count();
     const ais = await page.getByTestId("ai-line").count();
 
-    await page.getByRole("button", { name: "⏩ つづき" }).click();
+    await page.getByRole("button", { name: "つづきを生成" }).click();
     await expect(page.getByTestId("generating")).toBeHidden({ timeout: 30_000 });
     expect(await page.getByTestId("user-line").count()).toBe(users);
     expect(await page.getByTestId("ai-line").count()).toBe(ais + 1);

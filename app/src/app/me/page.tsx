@@ -1,4 +1,5 @@
 "use client";
+import { Plus } from "lucide-react";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -134,7 +135,7 @@ export default function MyPage() {
               className="btn-ghost w-full text-sm"
               onClick={() => setEditingPersona({ name: "", isDefault: me.personas.length === 0 })}
             >
-              ＋ ペルソナを追加
+              <Plus size={15} className="mr-1 inline align-[-2px]" /> ペルソナを追加
             </button>
           </div>
         </section>

@@ -5,6 +5,33 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { postSse } from "./sse-client";
 import { coverGradient } from "./SituationCard";
+import {
+  AlignLeft,
+  ArrowDown,
+  ArrowLeft,
+  Asterisk,
+  BookOpen,
+  Brain,
+  Clapperboard,
+  Copy,
+  Ellipsis,
+  FastForward,
+  Feather,
+  GitBranch,
+  Info,
+  MessageCircle,
+  Moon,
+  Pencil,
+  PenLine,
+  Plus,
+  RotateCcw,
+  Send,
+  Shuffle,
+  Sparkle,
+  Sparkles,
+  Undo2,
+  Zap,
+} from "lucide-react";
 
 /** 実機トラブルの一次情報をサーバーログへ(fire-and-forget) */
 function reportClientError(type: string, message: string) {
@@ -38,10 +65,10 @@ function fmtTime(d: Date) {
 
 type ComposeMode = "SAY" | "ACTION" | "DIRECTION";
 
-const COMPOSE_MODES: { key: ComposeMode; label: string }[] = [
-  { key: "SAY", label: "💬 セリフ" },
-  { key: "ACTION", label: "✳️ 動作" },
-  { key: "DIRECTION", label: "🎬 展開" },
+const COMPOSE_MODES: { key: ComposeMode; label: string; Icon: typeof MessageCircle }[] = [
+  { key: "SAY", label: "セリフ", Icon: MessageCircle },
+  { key: "ACTION", label: "動作", Icon: Asterisk },
+  { key: "DIRECTION", label: "展開", Icon: Clapperboard },
 ];
 
 const MODE_PLACEHOLDER: Record<ComposeMode, string> = {
@@ -132,8 +159,8 @@ function AiTalk({ text, chars }: { text: string; chars: TalkChar[] }) {
         if (speechIdx === -1 || chars.length === 0) {
           return (
             <div key={i} className="flex gap-2.5">
-              <span aria-hidden className="select-none pt-1 text-xs" style={{ color: "var(--c-textMuted)" }}>
-                ≡
+              <span aria-hidden className="select-none pt-1.5" style={{ color: "var(--c-textMuted)" }}>
+                <AlignLeft size={13} />
               </span>
               <p className="min-w-0 flex-1 whitespace-pre-wrap">
                 {para.split(/(\*[^*]+\*)/g).map((seg, j) =>
@@ -703,18 +730,18 @@ export function StoryReader(props: {
           className="text-lg"
           onClick={() => router.push(props.mode === "guest" ? `/s/${situationId}` : "/bookshelf")}
         >
-          ←
+          <ArrowLeft size={19} strokeWidth={1.9} />
         </button>
         <p className="mx-2 flex-1 truncate text-center text-xs" style={{ color: "var(--c-textMuted)" }}>
           {title}
           {useMidModel && (
-            <span data-testid="model-chip" className="ml-1" title="高品質モデル">
-              🖋
+            <span data-testid="model-chip" className="ml-1 inline-flex align-[-2px]" title="高品質モデル">
+              <Feather size={12} style={{ color: "var(--c-primary)" }} />
             </span>
           )}
         </p>
         <button aria-label="メニュー" className="text-lg" onClick={() => setMenuOpen(true)}>
-          ⋯
+          <Ellipsis size={19} />
         </button>
       </header>
 
@@ -722,7 +749,7 @@ export function StoryReader(props: {
         <div data-testid="novel-stream" className="novel space-y-4">
           {messages && (
             <p className="pb-1 text-center text-[0.68rem]" style={{ color: "var(--c-textMuted)" }}>
-              ⓘ 物語の返答は全てAIが生成した内容です
+              <Info size={11} className="mr-1 inline align-[-1.5px]" /> 物語の返答は全てAIが生成した内容です
             </p>
           )}
           {!messages && (
@@ -781,7 +808,7 @@ export function StoryReader(props: {
                     </span>
                   )}
                   <button className="btn-ghost px-3 py-1.5 text-xs" onClick={() => retypeMessage(m)}>
-                    ✍ 打ち直す
+                    <Pencil size={12} className="mr-1 inline align-[-1px]" /> 打ち直す
                   </button>
                   <button
                     className="btn-ghost px-3 py-1.5 text-xs"
@@ -790,7 +817,7 @@ export function StoryReader(props: {
                       setSelectedUserIdx(null);
                     }}
                   >
-                    📋 コピー
+                    <Copy size={12} className="mr-1 inline align-[-1px]" /> コピー
                   </button>
                 </div>
               );
@@ -810,7 +837,7 @@ export function StoryReader(props: {
                         borderRadius: 8,
                       }}
                     >
-                      ── 🎬 {m.content} ──
+                      ── <Clapperboard size={11} className="inline align-[-1px]" /> {m.content} ──
                     </p>
                     {sendStatus}
                     {userActions}
@@ -893,7 +920,7 @@ export function StoryReader(props: {
                       </span>
                     )}
                     <button className="btn-ghost px-3 py-1.5 text-xs" onClick={() => startEdit(m)}>
-                      ✎ 直接直す
+                      <PenLine size={12} className="mr-1 inline align-[-1px]" /> 直接直す
                     </button>
                     <button
                       className="btn-ghost px-3 py-1.5 text-xs"
@@ -902,14 +929,14 @@ export function StoryReader(props: {
                         setSelectedAiIdx(null);
                       }}
                     >
-                      📋 コピー
+                      <Copy size={12} className="mr-1 inline align-[-1px]" /> コピー
                     </button>
                     <button
                       data-testid="branch-button"
                       className="btn-ghost px-3 py-1.5 text-xs"
                       onClick={() => branchAt(m.idx)}
                     >
-                      🌱 ここから分岐
+                      <GitBranch size={12} className="mr-1 inline align-[-1px]" /> ここから分岐
                     </button>
                     {m.idx !== messages[messages.length - 1].idx && (
                       <button
@@ -920,7 +947,7 @@ export function StoryReader(props: {
                           setSelectedAiIdx(null);
                         }}
                       >
-                        ↩ ここまで戻す
+                        <Undo2 size={12} className="mr-1 inline align-[-1px]" /> ここまで戻す
                       </button>
                     )}
                   </div>
@@ -953,7 +980,7 @@ export function StoryReader(props: {
           )}
           {quotaMsg && (
             <div data-testid="quota-card" className="card p-3 text-sm">
-              🌙 {quotaMsg}
+              <Moon size={13} className="mr-1 inline align-[-2px]" /> {quotaMsg}
             </div>
           )}
           {errorMsg && (
@@ -978,8 +1005,8 @@ export function StoryReader(props: {
           {/* 最新応答への操作(Zeta風の丸アイコン列) */}
           {!generating && !rewindMode && messages && messages.some((m) => m.role === "AI") && props.mode === "auth" && (
             <div className="flex justify-end gap-1.5">
-              <button className="icon-btn" aria-label="⏩ つづき" title="つづきを読む" onClick={() => send("")}>
-                ⏩
+              <button className="icon-btn" aria-label="つづきを生成" title="つづきを読む" onClick={() => send("")}>
+                <FastForward size={16} />
               </button>
               <button
                 className="icon-btn"
@@ -990,7 +1017,7 @@ export function StoryReader(props: {
                   if (lastAi) startEdit(lastAi);
                 }}
               >
-                ✎
+                <PenLine size={15} />
               </button>
               <button
                 className="icon-btn"
@@ -998,7 +1025,7 @@ export function StoryReader(props: {
                 title="方向を指示して書き直す"
                 onClick={() => setInstructionOpen(true)}
               >
-                ✨
+                <Sparkles size={15} />
               </button>
               <button
                 className="icon-btn"
@@ -1010,10 +1037,10 @@ export function StoryReader(props: {
                   else reroll();
                 }}
               >
-                ↺
+                <RotateCcw size={15} />
               </button>
               <button className="icon-btn" aria-label="少し戻る" title="巻き戻す" onClick={() => setRewindMode(true)}>
-                ↩
+                <Undo2 size={15} />
               </button>
             </div>
           )}
@@ -1076,7 +1103,7 @@ export function StoryReader(props: {
           style={{ background: "var(--c-surface)", animationDelay: "0s" }}
           onClick={scrollToLatest}
         >
-          ↓ 最新へ
+          <ArrowDown size={12} className="mr-0.5 inline align-[-1px]" /> 最新へ
         </button>
       )}
 
@@ -1100,6 +1127,7 @@ export function StoryReader(props: {
                 disabled={generating || !messages}
                 onClick={() => setMode(m.key)}
               >
+                <m.Icon size={12} className="mr-1 inline align-[-1px]" />
                 {m.label}
               </button>
             ))}
@@ -1148,9 +1176,7 @@ export function StoryReader(props: {
                   inputRef.current?.focus();
                 }}
               >
-                <span className="mr-1" style={{ color: "var(--c-accent)" }} aria-hidden>
-                  ✦
-                </span>
+                <Sparkle size={12} className="mr-1 inline align-[-1px]" style={{ color: "var(--c-accent)" }} aria-hidden />
                 {s}
               </button>
             ))}
@@ -1175,7 +1201,7 @@ export function StoryReader(props: {
               disabled={generating || !messages || suggestLoading}
               onClick={() => (suggestions ? setSuggestions(null) : fetchSuggestions())}
             >
-              {suggestLoading ? <span className="caret">⚡</span> : "⚡"}
+              {suggestLoading ? <span className="caret"><Zap size={17} /></span> : <Zap size={17} />}
             </button>
           )}
           <textarea
@@ -1205,7 +1231,7 @@ export function StoryReader(props: {
               disabled={generating || !messages}
               onClick={() => send(input)}
             >
-              ▶
+              <Send size={17} />
             </button>
           ) : (
             <button
@@ -1215,7 +1241,7 @@ export function StoryReader(props: {
               disabled={generating || !messages}
               onClick={() => send("")}
             >
-              ▶
+              <FastForward size={17} />
             </button>
           )}
         </div>
@@ -1268,7 +1294,7 @@ export function StoryReader(props: {
                   setMemoryOpen(true);
                 }}
               >
-                🧠 記憶
+                <Brain size={15} className="mr-1.5 inline align-[-2.5px]" /> 記憶
               </button>
             )}
             {props.mode === "auth" && (
@@ -1277,11 +1303,11 @@ export function StoryReader(props: {
                 disabled={!messages}
                 onClick={openRoutes}
               >
-                🌱 ルート(並行世界)
+                <GitBranch size={15} className="mr-1.5 inline align-[-2.5px]" /> ルート(並行世界)
               </button>
             )}
             <Link href={`/s/${situationId}`} className="block w-full py-2.5 text-left text-sm">
-              📖 この作品ページへ
+              <BookOpen size={15} className="mr-1.5 inline align-[-2.5px]" /> この作品ページへ
             </Link>
             {props.mode === "auth" && (
               <>
@@ -1293,7 +1319,7 @@ export function StoryReader(props: {
                   disabled={!messages}
                   onClick={() => patchStorySetting({ choicesEnabled: !choicesEnabled })}
                 >
-                  <span>🔀 選択肢を表示</span>
+                  <span><Shuffle size={15} className="mr-1.5 inline align-[-2.5px]" /> 選択肢を表示</span>
                   <span className="chip px-2.5 py-0.5 text-[0.7rem]" data-on={choicesEnabled}>
                     {choicesEnabled ? "ON" : "OFF"}
                   </span>
@@ -1304,7 +1330,7 @@ export function StoryReader(props: {
                   disabled={!messages}
                   onClick={() => patchStorySetting({ useMidModel: !useMidModel })}
                 >
-                  <span>🖋 高品質モデル(β)</span>
+                  <span><Feather size={15} className="mr-1.5 inline align-[-2.5px]" /> 高品質モデル(β)</span>
                   <span className="chip px-2.5 py-0.5 text-[0.7rem]" data-on={useMidModel}>
                     {useMidModel ? "ON" : "OFF"}
                   </span>
@@ -1324,7 +1350,7 @@ export function StoryReader(props: {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="sheet-grabber" aria-hidden />
-            <p className="text-sm font-bold">🌱 ルート(並行世界)</p>
+            <p className="text-sm font-bold"><GitBranch size={14} className="mr-1 inline align-[-2px]" /> ルート(並行世界)</p>
             <p className="mt-0.5 text-xs" style={{ color: "var(--c-textMuted)" }}>
               同じ物語を、違う選択で読み直せます
             </p>
@@ -1378,7 +1404,7 @@ export function StoryReader(props: {
                 }
               }}
             >
-              ＋ 最初から新しいルートで読む
+              <Plus size={14} className="mr-1 inline align-[-2px]" /> 最初から新しいルートで読む
             </button>
           </div>
         </div>

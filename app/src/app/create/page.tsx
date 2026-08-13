@@ -1,4 +1,5 @@
 "use client";
+import { PartyPopper, Plus, Send, Sparkles } from "lucide-react";
 
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -224,7 +225,8 @@ function CreateInner() {
           disabled={fantasy.trim().length < 10 || drafting}
           onClick={runDraft}
         >
-          ✦ AIに下書きしてもらう
+          <Sparkles size={16} className="mr-1.5 inline align-[-3px]" />
+          AIに下書きしてもらう
         </button>
         <button className="mt-3 text-center text-xs underline" style={{ color: "var(--c-textMuted)" }} onClick={startBlank}>
           白紙から作る
@@ -312,7 +314,7 @@ function CreateInner() {
                 }
               }}
             >
-              ＋ 人物を追加
+              <Plus size={15} className="mr-1 inline align-[-2px]" /> 人物を追加
             </button>
           )}
           <NavButtons onBack={() => goStep(1)} onNext={() => goStep(3)} />
@@ -405,7 +407,7 @@ function CreateInner() {
                 if (r.ok) setSituation({ ...situation, intros: [...situation.intros, await r.json()] });
               }}
             >
-              ＋ はじまりを追加
+              <Plus size={15} className="mr-1 inline align-[-2px]" /> はじまりを追加
             </button>
           )}
           <NavButtons onBack={() => goStep(2)} onNext={() => goStep(4)} />
@@ -447,7 +449,7 @@ function CreateInner() {
               onKeyDown={(e) => e.key === "Enter" && runTest()}
             />
             <button aria-label="送信" className="btn-primary px-4" onClick={runTest} disabled={testGenerating}>
-              ▶
+              <Send size={16} />
             </button>
           </div>
           <NavButtons onBack={() => goStep(3)} onNext={() => goStep(5)} />
@@ -539,7 +541,7 @@ function CreateInner() {
 
           {publishResult && "status" in publishResult && publishResult.status === "PUBLISHED" ? (
             <div className="card p-5 text-center">
-              <p className="text-lg font-bold">🎉 公開しました</p>
+              <p className="text-lg font-bold"><PartyPopper size={18} className="mr-1.5 inline align-[-3px]" style={{ color: "var(--c-primary)" }} /> 公開しました</p>
               <Link href={`/s/${situation.id}`} className="btn-primary mt-3 block">
                 作品ページを見る
               </Link>
@@ -654,7 +656,13 @@ function FieldWithAi({
           {label}
         </label>
         <button className="text-[11px]" style={{ color: "var(--c-accent)" }} onClick={runAi} disabled={loading}>
-          {loading ? "…" : "✦ AIに書き直してもらう"}
+          {loading ? (
+            "…"
+          ) : (
+            <>
+              <Sparkles size={13} className="mr-1 inline align-[-2px]" /> AIに書き直してもらう
+            </>
+          )}
         </button>
       </div>
       {textarea ? (

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { coverGradient, SituationCard, type CardData } from "@/components/SituationCard";
 import { fmtCount, fmtDateJa } from "@/lib/format";
+import { ArrowLeft, BookOpen, Ellipsis, Heart, MessageCircle } from "lucide-react";
 
 interface Detail {
   id: string;
@@ -181,7 +182,7 @@ export default function SituationDetailPage({ params }: { params: Promise<{ id: 
           style={{ background: "rgb(0 0 0 / 0.35)", backdropFilter: "blur(4px)" }}
           onClick={goBack}
         >
-          ←
+          <ArrowLeft size={19} strokeWidth={1.9} />
         </button>
         <div className="flex items-center gap-2">
           <button
@@ -192,12 +193,12 @@ export default function SituationDetailPage({ params }: { params: Promise<{ id: 
             className="flex h-9 items-center gap-1.5 rounded-full px-3 text-sm text-white"
             style={{ background: "rgb(0 0 0 / 0.35)", backdropFilter: "blur(4px)", transition: "color 0.2s ease" }}
           >
-            <span
-              key={String(liked)}
-              className={`inline-block ${liked ? "heart-pop" : ""}`}
-              style={{ color: liked ? "var(--c-primary)" : "#fff" }}
-            >
-              ♥
+            <span key={String(liked)} className={`inline-flex ${liked ? "heart-pop" : ""}`}>
+              <Heart
+                size={15}
+                fill={liked ? "var(--c-primary)" : "none"}
+                style={{ color: liked ? "var(--c-primary)" : "#fff" }}
+              />
             </span>
             {likeCount.toLocaleString()}
           </button>
@@ -208,7 +209,7 @@ export default function SituationDetailPage({ params }: { params: Promise<{ id: 
               style={{ background: "rgb(0 0 0 / 0.35)", backdropFilter: "blur(4px)" }}
               onClick={() => setReportOpen((v) => !v)}
             >
-              ⋯
+              <Ellipsis size={19} />
             </button>
             {reportOpen && (
               <div className="card absolute right-0 z-20 w-40 p-2">
@@ -272,7 +273,7 @@ export default function SituationDetailPage({ params }: { params: Promise<{ id: 
                 className="mb-1.5 inline-block rounded px-1.5 py-0.5 text-[10px] font-bold text-white"
                 style={{ background: "var(--c-danger)" }}
               >
-                R15 🔞
+                R15
               </span>
             )}
             <h1
@@ -292,13 +293,16 @@ export default function SituationDetailPage({ params }: { params: Promise<{ id: 
           {/* 社会的証明 + 作者 */}
           <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.8rem]" style={{ color: "var(--c-textMuted)" }}>
             <span data-testid="stat-stories">
-              💬 <b style={{ color: "var(--c-text)" }}>{fmtCount(detail.storyCount)}</b> 会話
+              <MessageCircle size={13} className="inline align-[-2px]" />{" "}
+              <b style={{ color: "var(--c-text)" }}>{fmtCount(detail.storyCount)}</b> 会話
             </span>
             <span>
-              📖 <b style={{ color: "var(--c-text)" }}>{fmtCount(detail.readerCount)}</b> 読者
+              <BookOpen size={13} className="inline align-[-2px]" />{" "}
+              <b style={{ color: "var(--c-text)" }}>{fmtCount(detail.readerCount)}</b> 読者
             </span>
             <span>
-              ♥ <b style={{ color: "var(--c-text)" }}>{fmtCount(likeCount)}</b>
+              <Heart size={13} className="inline align-[-2px]" />{" "}
+              <b style={{ color: "var(--c-text)" }}>{fmtCount(likeCount)}</b>
             </span>
           </div>
           <div className="mt-2.5 flex items-center gap-2">

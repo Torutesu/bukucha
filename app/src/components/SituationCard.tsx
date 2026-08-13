@@ -1,4 +1,5 @@
 "use client";
+import { BookOpen, Heart, MessageCircle } from "lucide-react";
 
 import Link from "next/link";
 import { fmtCount } from "@/lib/format";
@@ -78,8 +79,12 @@ export function SituationCard({ s, testid = "situation-card" }: { s: CardData; t
           {s.catchphrase}
         </p>
         <p className="flex gap-2 text-[11px]" style={{ color: "var(--c-textMuted)" }}>
-          <span data-testid="card-readers">📖 {fmtCount(s.readerCount)}</span>
-          <span data-testid="card-likes">♥ {fmtCount(s.likeCount)}</span>
+          <span data-testid="card-readers" className="inline-flex items-center gap-0.5">
+            <BookOpen size={11} /> {fmtCount(s.readerCount)}
+          </span>
+          <span data-testid="card-likes" className="inline-flex items-center gap-0.5">
+            <Heart size={11} /> {fmtCount(s.likeCount)}
+          </span>
         </p>
         <p className="flex flex-wrap gap-1">
           {s.tags.slice(0, 2).map((t) => (
@@ -113,7 +118,8 @@ export function PlotGridCard({ s, rank }: { s: CardData; rank?: number }) {
           className="absolute right-1.5 top-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold text-white"
           style={{ background: "rgb(0 0 0 / 0.45)", backdropFilter: "blur(3px)" }}
         >
-          💬 {fmtCount(s.storyCount ?? 0)}
+          <MessageCircle size={11} className="mr-0.5 inline align-[-1px]" />
+          {fmtCount(s.storyCount ?? 0)}
         </span>
       </div>
       <div className="mt-1.5 space-y-0.5">

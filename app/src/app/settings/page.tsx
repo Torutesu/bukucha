@@ -1,4 +1,5 @@
 "use client";
+import { ArrowLeft } from "lucide-react";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -88,7 +89,7 @@ export default function SettingsPage() {
     <div className="flex min-h-dvh flex-col">
       <header className="flex items-center gap-2 px-4 py-3">
         <button aria-label="戻る" onClick={() => (window.history.length > 2 || document.referrer.startsWith(location.origin) ? router.back() : router.push("/"))}>
-          ←
+          <ArrowLeft size={20} strokeWidth={1.8} />
         </button>
         <h1 className="text-lg font-bold">設定</h1>
       </header>

@@ -1,4 +1,5 @@
 "use client";
+import { BookOpen, CalendarDays, Heart, Plus } from "lucide-react";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -74,7 +75,7 @@ export default function StudioPage() {
       <header className="flex items-center justify-between px-4 pt-4">
         <h1 className="text-xl font-bold">マイ作品</h1>
         <Link href="/create" className="btn-primary px-3 py-1.5 text-sm">
-          ＋ 新しく作る
+          <Plus size={15} className="mr-1 inline align-[-2px]" /> 新しく作る
         </Link>
       </header>
 
@@ -85,7 +86,7 @@ export default function StudioPage() {
               <div>
                 <span style={{ color: "var(--c-textMuted)" }}>今週の読者</span>
                 <p className="text-lg font-bold">
-                  📖 {summary.weekReaders}{" "}
+                  <BookOpen size={13} className="inline align-[-2px]" /> {summary.weekReaders}{" "}
                   <span className="text-xs" style={{ color: "var(--c-primary)" }}>
                     ({summary.weekReadersDelta >= 0 ? "+" : ""}
                     {summary.weekReadersDelta})
@@ -95,7 +96,7 @@ export default function StudioPage() {
               <div>
                 <span style={{ color: "var(--c-textMuted)" }}>今週のいいね</span>
                 <p className="text-lg font-bold">
-                  ♥ {summary.weekLikes}{" "}
+                  <Heart size={13} className="inline align-[-2px]" /> {summary.weekLikes}{" "}
                   <span className="text-xs" style={{ color: "var(--c-primary)" }}>
                     ({summary.weekLikesDelta >= 0 ? "+" : ""}
                     {summary.weekLikesDelta})
@@ -124,7 +125,7 @@ export default function StudioPage() {
               一文の妄想から、AIが下書きします
             </p>
             <Link href="/create" className="btn-primary mt-3 block">
-              ＋ 作る
+              <Plus size={15} className="mr-1 inline align-[-2px]" /> 作る
             </Link>
           </div>
         )}
@@ -134,9 +135,9 @@ export default function StudioPage() {
               <p className="text-sm font-semibold">{w.title || "(無題)"}</p>
             </Link>
             <p className="mt-1 flex gap-3 text-[11px]" style={{ color: "var(--c-textMuted)" }}>
-              <span data-testid="stat-readers">📖 {w.readerCount.toLocaleString()}</span>
-              <span data-testid="stat-likes">♥ {w.likeCount.toLocaleString()}</span>
-              {w.publishedAt && <span>📅 {new Date(w.publishedAt).toLocaleDateString("ja-JP")}</span>}
+              <span data-testid="stat-readers"><BookOpen size={12} className="inline align-[-2px]" /> {w.readerCount.toLocaleString()}</span>
+              <span data-testid="stat-likes"><Heart size={12} className="inline align-[-2px]" /> {w.likeCount.toLocaleString()}</span>
+              {w.publishedAt && <span><CalendarDays size={12} className="inline align-[-2px]" /> {new Date(w.publishedAt).toLocaleDateString("ja-JP")}</span>}
             </p>
             <div className="mt-2 flex gap-2">
               <Link href={`/create?situationId=${w.id}`} className="btn-ghost px-3 py-1.5 text-xs">
