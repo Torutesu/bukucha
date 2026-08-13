@@ -135,6 +135,8 @@ test.describe("リーダー(コア体験)", () => {
     await page.getByRole("button", { name: "この物語をはじめる" }).click();
     await sendMessage(page, "1冊目のセリフ");
     await page.goto("/");
+    await page.getByTestId("tab-new").click();
+    await expect(page.getByTestId("section-new")).toBeVisible();
     await page.getByTestId("section-new").getByTestId("situation-card").first().click();
     await page.getByRole("button", { name: "この物語をはじめる" }).click();
     await sendMessage(page, "2冊目のセリフ");

@@ -3,7 +3,8 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { coverGradient } from "@/components/SituationCard";
+import { coverGradient, SituationCard, type CardData } from "@/components/SituationCard";
+import { fmtCount, fmtDateJa } from "@/lib/format";
 
 interface Detail {
   id: string;
@@ -15,6 +16,7 @@ interface Detail {
   likeCount: number;
   readerCount: number;
   storyCount: number;
+  publishedAt: string | null;
   likedByMe: boolean;
   author: { id: string; nickname: string };
   characters: {
@@ -54,6 +56,7 @@ export default function SituationDetailPage({ params }: { params: Promise<{ id: 
   const [reportOpen, setReportOpen] = useState(false);
   const [reported, setReported] = useState(false);
   const [worldExpanded, setWorldExpanded] = useState(false);
+  const [related, setRelated] = useState<CardData[] | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -68,6 +71,15 @@ export default function SituationDetailPage({ params }: { params: Promise<{ id: 
       }
       const d: Detail = await r.json();
       setDetail(d);
+      const firstTag = d.tags[0]?.tag.name;
+      if (firstTag) {
+        fetch(`/api/search?tags=${encodeURIComponent(firstTag)}&sort=popular`)
+          .then((res) => (res.ok ? res.json() : null))
+          .then((j) => {
+            if (j) setRelated((j.items as CardData[]).filter((x) => x.id !== id).slice(0, 6));
+          })
+          .catch(() => {});
+      }
       setIntroId(d.intros[0]?.id ?? "");
       setLikeCount(d.likeCount);
       setLiked(d.likedByMe);
@@ -150,8 +162,8 @@ export default function SituationDetailPage({ params }: { params: Promise<{ id: 
       </main>
     );
 
+  const mainChar = detail.characters[0];
   const selectedIntro = detail.intros.find((i) => i.id === introId) ?? detail.intros[0];
-  const previewText = `${selectedIntro?.introText ?? ""}\n${selectedIntro?.firstMessage ?? ""}`.slice(0, 400);
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -264,6 +276,9 @@ export default function SituationDetailPage({ params }: { params: Promise<{ id: 
             >
               {detail.title}
             </h1>
+            <p className="mt-0.5 text-[0.8rem]" style={{ color: "var(--c-textMuted)" }}>
+              {detail.catchphrase}
+            </p>
           </div>
         </div>
 
@@ -271,13 +286,13 @@ export default function SituationDetailPage({ params }: { params: Promise<{ id: 
           {/* 社会的証明 + 作者 */}
           <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.8rem]" style={{ color: "var(--c-textMuted)" }}>
             <span data-testid="stat-stories">
-              💬 <b style={{ color: "var(--c-text)" }}>{detail.storyCount.toLocaleString()}</b> 会話
+              💬 <b style={{ color: "var(--c-text)" }}>{fmtCount(detail.storyCount)}</b> 会話
             </span>
             <span>
-              📖 <b style={{ color: "var(--c-text)" }}>{detail.readerCount.toLocaleString()}</b> 読者
+              📖 <b style={{ color: "var(--c-text)" }}>{fmtCount(detail.readerCount)}</b> 読者
             </span>
             <span>
-              ♥ <b style={{ color: "var(--c-text)" }}>{likeCount.toLocaleString()}</b>
+              ♥ <b style={{ color: "var(--c-text)" }}>{fmtCount(likeCount)}</b>
             </span>
           </div>
           <div className="mt-2.5 flex items-center gap-2">
@@ -355,13 +370,44 @@ export default function SituationDetailPage({ params }: { params: Promise<{ id: 
                   ── {selectedIntro.label} ──
                 </p>
               )}
-              <p className="novel whitespace-pre-wrap text-[0.95rem]">{previewText}…</p>
+              <p className="novel whitespace-pre-wrap text-[0.95rem]">{selectedIntro?.introText}</p>
+              {mainChar && (
+                <p className="mt-3 flex items-center gap-1.5 text-[0.72rem]" style={{ color: "var(--c-textMuted)" }}>
+                  <span
+                    aria-hidden
+                    className="flex h-5 w-5 items-center justify-center rounded-full font-serif text-[0.6rem] font-bold text-white"
+                    style={{ background: coverGradient(mainChar.name) }}
+                  >
+                    {mainChar.name.slice(0, 1)}
+                  </span>
+                  {mainChar.name}
+                </p>
+              )}
+              <p className="novel mt-1 whitespace-pre-wrap text-[0.95rem]">{(selectedIntro?.firstMessage ?? "").slice(0, 160)}…</p>
               <div
                 className="pointer-events-none absolute inset-x-0 bottom-0 h-16"
                 style={{ background: "linear-gradient(transparent, var(--c-novelBg))" }}
               />
             </div>
           </section>
+
+          {/* 関連作品(同じタグの人気作) */}
+          {related && related.length > 0 && (
+            <section className="mt-6">
+              <SectionTitle>こんな物語も</SectionTitle>
+              <div className="hide-scrollbar mt-2.5 flex snap-x gap-3 overflow-x-auto pb-1">
+                {related.map((r2) => (
+                  <SituationCard key={r2.id} s={r2} testid="related-card" />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {detail.publishedAt && (
+            <p className="mt-6 text-[0.7rem]" style={{ color: "var(--c-textMuted)" }}>
+              公開: {fmtDateJa(detail.publishedAt)}
+            </p>
+          )}
         </div>
       </main>
 

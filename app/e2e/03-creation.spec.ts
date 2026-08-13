@@ -56,6 +56,7 @@ test.describe("創作フロー", () => {
 
     // ホーム新着に出る
     await page.goto("/");
+    await page.getByTestId("tab-new").click();
     await expect(
       page.getByTestId("section-new").getByText(/没落令嬢の私を買ったのは/).first()
     ).toBeVisible();
