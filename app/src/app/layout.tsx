@@ -6,6 +6,12 @@ export const metadata: Metadata = {
   title: `${brand.name} - ${brand.tagline}`,
   description:
     "妄想がそのまま物語になる、女性向けノベルAIチャット。シチュエーションを選んで、あなただけのラノベを読もう。",
+  icons: { icon: "/icon.svg", apple: "/icon.svg" },
+  openGraph: {
+    title: `${brand.name} - ${brand.tagline}`,
+    description: "妄想がそのまま物語になる、女性向けノベルAIチャット。",
+    images: ["/icon.svg"],
+  },
 };
 
 export const viewport: Viewport = {

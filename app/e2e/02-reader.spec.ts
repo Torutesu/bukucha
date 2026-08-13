@@ -21,9 +21,9 @@ test.describe("リーダー(コア体験)", () => {
 
     await page.getByTestId("guest-gate").getByRole("link", { name: /登録して続きを読む/ }).click();
     await expect(page).toHaveURL(/\/login/);
-    await page.getByRole("button", { name: "メールでつづける" }).click();
+    await page.getByRole("button", { name: "メールではじめる" }).click();
     await page.getByPlaceholder("メールアドレス").fill("guest-migrate@test.com");
-    await page.getByRole("button", { name: "ログイン" }).click();
+    await page.getByRole("button", { name: "ログイン", exact: true }).click();
 
     // 新規ユーザー: アカウント登録ステップ(名前入力→規約同意シート)
     await expect(page.getByRole("heading", { name: "アカウント登録" })).toBeVisible();

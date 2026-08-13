@@ -6,7 +6,6 @@ test.describe("安全・ソーシャル", () => {
     // birthDate未設定 → R15は一切見えない
     await loginAs(page, "safety-e2e015@test.com");
     await page.goto("/");
-    await expect(page.getByTestId("safe-filter-banner")).toBeVisible();
     await expect(page.getByText("R15テスト作品")).toHaveCount(0);
 
     await page.goto("/search?q=R15テスト作品");
@@ -43,6 +42,34 @@ test.describe("安全・ソーシャル", () => {
     await page.getByRole("button", { name: "確定する" }).click();
     await expect(page.getByTestId("safe-filter-toggle")).toBeDisabled();
     await expect(page.getByText("18歳になったら解除できます")).toBeVisible();
+  });
+
+  test("E2E-044: Googleではじめる→登録→マイページ", async ({ page }) => {
+    await page.goto("/login");
+    await page.getByRole("button", { name: "Googleではじめる" }).click();
+
+    // 新規なので登録ステップ(名前→規約同意)
+    await expect(page.getByRole("heading", { name: "アカウント登録" })).toBeVisible();
+    await page.getByPlaceholder("キャラクターに呼んで欲しい名前").fill("ひなた");
+    await page.getByRole("button", { name: "次へ" }).click();
+    await page.getByRole("button", { name: "すべて同意する" }).click();
+    await page.getByRole("button", { name: "同意する", exact: true }).click();
+    await expect(page).toHaveURL(/\/$|\/\?/);
+
+    // 名前がプロフィールとトークプロフィールの双方に入る
+    await page.goto("/me");
+    await expect(page.getByText("ひなた").first()).toBeVisible();
+    await page.goto("/me/edit");
+    await page.getByRole("button", { name: "トーク用" }).click();
+    await expect(page.getByText("呼ばれ方: ひなた")).toBeVisible();
+
+    // 同じ端末で再ログインすると同じアカウントに戻る(登録ステップは出ない)
+    await page.request.post("/api/auth/logout");
+    await page.goto("/login");
+    await page.getByRole("button", { name: "Googleではじめる" }).click();
+    await expect(page).toHaveURL(/\/$|\/\?/);
+    await page.goto("/me");
+    await expect(page.getByText("ひなた").first()).toBeVisible();
   });
 
   test("E2E-019: いいね", async ({ page }) => {

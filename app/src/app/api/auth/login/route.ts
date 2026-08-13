@@ -15,7 +15,11 @@ export async function POST(req: Request) {
     const email = String(body.email ?? "").trim().toLowerCase();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))
       throw new HttpError(422, "invalid_email", "メールアドレスの形式が不正です");
-    const nickname = String(body.nickname ?? email.split("@")[0]).slice(0, 20);
+    // [build-notes] SNS連携は未接続。provider指定は端末ローカルの仮アカウントとして扱う
+    const provider = typeof body.provider === "string" ? body.provider : null;
+    const nickname = String(
+      body.nickname ?? (provider ? "はじめまして" : email.split("@")[0])
+    ).slice(0, 20);
     const preferenceTags: string[] = Array.isArray(body.preferenceTags)
       ? body.preferenceTags.slice(0, 12).map(String)
       : [];

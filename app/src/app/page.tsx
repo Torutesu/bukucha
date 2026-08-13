@@ -1,12 +1,12 @@
 "use client";
-import { Search, ShieldCheck } from "lucide-react";
+import { Search } from "lucide-react";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BottomTab } from "@/components/BottomTab";
 import { PlotGridCard, type CardData } from "@/components/SituationCard";
-import { brand } from "@/lib/theme";
+import { Logo } from "@/components/Logo";
 
 interface Section {
   key: string;
@@ -27,7 +27,6 @@ export default function HomePage() {
   const router = useRouter();
   const [sections, setSections] = useState<Section[] | null>(null);
   const [tags, setTags] = useState<{ id: string; name: string }[]>([]);
-  const [me, setMe] = useState<{ safeFilterOff: boolean } | null | undefined>(undefined);
   const [error, setError] = useState(false);
   const [tab, setTab] = useState<TabKey>("forYou");
   const [activeTag, setActiveTag] = useState<string | null>(null);
@@ -37,7 +36,6 @@ export default function HomePage() {
     (async () => {
       const meRes = await fetch("/api/me");
       const meData = meRes.ok ? await meRes.json() : null;
-      setMe(meData);
       if (!meData && !localStorage.getItem("bukucha_visited")) {
         router.replace("/welcome");
         return;
@@ -82,8 +80,8 @@ export default function HomePage() {
     <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-10 border-b" style={{ background: "color-mix(in oklab, var(--c-bg) 94%, transparent)", backdropFilter: "blur(8px)", borderColor: "var(--c-border)" }}>
         <div className="flex items-center justify-between px-4 pt-3">
-          <h1 className="text-lg font-bold" style={{ color: "var(--c-primary)" }}>
-            {brand.name}
+          <h1>
+            <Logo size={26} wordSize="1.1rem" />
           </h1>
           <Link href="/search" aria-label="検索" className="pressable p-1">
             <Search size={20} strokeWidth={1.8} />
@@ -127,17 +125,6 @@ export default function HomePage() {
           </button>
         ))}
       </div>
-
-      {me !== undefined && (!me || !me.safeFilterOff) && (
-        <Link
-          href="/settings"
-          data-testid="safe-filter-banner"
-          className="mx-4 mt-2 block rounded-lg px-3 py-1.5 text-[11px]"
-          style={{ background: "var(--c-primarySoft)", color: "var(--c-primary)" }}
-        >
-          <ShieldCheck size={13} className="mr-1 inline align-[-2px]" /> 安心フィルターを適用しています
-        </Link>
-      )}
 
       <main className="flex-1 px-4 pb-6 pt-3">
         {error && (
