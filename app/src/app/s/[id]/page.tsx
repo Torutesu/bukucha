@@ -126,6 +126,12 @@ export default function SituationDetailPage({ params }: { params: Promise<{ id: 
     router.push("/story/guest");
   };
 
+  // 直リンクで開いた場合は履歴が無く router.back() が無反応になるため、ホームへ帰す
+  const goBack = () => {
+    if (window.history.length > 2 || document.referrer.startsWith(location.origin)) router.back();
+    else router.push("/");
+  };
+
   const toggleLike = async () => {
     if (!me) {
       router.push(`/login?returnTo=${encodeURIComponent(`/s/${id}`)}`);
@@ -173,7 +179,7 @@ export default function SituationDetailPage({ params }: { params: Promise<{ id: 
           aria-label="戻る"
           className="flex h-9 w-9 items-center justify-center rounded-full text-lg text-white"
           style={{ background: "rgb(0 0 0 / 0.35)", backdropFilter: "blur(4px)" }}
-          onClick={() => router.back()}
+          onClick={goBack}
         >
           ←
         </button>

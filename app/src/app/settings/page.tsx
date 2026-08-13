@@ -87,7 +87,7 @@ export default function SettingsPage() {
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="flex items-center gap-2 px-4 py-3">
-        <button aria-label="戻る" onClick={() => router.back()}>
+        <button aria-label="戻る" onClick={() => (window.history.length > 2 || document.referrer.startsWith(location.origin) ? router.back() : router.push("/"))}>
           ←
         </button>
         <h1 className="text-lg font-bold">設定</h1>

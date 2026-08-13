@@ -219,6 +219,23 @@ a.card:active {
   }
 }
 
+/* 丸型アイコンボタン(SCR-006の操作列/送信まわり) */
+.icon-btn {
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--c-border);
+  background: var(--c-surface);
+  color: var(--c-text);
+  font-size: 1rem;
+}
+.icon-btn:disabled {
+  opacity: 0.4;
+}
+
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }

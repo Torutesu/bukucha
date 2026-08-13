@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { postSse } from "./sse-client";
+import { coverGradient } from "./SituationCard";
 
 /** 実機トラブルの一次情報をサーバーログへ(fire-and-forget) */
 function reportClientError(type: string, message: string) {
@@ -85,22 +86,98 @@ function UserContent({ text }: { text: string }) {
   );
 }
 
-/** AI応答のノベル組版: 「」セリフを強調、*〜* は地の文(em)扱い */
-function AiContent({ text }: { text: string }) {
-  const parts = text.split(/(\*[^*]+\*|「[^」]*」)/g);
+interface TalkChar {
+  name: string;
+  profileImageUrl: string | null;
+}
+
+/** 吹き出し内テキスト: 「」セリフは強調、地の文断片は斜体 */
+function SpeechText({ text }: { text: string }) {
+  const parts = text.split(/(「[^」]*」)/g);
   return (
     <>
       {parts.map((p, i) => {
-        if (p.startsWith("*") && p.endsWith("*")) return <em key={i}>{p.slice(1, -1)}</em>;
-        if (p.startsWith("「") && p.endsWith("」"))
+        if (p.startsWith("「")) {
           return (
-            <span key={i} className="dialogue">
+            <span key={i} className="dialogue block whitespace-pre-wrap">
               {p}
             </span>
           );
-        return <span key={i}>{p}</span>;
+        }
+        const t = p.replace(/\*/g, "").trim();
+        return t ? (
+          <em key={i} className="block whitespace-pre-wrap py-0.5 opacity-75">
+            {t}
+          </em>
+        ) : null;
       })}
     </>
+  );
+}
+
+/**
+ * AI応答のトーク描画(Zetaのルーム構造):
+ * セリフを含まない段落 = ナレーションブロック(ガター付き地の文)、
+ * セリフを含む段落 = 話者アバター+名前+吹き出し
+ */
+function AiTalk({ text, chars }: { text: string; chars: TalkChar[] }) {
+  const paras = text
+    .split(/\n+/)
+    .map((t) => t.trim())
+    .filter(Boolean);
+  return (
+    <div className="space-y-3">
+      {paras.map((para, i) => {
+        const speechIdx = para.indexOf("「");
+        if (speechIdx === -1 || chars.length === 0) {
+          return (
+            <div key={i} className="flex gap-2.5">
+              <span aria-hidden className="select-none pt-1 text-xs" style={{ color: "var(--c-textMuted)" }}>
+                ≡
+              </span>
+              <p className="min-w-0 flex-1 whitespace-pre-wrap">
+                {para.split(/(\*[^*]+\*)/g).map((seg, j) =>
+                  seg.startsWith("*") && seg.endsWith("*") ? <em key={j}>{seg.slice(1, -1)}</em> : <span key={j}>{seg}</span>
+                )}
+              </p>
+            </div>
+          );
+        }
+        const before = para.slice(0, speechIdx);
+        const firstName = (c: TalkChar) => c.name.split(/[\s　]/)[0];
+        const speaker =
+          chars.find((c) => before.includes(firstName(c))) ??
+          chars.find((c) => para.includes(firstName(c))) ??
+          chars[0];
+        return (
+          <div key={i} className="flex items-start gap-2">
+            {speaker.profileImageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={speaker.profileImageUrl} alt="" className="mt-0.5 h-8 w-8 shrink-0 rounded-full object-cover" />
+            ) : (
+              <span
+                aria-hidden
+                className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-serif text-xs font-bold text-white"
+                style={{ background: coverGradient(speaker.name) }}
+              >
+                {speaker.name.slice(0, 1)}
+              </span>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="mb-0.5 text-[0.7rem]" style={{ color: "var(--c-textMuted)" }}>
+                {speaker.name}
+              </p>
+              <div
+                className="inline-block max-w-full rounded-2xl rounded-tl-md px-3.5 py-2.5 text-[0.95rem]"
+                style={{ background: "var(--c-surface)", border: "1px solid var(--c-border)" }}
+              >
+                <SpeechText text={para} />
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -144,6 +221,7 @@ export function StoryReader(props: {
   const [editText, setEditText] = useState("");
   const [routesOpen, setRoutesOpen] = useState(false);
   const [routes, setRoutes] = useState<RouteItem[] | null>(null);
+  const [chars, setChars] = useState<TalkChar[]>([]);
   const [choicesEnabled, setChoicesEnabled] = useState(true);
   const [useMidModel, setUseMidModel] = useState(false);
   const [showLatestChip, setShowLatestChip] = useState(false);
@@ -173,11 +251,11 @@ export function StoryReader(props: {
         setTitle(g.title);
         setSituationId(g.situationId);
         const base: ReaderMessage[] = [{ idx: 0, role: "SYSTEM", content: g.introText }];
-        if (g.messages.length === 0) {
-          // 初回: firstMessageを取得するために1回generate…ではなく詳細から取得
-          const r = await fetch(`/api/situations/${g.situationId}`);
-          if (r.ok) {
-            const d = await r.json();
+        const r = await fetch(`/api/situations/${g.situationId}`);
+        if (r.ok) {
+          const d = await r.json();
+          setChars(d.characters ?? []);
+          if (g.messages.length === 0) {
             const intro = d.intros.find((i: { id: string }) => i.id === g.introVariantId);
             if (intro) {
               g.messages.push({ role: "AI", content: intro.firstMessage });
@@ -211,6 +289,7 @@ export function StoryReader(props: {
             choices: (m.choices as { id: string; text: string }[] | null) ?? null,
           }))
         );
+        setChars(st.situation.characters ?? []);
         setSummary(st.memory?.summary ?? "");
         setUserNote(st.memory?.userNote ?? "");
       }
@@ -641,6 +720,11 @@ export function StoryReader(props: {
 
       <main className="flex-1 px-5 py-4">
         <div data-testid="novel-stream" className="novel space-y-4">
+          {messages && (
+            <p className="pb-1 text-center text-[0.68rem]" style={{ color: "var(--c-textMuted)" }}>
+              ⓘ 物語の返答は全てAIが生成した内容です
+            </p>
+          )}
           {!messages && (
             <div className="space-y-3 pt-2" aria-label="読み込み中">
               <div className="skeleton mx-auto h-3 w-24" />
@@ -799,7 +883,7 @@ export function StoryReader(props: {
                     }
                   }}
                 >
-                  <AiContent text={m.content} />
+                  <AiTalk text={m.content} chars={chars} />
                 </div>
                 {selectedAiIdx === m.idx && !rewindMode && !generating && (
                   <div data-testid="ai-action-row" className="modal-pop mt-2 flex flex-wrap items-center gap-2 text-xs">
@@ -849,7 +933,7 @@ export function StoryReader(props: {
             <div data-testid="generating" className="whitespace-pre-wrap">
               {streamText ? (
                 <>
-                  <AiContent text={streamText} />
+                  <AiTalk text={streamText} chars={chars} />
                   <span className="caret">▌</span>
                 </>
               ) : (
@@ -891,24 +975,45 @@ export function StoryReader(props: {
             </div>
           )}
 
-          {/* 最新応答への操作 */}
+          {/* 最新応答への操作(Zeta風の丸アイコン列) */}
           {!generating && !rewindMode && messages && messages.some((m) => m.role === "AI") && props.mode === "auth" && (
-            <div className="flex gap-2 text-xs" style={{ color: "var(--c-textMuted)" }}>
-              <button className="btn-ghost px-3 py-1.5 text-xs" onClick={() => send("")}>
-                ⏩ つづき
+            <div className="flex justify-end gap-1.5">
+              <button className="icon-btn" aria-label="⏩ つづき" title="つづきを読む" onClick={() => send("")}>
+                ⏩
               </button>
               <button
-                className="btn-ghost px-3 py-1.5 text-xs"
+                className="icon-btn"
+                aria-label="応答を編集"
+                title="最後の応答を直接直す"
+                onClick={() => {
+                  const lastAi = [...messages].reverse().find((m) => m.role === "AI");
+                  if (lastAi) startEdit(lastAi);
+                }}
+              >
+                ✎
+              </button>
+              <button
+                className="icon-btn"
+                aria-label="方向を指定"
+                title="方向を指示して書き直す"
+                onClick={() => setInstructionOpen(true)}
+              >
+                ✨
+              </button>
+              <button
+                className="icon-btn"
+                aria-label="書き直す"
+                title="書き直す(長押しで方向指定)"
                 onPointerDown={() => (pressStartRef.current = Date.now())}
                 onClick={() => {
                   if (Date.now() - pressStartRef.current >= 500) setInstructionOpen(true);
                   else reroll();
                 }}
               >
-                🔄 書き直す
+                ↺
               </button>
-              <button className="btn-ghost px-3 py-1.5 text-xs" onClick={() => setRewindMode(true)}>
-                ↩ 少し戻る
+              <button className="icon-btn" aria-label="少し戻る" title="巻き戻す" onClick={() => setRewindMode(true)}>
+                ↩
               </button>
             </div>
           )}
@@ -1066,11 +1171,11 @@ export function StoryReader(props: {
             <button
               aria-label="返信候補"
               title="返信に迷ったら(AIが候補を書く)"
-              className="btn-ghost px-3 py-2.5"
+              className="icon-btn h-11 w-11"
               disabled={generating || !messages || suggestLoading}
               onClick={() => (suggestions ? setSuggestions(null) : fetchSuggestions())}
             >
-              {suggestLoading ? <span className="caret">✦</span> : "✦"}
+              {suggestLoading ? <span className="caret">⚡</span> : "⚡"}
             </button>
           )}
           <textarea
@@ -1095,7 +1200,8 @@ export function StoryReader(props: {
           {input.trim() ? (
             <button
               aria-label="送信"
-              className="btn-primary px-4 py-2.5"
+              className="btn-primary flex h-11 w-11 shrink-0 items-center justify-center !rounded-full p-0"
+              style={{ borderRadius: 999 }}
               disabled={generating || !messages}
               onClick={() => send(input)}
             >
@@ -1103,11 +1209,13 @@ export function StoryReader(props: {
             </button>
           ) : (
             <button
-              className="btn-ghost whitespace-nowrap px-3 py-2.5 text-sm"
+              aria-label="つづきを読む"
+              title="空欄のまま送ると物語が進みます"
+              className="icon-btn h-11 w-11"
               disabled={generating || !messages}
               onClick={() => send("")}
             >
-              つづきを読む
+              ▶
             </button>
           )}
         </div>
