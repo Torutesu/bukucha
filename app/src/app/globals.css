@@ -170,6 +170,37 @@ a.card:active {
   color: var(--c-primary);
 }
 
+/* 初回トークン待ちのタイピングインジケータ */
+.typing-dots span {
+  display: inline-block;
+  font-size: 0.5rem;
+  margin-right: 4px;
+  color: var(--c-textMuted);
+}
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes typingBlink {
+    0%,
+    80%,
+    100% {
+      opacity: 0.25;
+      transform: translateY(0);
+    }
+    40% {
+      opacity: 1;
+      transform: translateY(-2px);
+    }
+  }
+  .typing-dots span {
+    animation: typingBlink 1.2s ease infinite;
+  }
+  .typing-dots span:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+  .typing-dots span:nth-child(3) {
+    animation-delay: 0.4s;
+  }
+}
+
 /* いいねのポップ(SCR-005) */
 @media (prefers-reduced-motion: no-preference) {
   @keyframes heartPop {

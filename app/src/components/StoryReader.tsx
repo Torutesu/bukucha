@@ -5,6 +5,20 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { postSse } from "./sse-client";
 
+/** 実機トラブルの一次情報をサーバーログへ(fire-and-forget) */
+function reportClientError(type: string, message: string) {
+  try {
+    fetch("/api/client-log", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ type, message, url: location.pathname }),
+      keepalive: true,
+    }).catch(() => {});
+  } catch {
+    /* noop */
+  }
+}
+
 export interface ReaderMessage {
   idx: number;
   role: "USER" | "AI" | "SYSTEM";
@@ -239,6 +253,14 @@ export function StoryReader(props: {
     }
   }, [messages, streamText]);
 
+  // エラー・ブロックのカードは追従状態に関係なく必ず視界に入れる
+  useEffect(() => {
+    if (errorMsg || blockedMsg || quotaMsg) {
+      programmaticScrollRef.current = true;
+      bottomRef.current?.scrollIntoView({ block: "end" });
+    }
+  }, [errorMsg, blockedMsg, quotaMsg]);
+
   // チャンクが塊で届いても文字が等速で流れ込むように、表示をrAFで追いつかせる
   // [USER-REQ: 文章が連続的に出てくる体験]
   useEffect(() => {
@@ -328,6 +350,7 @@ export function StoryReader(props: {
               restore();
             },
             onError: (code, msg) => {
+              reportClientError("guest_send_error", `${code}: ${msg}`);
               setErrorMsg(msg);
               setLastFailedInput(content);
               restore();
@@ -359,6 +382,7 @@ export function StoryReader(props: {
                 setQuotaMsg(msg);
                 restore();
               } else {
+                reportClientError("send_error", `${code}: ${msg}`);
                 setErrorMsg(msg);
                 setLastFailedInput(content);
                 restore();
@@ -429,6 +453,7 @@ export function StoryReader(props: {
             setMessages((prev) => [...prev!, lastAi].sort((a, b) => a.idx - b.idx));
           },
           onError: (_c, msg) => {
+            reportClientError("reroll_error", msg);
             setErrorMsg(msg);
             setMessages((prev) => [...prev!, lastAi].sort((a, b) => a.idx - b.idx));
           },
@@ -613,6 +638,15 @@ export function StoryReader(props: {
                   <button className="btn-ghost px-3 py-1.5 text-xs" onClick={() => retypeMessage(m)}>
                     ✍ 打ち直す
                   </button>
+                  <button
+                    className="btn-ghost px-3 py-1.5 text-xs"
+                    onClick={() => {
+                      navigator.clipboard?.writeText(m.content).catch(() => {});
+                      setSelectedUserIdx(null);
+                    }}
+                  >
+                    📋 コピー
+                  </button>
                 </div>
               );
               // 🎬 展開指示: 主人公の発言ではないので、バブルではなく中央の演出行として描画
@@ -707,6 +741,15 @@ export function StoryReader(props: {
                       ✎ 直接直す
                     </button>
                     <button
+                      className="btn-ghost px-3 py-1.5 text-xs"
+                      onClick={() => {
+                        navigator.clipboard?.writeText(m.content).catch(() => {});
+                        setSelectedAiIdx(null);
+                      }}
+                    >
+                      📋 コピー
+                    </button>
+                    <button
                       data-testid="branch-button"
                       className="btn-ghost px-3 py-1.5 text-xs"
                       onClick={() => branchAt(m.idx)}
@@ -733,8 +776,18 @@ export function StoryReader(props: {
 
           {generating && (
             <div data-testid="generating" className="whitespace-pre-wrap">
-              <AiContent text={streamText} />
-              <span className="caret">▌</span>
+              {streamText ? (
+                <>
+                  <AiContent text={streamText} />
+                  <span className="caret">▌</span>
+                </>
+              ) : (
+                <span className="typing-dots" aria-label="執筆中">
+                  <span>●</span>
+                  <span>●</span>
+                  <span>●</span>
+                </span>
+              )}
             </div>
           )}
 
@@ -849,8 +902,12 @@ export function StoryReader(props: {
       )}
 
       <footer
-        className="sticky bottom-0 z-10 border-t px-3 py-2.5"
-        style={{ background: "var(--c-surface)", borderColor: "var(--c-border)" }}
+        className="sticky bottom-0 z-10 border-t px-3 pt-2.5"
+        style={{
+          background: "var(--c-surface)",
+          borderColor: "var(--c-border)",
+          paddingBottom: "calc(0.625rem + env(safe-area-inset-bottom))",
+        }}
       >
         {/* 送信モード: セリフ / 動作(地の文) / 展開(作者指示) */}
         {props.mode === "auth" && (
@@ -953,6 +1010,12 @@ export function StoryReader(props: {
               setInput(e.target.value);
               e.target.style.height = "auto";
               e.target.style.height = `${Math.min(e.target.scrollHeight, 112)}px`;
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                if (input.trim()) send(input);
+              }
             }}
           />
           {input.trim() ? (

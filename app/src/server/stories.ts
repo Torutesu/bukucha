@@ -167,7 +167,8 @@ export async function* storyTurn(
     story.choicesEnabled && rerollTarget === null && userTurnsIncludingThis % 2 === 0;
   const tier = story.useMidModel ? ("mid" as const) : ("light" as const);
 
-  const timeoutMs = Number(process.env.GENERATION_TIMEOUT_MS ?? 20_000);
+  // 実LLMはコールドスタート+長応答で20秒を超えることがある。壁時計45秒に設定(E2Eは15秒に上書き)
+  const timeoutMs = Number(process.env.GENERATION_TIMEOUT_MS ?? 45_000);
   const abort = new AbortController();
   const timer = setTimeout(() => abort.abort(), timeoutMs);
 
