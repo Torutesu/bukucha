@@ -115,6 +115,11 @@ model Situation {
   contentLevel  ContentLevel    @default(ALL_AGES)
   status        SituationStatus @default(DRAFT)
   aiDraftInput  String?
+  // Zeta型プロット設定: スタイル(視点/時制/長さ/雰囲気ほか)・設定集(キーワード連動)・紹介/コメント
+  style           Json     @default("{}")
+  lore            Json     @default("[]")
+  commentsEnabled Boolean  @default(true)
+  creatorComment  String?
   publishedAt   DateTime?
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt

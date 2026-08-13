@@ -1,14 +1,20 @@
 import { test, expect } from "@playwright/test";
 import { loginAs, sendMessage } from "./helpers";
 
-/** 次へを押して、ステップインジケータが目的のステップになるまで待つ */
-async function nextStep(page: import("@playwright/test").Page, to: number) {
-  await page.getByRole("button", { name: "次へ" }).click();
-  await expect(page.getByTestId("step-indicator")).toHaveAttribute("data-step", String(to));
+/** プロットエディタのタブ移動 */
+async function toTab(page: import("@playwright/test").Page, key: string) {
+  await page.getByTestId(`plot-tab-${key}`).click();
+}
+
+/** 初回に出る注意事項シートを閉じる(表示を待ってから) */
+async function dismissNotice(page: import("@playwright/test").Page) {
+  const btn = page.getByRole("button", { name: "確認しました" });
+  await btn.click();
+  await expect(btn).toBeHidden();
 }
 
 test.describe("創作フロー", () => {
-  test("E2E-013: 妄想一文→AI下書き→編集→テスト→公開", async ({ page }) => {
+  test("E2E-013: 妄想一文→AI下書き→プロット編集→テスト→公開", async ({ page }) => {
     await loginAs(page, "creator-e2e013@test.com", "ゆめの");
     await page.goto("/");
     await page.getByTestId("bottom-tab").getByText("作成").click();
@@ -17,42 +23,60 @@ test.describe("創作フロー", () => {
     await page.getByRole("link", { name: "新しく作る" }).click();
     await expect(page).toHaveURL(/\/create/);
 
-    // Step0: 妄想入力→AI下書き
+    // 妄想入力→AI下書き
     await page
       .getByLabel(/妄想を、一文で/)
       .fill("没落令嬢の私を買ったのは、冷酷と噂の若き公爵だった");
     await page.getByRole("button", { name: "AIに下書きしてもらう" }).click();
 
-    // Step1: フォームが埋まっている
-    await expect(page.getByLabel("タイトル")).toHaveValue(/没落令嬢/, { timeout: 40_000 });
-    await expect(page.getByLabel("世界観")).not.toHaveValue("");
-    await nextStep(page, 2);
+    // プロンプトタブ: フォームが埋まっている
+    await expect(page.getByLabel("*題名")).toHaveValue(/没落令嬢/, { timeout: 40_000 });
+    await dismissNotice(page);
+    await expect(page.getByLabel("*説明")).not.toHaveValue("");
 
-    // Step2: キャラ編集(SCR-010)
-    await page.getByTestId("character-item").getByText("アルベルト").click();
-    await expect(page).toHaveURL(/\/characters\//);
-    await page.getByLabel("口調・話し方").fill("俺様口調。一人称は俺。命令形が多い。");
-    await page.getByRole("button", { name: "保存して戻る" }).click();
-    await expect(page.getByTestId("step-indicator")).toHaveAttribute("data-step", "2");
-    await nextStep(page, 3);
+    // キャラクターをその場で編集(自動保存)
+    const charName = page.getByTestId("character-item").first().getByLabel("*名前");
+    await expect(charName).toHaveValue("アルベルト");
+    await page
+      .getByTestId("character-item")
+      .first()
+      .getByLabel("口調・話し方")
+      .fill("俺様口調。一人称は俺。命令形が多い。");
+    await page.getByLabel("*題名").click(); // blurで保存
 
-    // Step3: 開始シチュのラベル変更
+    // スタイルタブ: 設定が保存される
+    await toTab(page, "style");
+    await page.getByRole("button", { name: "長い", exact: true }).click();
+    await page.getByRole("button", { name: "ヤンデレ" }).click();
+
+    // イントロタブ
+    await toTab(page, "intro");
     await page.getByLabel("ラベル").first().fill("初夜の交渉");
-    await nextStep(page, 4);
+    await page.getByLabel("導入の地の文").first().click();
 
-    // Step4: テスト会話
+    // テスト会話
+    await page.getByRole("button", { name: /この口調をテストする/ }).click();
     await sendMessage(page, "よろしくお願いします");
     await expect(page.getByTestId("ai-line").last()).toContainText("「");
-    await nextStep(page, 5);
+    await page.getByRole("button", { name: "テストを閉じる" }).click();
 
-    // Step5: タグ・レベル・公開
+    // 紹介タブ: ハッシュタグ
+    await toTab(page, "about");
     await page.getByTestId("tag-select").getByRole("button", { name: "身分差" }).click();
     await page.getByTestId("tag-select").getByRole("button", { name: "策略婚" }).click();
-    await page.getByRole("radio", { name: "全年齢" }).check();
-    await page.getByRole("button", { name: "公開する" }).click();
 
-    // 完了→作品ページ
+    // 完成(公開)
+    await page.getByRole("button", { name: "完成" }).click();
     await expect(page.getByText("公開しました")).toBeVisible({ timeout: 20_000 });
+
+    // 保存内容の反映を確認(スタイル/口調)
+    const saved = await page.request.get("/api/studio/situations?status=PUBLISHED");
+    const sid = (await saved.json()).items[0].id;
+    const detail = await (await page.request.get(`/api/situations/${sid}`)).json();
+    expect(detail.style.length).toBe("long");
+    expect(detail.style.moods).toContain("ヤンデレ");
+    expect(detail.characters[0].speechStyle).toContain("俺様口調");
+
     await page.getByRole("link", { name: "作品ページを見る" }).click();
     await expect(page).toHaveURL(/\/s\//);
     await expect(page.getByTestId("situation-title")).toContainText("没落令嬢");
@@ -68,35 +92,59 @@ test.describe("創作フロー", () => {
   test("E2E-014: 二次創作の公開ブロック", async ({ page }) => {
     await loginAs(page, "creator-e2e014@test.com");
     await page.goto("/create?blank=1");
-    // 白紙から作る
     await page.getByRole("button", { name: "白紙から作る" }).click();
-    await page.getByLabel("タイトル").fill("最強の術師と結婚しました");
-    await page.getByLabel("ひとこと紹介").fill("テスト用のひとこと。");
-    await page.getByLabel("世界観").fill("五条悟が出てくる学園で、彼と結婚する物語。");
-    await nextStep(page, 2);
-    await nextStep(page, 3); // Step2(デフォルトキャラのまま)
-    // Step3: はじまりは公開に必須
+    await dismissNotice(page);
+
+    await page.getByLabel("*題名").fill("最強の術師と結婚しました");
+    await page.getByLabel("*説明").fill("五条悟が出てくる学園で、彼と結婚する物語。");
+    await page.getByTestId("character-item").first().getByLabel("*名前").click(); // blurで保存
+
+    // イントロは公開に必須
+    await toTab(page, "intro");
     await page.getByLabel("導入の地の文").first().fill("薄暗い術式の教室で、彼は振り返った。");
     await page.getByLabel("最初の返答").first().fill("「よく来たね。待ってたよ」");
-    await nextStep(page, 4);
-    await nextStep(page, 5); // Step4スキップ
-    await page.getByRole("radio", { name: "全年齢" }).check();
-    await page.getByRole("button", { name: "公開する" }).click();
+    await page.getByLabel("ラベル").first().click();
 
+    await page.getByRole("button", { name: "完成" }).click();
     const err = page.getByTestId("moderation-error");
     await expect(err).toContainText("既存作品のキャラクター・作品名が含まれています");
     await expect(err).toContainText("五条悟");
 
     // 該当箇所を修正して再公開
-    await page.getByRole("button", { name: /Step1/ }).click();
-    await expect(page.getByTestId("step-indicator")).toHaveAttribute("data-step", "1");
-    await page.getByLabel("世界観").fill("最強の術師の彼と結婚する、オリジナルの物語。");
-    await nextStep(page, 2);
-    await nextStep(page, 3);
-    await nextStep(page, 4);
-    await nextStep(page, 5);
-    await page.getByRole("button", { name: "公開する" }).click();
+    await page.getByRole("button", { name: "プロンプトを直す" }).click();
+    await page.getByLabel("*説明").fill("最強の術師の彼と結婚する、オリジナルの物語。");
+    await page.getByLabel("*題名").click();
+    await page.getByRole("button", { name: "完成" }).click();
     await expect(page.getByText("公開しました")).toBeVisible({ timeout: 20_000 });
+  });
+
+  test("E2E-043: 設定集のキーワードが生成に伝わる", async ({ page }) => {
+    await loginAs(page, "creator-e2e043@test.com");
+    await page.goto("/create?blank=1");
+    await page.getByRole("button", { name: "白紙から作る" }).click();
+    await dismissNotice(page);
+
+    await toTab(page, "lore");
+    await page.getByRole("button", { name: /設定集を追加/ }).click();
+    await page.getByTestId("lore-item").getByLabel("キーワード").fill("銀の懐中時計");
+    await page.getByTestId("lore-item").getByLabel("内容").fill("亡き母の形見。触れると時が止まる。");
+    await page.getByTestId("lore-item").getByLabel("キーワード").click();
+
+    // キーワードを含む発言をすると設定集がプロンプトに載る(mockのdebugで検証)
+    await toTab(page, "intro");
+    await page.getByLabel("導入の地の文").first().fill("古い時計店の奥で、彼は顔を上げた。");
+    await page.getByLabel("ラベル").first().click();
+    await page.getByRole("button", { name: /この口調をテストする/ }).click();
+
+    // キーワードに触れないうちは載らない
+    const miss = page.waitForResponse((r) => r.url().includes("/test-turn"));
+    await sendMessage(page, "こんばんは");
+    expect(await (await miss).text()).not.toContain("亡き母の形見");
+
+    // キーワードを言及すると設定集が載る
+    const hit = page.waitForResponse((r) => r.url().includes("/test-turn"));
+    await sendMessage(page, "銀の懐中時計を見せる");
+    expect(await (await hit).text()).toContain("亡き母の形見");
   });
 
   test("E2E-018: スタジオの統計表示", async ({ page }) => {

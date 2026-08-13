@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { getSessionUser, requireUser, errorResponse } from "@/lib/auth";
 import { requireOwnedSituation, situationDetail } from "@/server/situations";
+import { parseLore, parseStyle } from "@/lib/plot-style";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -28,6 +29,11 @@ export async function PATCH(req: Request, { params }: Params) {
       data.coverImageUrl = body.coverImageUrl;
     if (body.contentLevel === "ALL_AGES" || body.contentLevel === "R15")
       data.contentLevel = body.contentLevel;
+    if (body.style && typeof body.style === "object") data.style = parseStyle(body.style);
+    if (Array.isArray(body.lore)) data.lore = parseLore(body.lore);
+    if (typeof body.commentsEnabled === "boolean") data.commentsEnabled = body.commentsEnabled;
+    if (typeof body.creatorComment === "string" || body.creatorComment === null)
+      data.creatorComment = body.creatorComment ? body.creatorComment.slice(0, 500) : null;
     const updated = await db.situation.update({ where: { id }, data });
     if (Array.isArray(body.tagIds)) {
       await db.situationTag.deleteMany({ where: { situationId: id } });

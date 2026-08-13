@@ -27,7 +27,7 @@ export default function CharacterEditPage({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const backToWizard = () => router.push(`/create?situationId=${sid}&step=2`);
+  const backToWizard = () => router.push(`/create?situationId=${sid}`);
 
   useEffect(() => {
     fetch(`/api/situations/${sid}`)

@@ -7,6 +7,7 @@ import type {
   StoryMessage,
 } from "@prisma/client";
 import type { LlmMessage } from "./llm";
+import { activeLore, parseLore, parseStyle, styleRules } from "./plot-style";
 
 /**
  * AIF-001 プロンプト構築(05-ai-features.md input_context)。
@@ -14,8 +15,8 @@ import type { LlmMessage } from "./llm";
  */
 
 const NOVEL_RULES = `あなたは女性向けライトノベルの作家AIです。以下の規則で物語の続きを書きます。
-- 地の文(情景・心理描写)と「」のセリフを織り交ぜた小説形式。二人称視点(あなた=主人公)
-- 1応答は300〜600字。続きが読みたくなる位置で止める
+- 地の文(情景・心理描写)と「」のセリフを織り交ぜた小説形式
+- 続きが読みたくなる位置で止める
 - ユーザーの入力のうち *〜* で囲まれた部分は主人公の行動・状況描写として扱う
 - ユーザーの入力が (展開指示: 〜) の形式のときは、主人公の発言ではなく作者からの演出指示として扱う。指示に沿って物語を進め、指示文そのものは本文に書かない
 - ユーザーの入力(主人公の発言・行動)を本文で繰り返したり要約したりしない。入力の直後の瞬間から物語を続ける
@@ -73,8 +74,19 @@ export function buildChatMessages(input: ChatPromptInput): LlmMessage[] {
     })
     .join("\n");
 
+  // スタイル設定(作者が指定した視点・時制・長さ・雰囲気など)
+  const style = parseStyle((situation as { style?: unknown }).style);
+  // 設定集: 直近の文脈にキーワードが出たものだけ注入する
+  const context = [
+    ...recentMessages.slice(-6).map((m) => m.content),
+    input.userInput,
+    intro.introText,
+  ].join("\n");
+  const lore = activeLore(parseLore((situation as { lore?: unknown }).lore), context);
+
   const system = `${NOVEL_RULES}
 ${EXPRESSION_RULES[expression]}
+${styleRules(style)}
 
 【作品設定】
 タイトル: ${situation.title}
@@ -96,7 +108,13 @@ ${intro.introText}
 ${memory?.summary || "(なし)"}
 
 【ユーザーノート】
-${memory?.userNote || "(なし)"}`;
+${memory?.userNote || "(なし)"}${
+    lore.length
+      ? `\n\n【設定集(いま話題に出ている用語)】\n${lore
+          .map((e) => `- ${e.keyword}: ${e.content}`)
+          .join("\n")}`
+      : ""
+  }`;
 
   const history: LlmMessage[] = recentMessages.map((m) => ({
     role: m.role === "USER" ? ("user" as const) : ("assistant" as const),

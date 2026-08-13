@@ -83,6 +83,7 @@ export class MockLlmProvider implements LlmProvider {
         personaCallName: sys.match(/呼び方:\s*([^\n]+)/)?.[1]?.trim() ?? null,
         modelTier: options?.tier ?? "light",
         promptedInput: user.slice(0, 40),
+        activeLore: sys.match(/【設定集\(いま話題に出ている用語\)】\n([\s\S]*)$/)?.[1]?.trim() ?? null,
       },
     };
   }
