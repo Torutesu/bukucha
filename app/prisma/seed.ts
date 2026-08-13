@@ -83,6 +83,13 @@ const GENERATED: {
 ];
 
 export async function seed(db: PrismaClient) {
+  // 冪等ガード: シチュエーションのcreateは重複するため、シード済みDBではスキップ
+  // (デプロイのビルドコマンドから毎回呼ばれる前提。作り直すときはDBをリセットする)
+  if ((await db.situation.count()) > 0) {
+    console.log("seed skipped (already seeded)");
+    return;
+  }
+
   // タグ
   const tagRecords: { name: string; category: string }[] = [];
   for (const [category, names] of Object.entries(TAGS)) {

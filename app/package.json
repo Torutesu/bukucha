@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "postinstall": "prisma generate",
+    "vercel-build": "prisma migrate deploy && npm run db:seed && next build",
     "start": "next start",
     "lint": "eslint",
     "test:e2e": "playwright test",

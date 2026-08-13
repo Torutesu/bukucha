@@ -39,6 +39,26 @@ npm run dev                # http://localhost:3000
 
 `.env` の設定は `pipeline/bukucha/build-notes.md` を参照。
 
+## デプロイ(Vercel)
+
+Vercelへのインポートだけで動く構成にしてある(`app/vercel.json` がビルド時に
+`prisma migrate deploy → seed(冪等) → next build` を実行)。
+
+1. [vercel.com/new](https://vercel.com/new) でこのリポジトリをインポート
+2. **Root Directory を `app` に設定**(Framework: Next.js 自動検出)
+3. Storage タブから **Neon (Postgres)** を接続(`DATABASE_URL` が自動注入される)
+   ※他のPostgresを使う場合は `DATABASE_URL` を手動で設定
+4. Environment Variables に以下を設定して Deploy:
+
+| 変数 | 値 | 備考 |
+|---|---|---|
+| `AUTH_SECRET` | ランダムな長い文字列 | セッション署名 |
+| `AUTH_DEV_MODE` | `true` | メール即ログイン(デモ用。誰でも任意のメールでログイン可) |
+| `LLM_PROVIDER` | `mock` | デモは決定的応答。実LLMは `openai` + `LLM_BASE_URL`/`LLM_API_KEY`/`LLM_MODEL_LIGHT`/`LLM_MODEL_MID` |
+
+デモ公開の注意: `AUTH_DEV_MODE=true` は認証なし相当。限定共有に留め、
+本公開前にmagic link実装(`api/auth/login` のTODO)とレート制限強化が必要。
+
 ## テスト
 
 ```bash
