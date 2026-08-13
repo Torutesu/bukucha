@@ -26,7 +26,8 @@ export async function POST(req: Request) {
       create: { email, nickname, preferenceTags },
     });
     await setSessionCookie(user.id);
-    return Response.json({ id: user.id, nickname: user.nickname });
+    // isNew: 規約未同意なら登録ステップ(名前入力→同意シート)へ誘導する
+    return Response.json({ id: user.id, nickname: user.nickname, isNew: !user.agreedAt });
   } catch (e) {
     return errorResponse(e);
   }

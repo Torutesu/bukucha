@@ -22,6 +22,15 @@ export async function PATCH(req: Request) {
     if (typeof b.avatarUrl === "string" || b.avatarUrl === null) data.avatarUrl = b.avatarUrl;
     if (Array.isArray(b.preferenceTags))
       data.preferenceTags = b.preferenceTags.slice(0, 12).map(String);
+    if (typeof b.bio === "string") data.bio = b.bio.slice(0, 100);
+    if (b.agreeTerms === true) data.agreedAt = new Date();
+
+    if (typeof b.handle === "string") {
+      const h = b.handle.trim().toLowerCase();
+      if (!/^[a-z0-9_.]{3,20}$/.test(h))
+        throw new HttpError(422, "invalid_handle", "IDは3〜20文字の英数字・_・.のみ使えます");
+      data.handle = h;
+    }
 
     if (b.birthDate !== undefined) {
       // 一度設定したら変更不可(SCR-018)
@@ -41,7 +50,13 @@ export async function PATCH(req: Request) {
       data.safeFilterOff = Boolean(b.safeFilterOff);
     }
 
-    const updated = await db.user.update({ where: { id: user.id }, data });
+    const updated = await db.user
+      .update({ where: { id: user.id }, data })
+      .catch((e: unknown) => {
+        if ((e as { code?: string })?.code === "P2002")
+          throw new HttpError(409, "handle_taken", "このIDは既に使われています");
+        throw e;
+      });
     return Response.json({ ...updated, isAdult: isAdult(updated) });
   } catch (e) {
     return errorResponse(e);

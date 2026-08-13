@@ -11,7 +11,10 @@ test.describe("創作フロー", () => {
   test("E2E-013: 妄想一文→AI下書き→編集→テスト→公開", async ({ page }) => {
     await loginAs(page, "creator-e2e013@test.com", "ゆめの");
     await page.goto("/");
-    await page.getByTestId("bottom-tab").getByText("作る").click();
+    await page.getByTestId("bottom-tab").getByText("作成").click();
+    await expect(page).toHaveURL(/\/studio/);
+    // 作成タブ(プロット一覧)の+FABから新規作成へ
+    await page.getByRole("link", { name: "新しく作る" }).click();
     await expect(page).toHaveURL(/\/create/);
 
     // Step0: 妄想入力→AI下書き

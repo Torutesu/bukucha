@@ -1,9 +1,10 @@
 "use client";
-import { BookOpen, CalendarDays, Heart, Plus } from "lucide-react";
+import { ArrowDownWideNarrow, BookOpen, CalendarDays, Heart, Plus } from "lucide-react";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { BottomTab } from "@/components/BottomTab";
 
 interface Work {
   id: string;
@@ -12,6 +13,7 @@ interface Work {
   likeCount: number;
   readerCount: number;
   publishedAt: string | null;
+  updatedAt: string;
 }
 interface Summary {
   weekReaders: number;
@@ -20,10 +22,11 @@ interface Summary {
   weekLikesDelta: number;
 }
 
-// SCR-012: マイ作品(スタジオ)
+// SCR-012: 作成タブ(Zeta型プロット一覧)
 export default function StudioPage() {
   const router = useRouter();
-  const [tab, setTab] = useState<"PUBLISHED" | "DRAFT" | "PRIVATE">("PUBLISHED");
+  const [tab, setTab] = useState<"PUBLISHED" | "PRIVATE" | "DRAFT">("PUBLISHED");
+  const [desc, setDesc] = useState(true);
   const [worksData, setWorksData] = useState<{ tab: string; items: Work[] } | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [openStats, setOpenStats] = useState<string | null>(null);
@@ -51,7 +54,14 @@ export default function StudioPage() {
     };
   }, [tab]);
 
-  const works = worksData && worksData.tab === tab ? worksData.items : null;
+  const works =
+    worksData && worksData.tab === tab
+      ? [...worksData.items].sort((a, b) =>
+          desc
+            ? b.updatedAt.localeCompare(a.updatedAt)
+            : a.updatedAt.localeCompare(b.updatedAt)
+        )
+      : null;
 
   const loadStats = async (id: string) => {
     if (openStats === id) {
@@ -72,14 +82,11 @@ export default function StudioPage() {
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="flex items-center justify-between px-4 pt-4">
-        <h1 className="text-xl font-bold">マイ作品</h1>
-        <Link href="/create" className="btn-primary px-3 py-1.5 text-sm">
-          <Plus size={15} className="mr-1 inline align-[-2px]" /> 新しく作る
-        </Link>
+      <header className="flex h-12 items-center px-4">
+        <h1 className="text-lg font-bold">作成</h1>
       </header>
 
-      <main className="flex-1 space-y-4 px-4 py-4">
+      <main className="flex-1 space-y-4 px-4 pb-24 pt-1">
         <div data-testid="weekly-summary" className="card p-4">
           {summary ? (
             <div className="flex gap-6 text-sm">
@@ -109,35 +116,48 @@ export default function StudioPage() {
           )}
         </div>
 
-        <div className="flex gap-2">
-          {(["PUBLISHED", "DRAFT", "PRIVATE"] as const).map((s) => (
+        <div className="flex items-center gap-2">
+          {(["PUBLISHED", "PRIVATE", "DRAFT"] as const).map((s) => (
             <button key={s} className="chip" data-on={tab === s} onClick={() => setTab(s)}>
-              {s === "PUBLISHED" ? "公開中" : s === "DRAFT" ? "下書き" : "非公開"}
+              {s === "PUBLISHED" ? "公開" : s === "PRIVATE" ? "非公開" : "未登録"}
             </button>
           ))}
+          <button
+            className="ml-auto flex items-center gap-1 text-xs"
+            style={{ color: "var(--c-textMuted)" }}
+            onClick={() => setDesc((d) => !d)}
+          >
+            <ArrowDownWideNarrow
+              size={14}
+              style={{ transform: desc ? "none" : "scaleY(-1)" }}
+            />
+            修正日
+          </button>
         </div>
 
         {!works && <div className="card h-24 animate-pulse" />}
         {works && works.length === 0 && (
-          <div className="card p-6 text-center">
-            <p className="text-sm">最初の物語を作ってみましょう</p>
+          <div className="flex flex-col items-center py-14 text-center">
+            <p className="text-sm font-semibold">
+              {tab === "PUBLISHED" ? "公開したプロットがありません" : tab === "PRIVATE" ? "非公開のプロットがありません" : "作成中のプロットがありません"}
+            </p>
             <p className="mt-1 text-xs" style={{ color: "var(--c-textMuted)" }}>
               一文の妄想から、AIが下書きします
             </p>
-            <Link href="/create" className="btn-primary mt-3 block">
-              <Plus size={15} className="mr-1 inline align-[-2px]" /> 作る
+            <Link href="/create" className="btn-primary mt-4 px-6">
+              プロットを作成
             </Link>
           </div>
         )}
         {works?.map((w) => (
           <div key={w.id} data-testid="work-card" className="card p-3">
-            <Link href={w.status === "PUBLISHED" ? `/s/${w.id}` : "#"} className="block">
+            <Link href={w.status === "PUBLISHED" ? `/s/${w.id}` : `/create?situationId=${w.id}`} className="block">
               <p className="text-sm font-semibold">{w.title || "(無題)"}</p>
             </Link>
             <p className="mt-1 flex gap-3 text-[11px]" style={{ color: "var(--c-textMuted)" }}>
               <span data-testid="stat-readers"><BookOpen size={12} className="inline align-[-2px]" /> {w.readerCount.toLocaleString()}</span>
               <span data-testid="stat-likes"><Heart size={12} className="inline align-[-2px]" /> {w.likeCount.toLocaleString()}</span>
-              {w.publishedAt && <span><CalendarDays size={12} className="inline align-[-2px]" /> {new Date(w.publishedAt).toLocaleDateString("ja-JP")}</span>}
+              <span><CalendarDays size={12} className="inline align-[-2px]" /> 修正 {new Date(w.updatedAt).toLocaleDateString("ja-JP")}</span>
             </p>
             <div className="mt-2 flex gap-2">
               <Link href={`/create?situationId=${w.id}`} className="btn-ghost px-3 py-1.5 text-xs">
@@ -166,6 +186,20 @@ export default function StudioPage() {
           </div>
         ))}
       </main>
+
+      <Link
+        href="/create"
+        aria-label="新しく作る"
+        className="pressable fixed bottom-20 z-20 flex h-14 w-14 items-center justify-center rounded-full shadow-lg"
+        style={{
+          background: "var(--c-primary)",
+          color: "#fff",
+          right: "max(1rem, calc(50% - var(--shell-max) / 2 + 1rem))",
+        }}
+      >
+        <Plus size={26} />
+      </Link>
+      <BottomTab />
     </div>
   );
 }

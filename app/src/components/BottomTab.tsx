@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Library, SquarePen, User } from "lucide-react";
+import { Home, MessagesSquare, SquarePen, User } from "lucide-react";
 
 const TABS = [
   { href: "/", label: "ホーム", Icon: Home },
-  { href: "/bookshelf", label: "本棚", Icon: Library },
-  { href: "/create", label: "作る", Icon: SquarePen },
+  { href: "/bookshelf", label: "トーク", Icon: MessagesSquare },
+  { href: "/studio", label: "作成", Icon: SquarePen },
   { href: "/me", label: "マイ", Icon: User },
 ];
 

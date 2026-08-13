@@ -50,7 +50,7 @@ test.describe("発見フロー", () => {
     await expect(page.getByTestId("situation-card").first()).toBeVisible();
 
     const tab = page.getByTestId("bottom-tab");
-    for (const name of ["ホーム", "本棚", "作る", "マイ"]) {
+    for (const name of ["ホーム", "トーク", "作成", "マイ"]) {
       await expect(tab.getByText(name)).toBeVisible();
     }
   });

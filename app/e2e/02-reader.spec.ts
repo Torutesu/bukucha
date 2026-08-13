@@ -25,6 +25,13 @@ test.describe("リーダー(コア体験)", () => {
     await page.getByPlaceholder("メールアドレス").fill("guest-migrate@test.com");
     await page.getByRole("button", { name: "ログイン" }).click();
 
+    // 新規ユーザー: アカウント登録ステップ(名前入力→規約同意シート)
+    await expect(page.getByRole("heading", { name: "アカウント登録" })).toBeVisible();
+    await page.getByPlaceholder("キャラクターに呼んで欲しい名前").fill("みなと");
+    await page.getByRole("button", { name: "次へ" }).click();
+    await page.getByRole("button", { name: "すべて同意する" }).click();
+    await page.getByRole("button", { name: "同意する", exact: true }).click();
+
     // 引き継ぎ後: ゲストの3往復が残り、4回目の入力が復元
     await expect(page).toHaveURL(/\/story\/(?!guest)/, { timeout: 15_000 });
     await expect(page.getByTestId("novel-stream")).toContainText("こんにちは1");
