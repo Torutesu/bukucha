@@ -24,7 +24,15 @@ export interface ReaderMessage {
   role: "USER" | "AI" | "SYSTEM";
   content: string;
   kind?: string | null; // SAY / ACTION / DIRECTION
+  createdAt?: string | null;
   choices?: { id: string; text: string }[] | null;
+}
+
+function fmtDate(d: Date) {
+  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
+}
+function fmtTime(d: Date) {
+  return `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
 type ComposeMode = "SAY" | "ACTION" | "DIRECTION";
@@ -199,17 +207,31 @@ export function StoryReader(props: {
             role: m.role,
             content: m.content,
             kind: m.kind ?? "SAY",
+            createdAt: m.createdAt ?? null,
             choices: (m.choices as { id: string; text: string }[] | null) ?? null,
           }))
         );
         setSummary(st.memory?.summary ?? "");
         setUserNote(st.memory?.userNote ?? "");
       }
-      // ゲスト→登録引き継ぎ後の入力復元(E2E-002)
+      // ゲスト→登録引き継ぎ後の入力復元(E2E-002)。無ければ下書きを復元
       const pending = localStorage.getItem("bukucha_guest_pending");
       if (pending) {
         setInput(pending);
         localStorage.removeItem("bukucha_guest_pending");
+      } else {
+        try {
+          const d = localStorage.getItem(`bukucha_draft_${props.storyId ?? "guest"}`);
+          if (d) {
+            const parsed = JSON.parse(d);
+            if (parsed.input) {
+              setInput(parsed.input);
+              if (parsed.mode) setMode(parsed.mode);
+            }
+          }
+        } catch {
+          /* noop */
+        }
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -260,6 +282,18 @@ export function StoryReader(props: {
       bottomRef.current?.scrollIntoView({ block: "end" });
     }
   }, [errorMsg, blockedMsg, quotaMsg]);
+
+  // 下書き自動保存: 離脱してもリロードしても入力が消えない
+  useEffect(() => {
+    if (!messages) return; // ロード完了前は保存済み下書きを消さない
+    const key = `bukucha_draft_${props.storyId ?? "guest"}`;
+    try {
+      if (input.trim()) localStorage.setItem(key, JSON.stringify({ input, mode }));
+      else localStorage.removeItem(key);
+    } catch {
+      /* noop */
+    }
+  }, [input, mode, messages, props.storyId]);
 
   // チャンクが塊で届いても文字が等速で流れ込むように、表示をrAFで追いつかせる
   // [USER-REQ: 文章が連続的に出てくる体験]
@@ -312,7 +346,7 @@ export function StoryReader(props: {
       if (!isContinue) {
         setMessages((prev) => [
           ...prev!,
-          { idx: maxIdx + 1, role: "USER", content, kind },
+          { idx: maxIdx + 1, role: "USER", content, kind, createdAt: new Date().toISOString() },
         ]);
       }
       setInput("");
@@ -396,6 +430,7 @@ export function StoryReader(props: {
                   idx: d.message!.idx,
                   role: "AI",
                   content: d.message!.content,
+                  createdAt: new Date().toISOString(),
                   choices: d.message!.choices,
                 },
               ]);
@@ -615,7 +650,19 @@ export function StoryReader(props: {
               <div className="skeleton h-4 w-2/3" />
             </div>
           )}
-          {messages?.map((m) => {
+          {messages?.map((m, mi) => {
+            const prev = mi > 0 ? messages[mi - 1] : null;
+            const daySep =
+              m.createdAt && prev?.createdAt &&
+              new Date(m.createdAt).toDateString() !== new Date(prev.createdAt).toDateString() ? (
+                <p
+                  data-testid="date-separator"
+                  className="pt-2 text-center text-xs tracking-widest"
+                  style={{ color: "var(--c-textMuted)" }}
+                >
+                  ── {fmtDate(new Date(m.createdAt))} ──
+                </p>
+              ) : null;
             if (m.role === "SYSTEM")
               return (
                 <div key={m.idx} className="fade-in whitespace-pre-wrap opacity-90" data-testid="intro-line">
@@ -633,8 +680,22 @@ export function StoryReader(props: {
                   setSelectedUserIdx((cur) => (cur === m.idx ? null : m.idx));
                 }
               };
+              const sendStatus = generating && mi === messages.length - 1 && (
+                <p
+                  data-testid="send-status"
+                  className="mt-0.5 text-right text-[0.65rem]"
+                  style={{ color: "var(--c-textMuted)" }}
+                >
+                  ✓ 送信済み
+                </p>
+              );
               const userActions = selectedUserIdx === m.idx && !rewindMode && !generating && (
-                <div data-testid="user-action-row" className="modal-pop mt-1.5 flex justify-end gap-2 text-xs">
+                <div data-testid="user-action-row" className="modal-pop mt-1.5 flex items-center justify-end gap-2 text-xs">
+                  {m.createdAt && (
+                    <span className="text-[0.7rem]" style={{ color: "var(--c-textMuted)" }}>
+                      {fmtTime(new Date(m.createdAt))}
+                    </span>
+                  )}
                   <button className="btn-ghost px-3 py-1.5 text-xs" onClick={() => retypeMessage(m)}>
                     ✍ 打ち直す
                   </button>
@@ -653,6 +714,7 @@ export function StoryReader(props: {
               if (m.kind === "DIRECTION")
                 return (
                   <div key={m.idx}>
+                    {daySep}
                     <p
                       data-testid="direction-line"
                       onClick={onUserTap}
@@ -666,11 +728,13 @@ export function StoryReader(props: {
                     >
                       ── 🎬 {m.content} ──
                     </p>
+                    {sendStatus}
                     {userActions}
                   </div>
                 );
               return (
                 <div key={m.idx}>
+                  {daySep}
                   <div className="flex justify-end">
                     <div
                       data-testid="user-line"
@@ -686,6 +750,7 @@ export function StoryReader(props: {
                       {m.kind === "ACTION" ? <em>{m.content}</em> : <UserContent text={m.content} />}
                     </div>
                   </div>
+                  {sendStatus}
                   {userActions}
                 </div>
               );
@@ -713,6 +778,7 @@ export function StoryReader(props: {
               );
             return (
               <div key={m.idx}>
+                {daySep}
                 <div
                   data-testid="ai-line"
                   className="whitespace-pre-wrap"
@@ -736,7 +802,12 @@ export function StoryReader(props: {
                   <AiContent text={m.content} />
                 </div>
                 {selectedAiIdx === m.idx && !rewindMode && !generating && (
-                  <div data-testid="ai-action-row" className="modal-pop mt-2 flex flex-wrap gap-2 text-xs">
+                  <div data-testid="ai-action-row" className="modal-pop mt-2 flex flex-wrap items-center gap-2 text-xs">
+                    {m.createdAt && (
+                      <span className="text-[0.7rem]" style={{ color: "var(--c-textMuted)" }}>
+                        {fmtTime(new Date(m.createdAt))}
+                      </span>
+                    )}
                     <button className="btn-ghost px-3 py-1.5 text-xs" onClick={() => startEdit(m)}>
                       ✎ 直接直す
                     </button>
@@ -823,6 +894,9 @@ export function StoryReader(props: {
           {/* 最新応答への操作 */}
           {!generating && !rewindMode && messages && messages.some((m) => m.role === "AI") && props.mode === "auth" && (
             <div className="flex gap-2 text-xs" style={{ color: "var(--c-textMuted)" }}>
+              <button className="btn-ghost px-3 py-1.5 text-xs" onClick={() => send("")}>
+                ⏩ つづき
+              </button>
               <button
                 className="btn-ghost px-3 py-1.5 text-xs"
                 onPointerDown={() => (pressStartRef.current = Date.now())}

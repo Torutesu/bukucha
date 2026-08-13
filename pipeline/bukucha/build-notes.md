@@ -124,3 +124,11 @@ python3 build-share-page.py    # shots_web/*.webp に圧縮し、data URI埋め�
 
 - 撮影は通常のE2E(`npm run test:e2e`)には含めない(`playwright.shots.config.ts` で分離)
 - `next.config.ts` の `devIndicators: false` は開発バッジの写り込み防止
+
+## 2026-08-13 追補5: メッセージ周りのUI拡充
+
+- 送信ステータス「✓ 送信済み」(生成中のみ)+●●●タイピングインジケータ
+- タイムスタンプ: 操作列に時刻、日付境目にセパレータ「── M月D日 ──」
+- 「⏩ つづき」ボタン(最新応答の操作列。空欄送信のワンタップ化)
+- 下書き自動保存(入力+モードをstoryId毎にlocalStorage。送信で自動削除)
+- E2E-040〜042追加。全32件green

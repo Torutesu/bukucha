@@ -215,3 +215,59 @@ test.describe("送信モードと物語進行", () => {
     await expect(page.getByTestId("novel-stream")).toContainText("正しい発言です");
   });
 });
+
+test.describe("メッセージ周りのUI", () => {
+  test("E2E-040: 下書き自動保存(リロードしても入力が残る)", async ({ page }) => {
+    await loginAs(page, "draft-e2e040@test.com");
+    await page.goto(`/s/${E2E_SITUATION}`);
+    await page.getByRole("button", { name: "この物語をはじめる" }).click();
+    await expect(page).toHaveURL(/\/story\//);
+
+    await page.getByTestId("mode-action").click();
+    await page.getByPlaceholder(/主人公の動作/).fill("書きかけの下書きです");
+    await page.waitForTimeout(300); // 保存effect反映待ち
+    await page.reload();
+    // 入力とモードの両方が復元される
+    await expect(page.getByPlaceholder(/主人公の動作/)).toHaveValue("書きかけの下書きです");
+    await expect(page.getByTestId("mode-action")).toHaveAttribute("data-on", "true");
+
+    // 送信すると下書きは消える(リロード後はSAYモードに戻り、入力も空)
+    await page.getByRole("button", { name: "送信" }).click();
+    await expect(page.getByTestId("generating")).toBeHidden({ timeout: 30_000 });
+    await page.reload();
+    await expect(page.getByPlaceholder(/セリフか/)).toHaveValue("");
+    await expect(page.getByTestId("mode-say")).toHaveAttribute("data-on", "true");
+  });
+
+  test("E2E-041: ⏩つづきボタンで物語が進む(ユーザー発言なし)", async ({ page }) => {
+    await loginAs(page, "cont-e2e041@test.com");
+    await page.goto(`/s/${E2E_SITUATION}`);
+    await page.getByRole("button", { name: "この物語をはじめる" }).click();
+    await sendMessage(page, "一言だけ");
+    const users = await page.getByTestId("user-line").count();
+    const ais = await page.getByTestId("ai-line").count();
+
+    await page.getByRole("button", { name: "⏩ つづき" }).click();
+    await expect(page.getByTestId("generating")).toBeHidden({ timeout: 30_000 });
+    expect(await page.getByTestId("user-line").count()).toBe(users);
+    expect(await page.getByTestId("ai-line").count()).toBe(ais + 1);
+  });
+
+  test("E2E-042: 送信ステータスと操作列のタイムスタンプ", async ({ page }) => {
+    await loginAs(page, "status-e2e042@test.com");
+    await page.goto(`/s/${E2E_SITUATION}`);
+    await page.getByRole("button", { name: "この物語をはじめる" }).click();
+    await expect(page).toHaveURL(/\/story\//);
+
+    // 送信直後、生成中は「✓ 送信済み」が自分の発言の下に出る
+    await page.getByPlaceholder(/セリフか/).fill("ステータス確認");
+    await page.getByRole("button", { name: "送信" }).click();
+    await expect(page.getByTestId("send-status")).toBeVisible();
+    await expect(page.getByTestId("generating")).toBeHidden({ timeout: 30_000 });
+    await expect(page.getByTestId("send-status")).toHaveCount(0);
+
+    // 発言タップで操作列に時刻(H:MM)が出る
+    await page.getByTestId("user-line").last().click();
+    await expect(page.getByTestId("user-action-row")).toContainText(/\d{1,2}:\d{2}/);
+  });
+});
