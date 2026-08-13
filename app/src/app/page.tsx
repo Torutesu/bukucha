@@ -97,10 +97,10 @@ export default function HomePage() {
           !sections &&
           Array.from({ length: 3 }).map((_, i) => (
             <div key={i}>
-              <div className="card mb-2 h-5 w-32 animate-pulse" />
+              <div className="skeleton mb-2 h-5 w-32" />
               <div className="flex gap-3">
                 {Array.from({ length: 3 }).map((_, j) => (
-                  <div key={j} className="card aspect-[3/4] w-36 animate-pulse" />
+                  <div key={j} className="skeleton aspect-[3/4] w-36 rounded-[12px]" />
                 ))}
               </div>
             </div>

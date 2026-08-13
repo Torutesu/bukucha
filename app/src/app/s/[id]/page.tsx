@@ -131,9 +131,9 @@ export default function SituationDetailPage({ params }: { params: Promise<{ id: 
   if (!detail)
     return (
       <main className="space-y-4 px-4 py-6">
-        <div className="card mx-auto aspect-[3/4] w-48 animate-pulse" />
-        <div className="card h-6 animate-pulse" />
-        <div className="card h-24 animate-pulse" />
+        <div className="skeleton mx-auto aspect-[3/4] w-48 rounded-[12px]" />
+        <div className="skeleton h-6" />
+        <div className="skeleton h-24 rounded-[16px]" />
       </main>
     );
 
@@ -152,9 +152,12 @@ export default function SituationDetailPage({ params }: { params: Promise<{ id: 
             data-liked={liked}
             onClick={toggleLike}
             className="text-sm"
-            style={{ color: liked ? "var(--c-primary)" : "var(--c-textMuted)" }}
+            style={{ color: liked ? "var(--c-primary)" : "var(--c-textMuted)", transition: "color 0.2s ease" }}
           >
-            ♥ {likeCount.toLocaleString()}
+            <span key={String(liked)} className={`inline-block ${liked ? "heart-pop" : ""}`}>
+              ♥
+            </span>{" "}
+            {likeCount.toLocaleString()}
           </button>
           <div className="relative">
             <button aria-label="その他" onClick={() => setReportOpen((v) => !v)}>

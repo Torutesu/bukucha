@@ -108,6 +108,8 @@ export function StoryReader(props: {
   const atBottomRef = useRef(true);
   const lastScrollYRef = useRef(0);
   const programmaticScrollRef = useRef(false);
+  // ストリーミングの実受信テキスト。表示(streamText)はrAFで等速に追いつく(タイプライタ)
+  const streamTargetRef = useRef("");
 
   // 初期ロード
   useEffect(() => {
@@ -210,6 +212,26 @@ export function StoryReader(props: {
     }
   }, [messages, streamText]);
 
+  // チャンクが塊で届いても文字が等速で流れ込むように、表示をrAFで追いつかせる
+  // [USER-REQ: 文章が連続的に出てくる体験]
+  useEffect(() => {
+    if (!generating) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let raf = 0;
+    const tick = () => {
+      setStreamText((cur) => {
+        const target = streamTargetRef.current;
+        if (cur.length >= target.length) return cur;
+        if (reduce) return target;
+        const step = Math.max(1, Math.ceil((target.length - cur.length) / 14));
+        return target.slice(0, cur.length + step);
+      });
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [generating]);
+
   const guestUserCount = messages?.filter((m) => m.role === "USER").length ?? 0;
 
   const send = useCallback(
@@ -243,6 +265,7 @@ export function StoryReader(props: {
       }
       setInput("");
       setGenerating(true);
+      streamTargetRef.current = "";
       setStreamText("");
       // 送信時は最新に追従する(Zeta同様、送った瞬間は必ず最下部へ)
       atBottomRef.current = true;
@@ -267,7 +290,7 @@ export function StoryReader(props: {
             content,
           },
           {
-            onToken: (t) => setStreamText((s) => s + t),
+            onToken: (t) => void (streamTargetRef.current += t),
             onBlocked: (msg) => {
               setBlockedMsg(msg);
               restore();
@@ -294,7 +317,7 @@ export function StoryReader(props: {
           `/api/stories/${props.storyId}/messages`,
           { content, selectedChoiceId },
           {
-            onToken: (t) => setStreamText((s) => s + t),
+            onToken: (t) => void (streamTargetRef.current += t),
             onBlocked: (msg) => {
               setBlockedMsg(msg);
               restore();
@@ -324,6 +347,7 @@ export function StoryReader(props: {
           }
         );
       }
+      streamTargetRef.current = "";
       setStreamText("");
       setGenerating(false);
     },
@@ -336,6 +360,7 @@ export function StoryReader(props: {
       const lastAi = [...messages].reverse().find((m) => m.role === "AI");
       if (!lastAi) return;
       setGenerating(true);
+      streamTargetRef.current = "";
       setStreamText("");
       setSelectedAiIdx(null);
       setEditingIdx(null);
@@ -346,7 +371,7 @@ export function StoryReader(props: {
         `/api/stories/${props.storyId}/messages/${lastAi.idx}/reroll`,
         withInstruction ? { instruction: withInstruction } : {},
         {
-          onToken: (t) => setStreamText((s) => s + t),
+          onToken: (t) => void (streamTargetRef.current += t),
           onBlocked: (msg) => {
             setBlockedMsg(msg);
             setMessages((prev) => [...prev!, lastAi].sort((a, b) => a.idx - b.idx));
@@ -366,6 +391,7 @@ export function StoryReader(props: {
         }
       );
       rerollingRef.current = false;
+      streamTargetRef.current = "";
       setStreamText("");
       setGenerating(false);
     },

@@ -101,7 +101,7 @@ export default function BookshelfPage() {
       <main className="flex-1 space-y-3 px-4 py-4">
         {error && <div className="card p-4 text-center text-sm">読み込みに失敗しました</div>}
         {!error && !stories &&
-          Array.from({ length: 3 }).map((_, i) => <div key={i} className="card h-28 animate-pulse" />)}
+          Array.from({ length: 3 }).map((_, i) => <div key={i} className="skeleton h-28 rounded-[16px]" />)}
         {stories && stories.length === 0 && (
           <div className="card p-6 text-center">
             <p className="text-sm">まだ読みかけの物語がありません</p>

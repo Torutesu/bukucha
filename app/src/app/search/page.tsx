@@ -182,7 +182,7 @@ function SearchInner() {
             {!error && !results && (
               <div className="grid grid-cols-2 gap-3">
                 {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="card aspect-[3/4] animate-pulse" />
+                  <div key={i} className="skeleton aspect-[3/4] rounded-[12px]" />
                 ))}
               </div>
             )}
