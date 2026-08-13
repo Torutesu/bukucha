@@ -503,7 +503,15 @@ export function StoryReader(props: {
 
       <main className="flex-1 px-5 py-4">
         <div data-testid="novel-stream" className="novel space-y-4">
-          {!messages && <p style={{ color: "var(--c-textMuted)" }}>読み込み中…</p>}
+          {!messages && (
+            <div className="space-y-3 pt-2" aria-label="読み込み中">
+              <div className="skeleton mx-auto h-3 w-24" />
+              <div className="skeleton h-4 w-full" />
+              <div className="skeleton h-4 w-11/12" />
+              <div className="skeleton h-4 w-full" />
+              <div className="skeleton h-4 w-2/3" />
+            </div>
+          )}
           {messages?.map((m) => {
             if (m.role === "SYSTEM")
               return (
@@ -576,7 +584,7 @@ export function StoryReader(props: {
                   <AiContent text={m.content} />
                 </div>
                 {selectedAiIdx === m.idx && !rewindMode && !generating && (
-                  <div data-testid="ai-action-row" className="mt-2 flex flex-wrap gap-2 text-xs">
+                  <div data-testid="ai-action-row" className="modal-pop mt-2 flex flex-wrap gap-2 text-xs">
                     <button className="btn-ghost px-3 py-1.5 text-xs" onClick={() => startEdit(m)}>
                       ✎ 直接直す
                     </button>
@@ -681,14 +689,19 @@ export function StoryReader(props: {
           )}
 
           {isLatest && !generating && lastAiWithChoices?.choices && (
-            <div data-testid="choice-card" className="space-y-2">
+            <div data-testid="choice-card" className="fade-in space-y-2">
+              <p className="text-xs tracking-wide" style={{ color: "var(--c-textMuted)" }}>
+                ── どうする? ──
+              </p>
               {lastAiWithChoices.choices.map((c) => (
                 <button
                   key={c.id}
-                  className="card block w-full px-4 py-3 text-left text-sm"
-                  style={{ borderColor: "var(--c-primary)" }}
+                  className="card choice-card block w-full px-4 py-3 text-left text-sm"
                   onClick={() => send(c.text, c.id)}
                 >
+                  <span className="mr-1.5" style={{ color: "var(--c-primary)" }} aria-hidden>
+                    ◆
+                  </span>
                   {c.text}
                 </button>
               ))}
@@ -709,8 +722,8 @@ export function StoryReader(props: {
       {showLatestChip && messages && messages.length > 2 && (
         <button
           data-testid="scroll-latest-chip"
-          className="chip fixed bottom-24 left-1/2 z-20 -translate-x-1/2 shadow-md"
-          style={{ background: "var(--c-surface)" }}
+          className="chip fade-in fixed bottom-24 left-1/2 z-20 -translate-x-1/2 shadow-md"
+          style={{ background: "var(--c-surface)", animationDelay: "0s" }}
           onClick={scrollToLatest}
         >
           ↓ 最新へ
@@ -728,20 +741,30 @@ export function StoryReader(props: {
           </p>
         )}
         {/* AIF-008: 返信候補チップ */}
+        {suggestLoading && (
+          <div className="mb-2 space-y-1.5" aria-label="候補を考え中">
+            <div className="skeleton h-8 w-full" />
+            <div className="skeleton h-8 w-10/12" />
+          </div>
+        )}
         {suggestions && (
-          <div data-testid="suggest-chips" className="mb-2 space-y-1.5">
+          <div data-testid="suggest-chips" className="fade-in mb-2 space-y-1.5">
             {suggestions.map((s, i) => (
               <button
                 key={i}
                 data-testid="suggest-chip"
                 className="card block w-full px-3 py-2 text-left text-xs"
+                style={{ borderColor: "color-mix(in oklab, var(--c-accent) 40%, var(--c-border))" }}
                 onClick={() => {
                   setInput(s);
                   setSuggestions(null);
                   inputRef.current?.focus();
                 }}
               >
-                ✦ {s}
+                <span className="mr-1" style={{ color: "var(--c-accent)" }} aria-hidden>
+                  ✦
+                </span>
+                {s}
               </button>
             ))}
             {suggestRemaining !== null && (
@@ -804,8 +827,8 @@ export function StoryReader(props: {
 
       {/* 指示付き書き直し */}
       {instructionOpen && (
-        <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/50 px-6">
-          <div className="card w-full max-w-sm p-4">
+        <div className="backdrop fixed inset-0 z-30 flex items-center justify-center px-6">
+          <div className="card modal-pop w-full max-w-sm p-4">
             <p className="text-sm font-bold">方向を指定して書き直す</p>
             <input
               className="input mt-2"
@@ -834,9 +857,9 @@ export function StoryReader(props: {
 
       {/* メニュー */}
       {menuOpen && (
-        <div className="fixed inset-0 z-30 bg-black/50" onClick={() => setMenuOpen(false)}>
+        <div className="backdrop fixed inset-0 z-30" onClick={() => setMenuOpen(false)}>
           <div
-            className="card absolute right-0 top-0 h-full w-72 overflow-y-auto rounded-none p-4"
+            className="card drawer-in absolute right-0 top-0 h-full w-72 overflow-y-auto rounded-none p-4"
             onClick={(e) => e.stopPropagation()}
           >
             <p className="mb-3 truncate text-sm font-bold">{title}</p>
@@ -898,12 +921,13 @@ export function StoryReader(props: {
 
       {/* ルート(並行世界)シート */}
       {routesOpen && (
-        <div className="fixed inset-0 z-30 bg-black/50" onClick={() => setRoutesOpen(false)}>
+        <div className="backdrop fixed inset-0 z-30" onClick={() => setRoutesOpen(false)}>
           <div
             data-testid="route-sheet"
-            className="card absolute bottom-0 left-0 right-0 max-h-[70dvh] overflow-y-auto rounded-b-none p-4"
+            className="card sheet-up absolute bottom-0 left-0 right-0 max-h-[70dvh] overflow-y-auto rounded-b-none p-4 pt-3"
             onClick={(e) => e.stopPropagation()}
           >
+            <div className="sheet-grabber" aria-hidden />
             <p className="text-sm font-bold">🌱 ルート(並行世界)</p>
             <p className="mt-0.5 text-xs" style={{ color: "var(--c-textMuted)" }}>
               同じ物語を、違う選択で読み直せます
@@ -966,8 +990,8 @@ export function StoryReader(props: {
 
       {/* 記憶モーダル */}
       {memoryOpen && (
-        <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/50 px-6">
-          <div className="card w-full max-w-sm p-4">
+        <div className="backdrop fixed inset-0 z-30 flex items-center justify-center px-6">
+          <div className="card modal-pop w-full max-w-sm p-4">
             <p className="text-sm font-bold">記憶</p>
             {summary && (
               <>
@@ -1013,8 +1037,8 @@ export function StoryReader(props: {
 
       {/* ゲスト登録壁 */}
       {guestGate && (
-        <div data-testid="guest-gate" className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 px-6">
-          <div className="card w-full max-w-sm p-5 text-center">
+        <div data-testid="guest-gate" className="backdrop fixed inset-0 z-40 flex items-center justify-center px-6">
+          <div className="card modal-pop w-full max-w-sm p-5 text-center">
             <p className="text-lg font-bold">ここまでの物語を保存して、続きを読もう</p>
             <p className="mt-2 text-xs" style={{ color: "var(--c-textMuted)" }}>
               登録すると、この物語の続きと本棚が使えるようになります

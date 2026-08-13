@@ -70,6 +70,28 @@ body {
   animation: fadeIn 0.5s ease 0.15s both;
 }
 
+/* ── 触感: 押せるものは押した感触を返す ── */
+button,
+a.card {
+  transition:
+    transform 0.12s ease,
+    background 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    color 0.2s ease,
+    opacity 0.15s ease;
+}
+button:active:not(:disabled),
+a.card:active {
+  transform: scale(0.965);
+}
+.pressable {
+  transition: transform 0.12s ease, opacity 0.15s ease;
+}
+.pressable:active {
+  transform: scale(0.97);
+}
+
 .card {
   background: var(--c-surface);
   border: 1px solid var(--c-border);
@@ -98,9 +120,14 @@ body {
   padding: 12px 20px;
   font-weight: 600;
   text-align: center;
+  box-shadow: 0 2px 12px color-mix(in oklab, var(--c-primary) 32%, transparent);
+}
+.btn-primary:hover:not(:disabled) {
+  filter: brightness(1.06);
 }
 .btn-primary:disabled {
   opacity: 0.4;
+  box-shadow: none;
 }
 .btn-ghost {
   border: 1px solid var(--c-border);
@@ -118,8 +145,12 @@ body {
   color: var(--c-text);
   padding: 10px 12px;
 }
+.input {
+  transition: outline-color 0.15s ease, border-color 0.15s ease;
+}
 .input:focus {
   outline: 2px solid color-mix(in oklab, var(--c-primary) 45%, transparent);
+  border-color: color-mix(in oklab, var(--c-primary) 40%, var(--c-border));
 }
 
 .label {
@@ -143,4 +174,86 @@ body {
 }
 .hide-scrollbar {
   scrollbar-width: none;
+}
+
+/* ── 出現アニメーション(シート/ドロワー/モーダル) ── */
+.backdrop {
+  background: rgb(0 0 0 / 0.5);
+}
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes backdropIn {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes sheetUp {
+    from {
+      transform: translateY(28px);
+      opacity: 0.4;
+    }
+  }
+  @keyframes drawerIn {
+    from {
+      transform: translateX(48px);
+      opacity: 0.4;
+    }
+  }
+  @keyframes popIn {
+    from {
+      transform: scale(0.95) translateY(6px);
+      opacity: 0;
+    }
+  }
+  .backdrop {
+    animation: backdropIn 0.2s ease both;
+  }
+  .sheet-up {
+    animation: sheetUp 0.28s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  }
+  .drawer-in {
+    animation: drawerIn 0.24s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  }
+  .modal-pop {
+    animation: popIn 0.2s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  }
+}
+
+/* ボトムシートのつまみ */
+.sheet-grabber {
+  width: 36px;
+  height: 4px;
+  border-radius: 99px;
+  margin: 0 auto 12px;
+  background: color-mix(in oklab, var(--c-textMuted) 35%, transparent);
+}
+
+/* ── スケルトン(読み込み中) ── */
+.skeleton {
+  border-radius: 8px;
+  background: linear-gradient(
+    100deg,
+    var(--c-surfaceAlt) 40%,
+    color-mix(in oklab, var(--c-surface) 70%, var(--c-surfaceAlt)) 50%,
+    var(--c-surfaceAlt) 60%
+  );
+  background-size: 200% 100%;
+}
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes shimmer {
+    to {
+      background-position: -200% 0;
+    }
+  }
+  .skeleton {
+    animation: shimmer 1.4s linear infinite;
+  }
+}
+
+/* ── 選択肢カード(SCR-006) ── */
+.choice-card {
+  border-color: color-mix(in oklab, var(--c-primary) 45%, var(--c-border)) !important;
+}
+.choice-card:hover {
+  background: color-mix(in oklab, var(--c-primarySoft) 55%, var(--c-surface));
+  border-color: var(--c-primary) !important;
 }

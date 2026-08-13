@@ -36,7 +36,10 @@ export function Cover({ s, className }: { s: CardData; className?: string }) {
       className={`flex aspect-[3/4] w-full items-end rounded-[12px] p-2 ${className ?? ""}`}
       style={{ background: g }}
     >
-      <span className="line-clamp-4 font-serif text-[11px] leading-snug text-white/95">
+      <span
+        className="line-clamp-4 font-serif text-[11px] leading-snug text-white/95"
+        style={{ textShadow: "0 1px 4px rgb(0 0 0 / 0.35)" }}
+      >
         {s.title}
       </span>
     </div>
@@ -48,7 +51,7 @@ export function SituationCard({ s, testid = "situation-card" }: { s: CardData; t
     <Link
       href={`/s/${s.id}`}
       data-testid={testid}
-      className="block w-36 shrink-0 snap-start"
+      className="pressable block w-36 shrink-0 snap-start"
     >
       <Cover s={s} />
       <div className="mt-1.5 space-y-0.5">
