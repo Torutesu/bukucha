@@ -29,6 +29,8 @@ export async function POST(req: Request) {
       update: preferenceTags.length ? { preferenceTags } : {},
       create: { email, nickname, preferenceTags },
     });
+    if (user.status === "BANNED")
+      throw new HttpError(403, "banned", "このアカウントは利用停止されています");
     await setSessionCookie(user.id);
     // isNew: 規約未同意なら登録ステップ(名前入力→同意シート)へ誘導する
     return Response.json({ id: user.id, nickname: user.nickname, isNew: !user.agreedAt });

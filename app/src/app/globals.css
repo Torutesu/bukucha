@@ -66,6 +66,11 @@ body {
   }
 }
 
+/* 運営管理(/admin)のみPC View: 480pxシェルを解除(読者向け画面はSPビューのまま) */
+.app-shell:has(.admin-shell) {
+  max-width: 1200px;
+}
+
 /* ノベル組版(SCR-006) */
 .novel {
   font-family: var(--font-novel);

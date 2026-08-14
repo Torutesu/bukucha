@@ -1,7 +1,10 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
 import { db } from "./db";
+import { HttpError } from "./errors";
 import type { User } from "@prisma/client";
+
+export { HttpError };
 
 /**
  * 最小の署名Cookieセッション。
@@ -68,15 +71,19 @@ export async function getSessionUser(): Promise<User | null> {
   return db.user.findUnique({ where: { id: uid } });
 }
 
-export class HttpError extends Error {
-  constructor(public status: number, public code: string, message?: string) {
-    super(message ?? code);
-  }
-}
 
 export async function requireUser(): Promise<User> {
   const user = await getSessionUser();
   if (!user) throw new HttpError(401, "unauthorized", "ログインが必要です");
+  if (user.status === "BANNED")
+    throw new HttpError(403, "banned", "このアカウントは利用停止されています");
+  return user;
+}
+
+/** 管理API/画面の認可。判定はサーバー側のみ(プロダクト原則7) */
+export async function requireAdmin(): Promise<User> {
+  const user = await requireUser();
+  if (user.role !== "ADMIN") throw new HttpError(403, "forbidden", "権限がありません");
   return user;
 }
 
