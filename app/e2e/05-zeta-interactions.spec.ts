@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { loginAs, sendMessage, setReaderToggle, E2E_SITUATION } from "./helpers";
+import { loginAs, sendMessage, setChoices, E2E_SITUATION } from "./helpers";
 
 /** Zeta詳細インタラクション(返信候補/AI編集/分岐/選択肢OFF/高品質モデル) */
 test.describe("Zeta詳細インタラクション", () => {
@@ -64,7 +64,7 @@ test.describe("Zeta詳細インタラクション", () => {
 
     // OFFにする → 偶数ターンでも選択肢が出ない
     await page.getByRole("button", { name: "メニュー" }).click();
-    await setReaderToggle(page, "toggle-choices", false);
+    await setChoices(page, false);
     await page.mouse.click(10, 400); // メニューを閉じる
     await sendMessage(page, "一言目");
     await sendMessage(page, "二言目");
@@ -72,7 +72,7 @@ test.describe("Zeta詳細インタラクション", () => {
 
     // ONに戻す → 次の偶数ターンで選択肢が出る
     await page.getByRole("button", { name: "メニュー" }).click();
-    await setReaderToggle(page, "toggle-choices", true);
+    await setChoices(page, true);
     await page.mouse.click(10, 400);
     await sendMessage(page, "三言目");
     await sendMessage(page, "四言目");
@@ -113,7 +113,9 @@ test.describe("Zeta詳細インタラクション", () => {
     await expect(page).toHaveURL(/\/story\//);
 
     await page.getByRole("button", { name: "メニュー" }).click();
-    await setReaderToggle(page, "toggle-midmodel", true);
+    await page.getByTestId("menu-model").click();
+    await page.getByTestId("model-bukucha-pro").click();
+    await expect(page.getByTestId("model-chip")).toContainText("bukucha pro");
     await page.mouse.click(10, 400);
     await expect(page.getByTestId("model-chip")).toBeVisible();
 
@@ -153,6 +155,7 @@ test.describe("送信モードと物語進行", () => {
     await page.getByRole("button", { name: "この物語をはじめる" }).click();
     await expect(page).toHaveURL(/\/story\//);
 
+    await page.getByTestId("mode-toggle").click();
     await page.getByTestId("mode-action").click();
     const input = page.getByPlaceholder(/主人公の動作/);
     await input.fill("窓辺に近づいて外を見る");
@@ -178,6 +181,7 @@ test.describe("送信モードと物語進行", () => {
     await page.getByRole("button", { name: "この物語をはじめる" }).click();
     await expect(page).toHaveURL(/\/story\//);
 
+    await page.getByTestId("mode-toggle").click();
     await page.getByTestId("mode-direction").click();
     const presets = page.getByTestId("direction-preset");
     await expect(presets.first()).toContainText("時間を少し進めて");
@@ -190,6 +194,7 @@ test.describe("送信モードと物語進行", () => {
     await expect(page.getByTestId("direction-line")).toContainText("時間を少し進めて");
     expect(await (await resPromise).text()).toContain('"promptedInput":"(展開指示: 時間を少し進めて、次の場面へ)"');
     // 送信後はセリフモードに戻る
+    await page.getByTestId("mode-toggle").click();
     await expect(page.getByTestId("mode-say")).toHaveAttribute("data-on", "true");
     // リロードしても演出行のまま
     await page.reload();
@@ -223,12 +228,14 @@ test.describe("メッセージ周りのUI", () => {
     await page.getByRole("button", { name: "この物語をはじめる" }).click();
     await expect(page).toHaveURL(/\/story\//);
 
+    await page.getByTestId("mode-toggle").click();
     await page.getByTestId("mode-action").click();
     await page.getByPlaceholder(/主人公の動作/).fill("書きかけの下書きです");
     await page.waitForTimeout(300); // 保存effect反映待ち
     await page.reload();
     // 入力とモードの両方が復元される
     await expect(page.getByPlaceholder(/主人公の動作/)).toHaveValue("書きかけの下書きです");
+    await page.getByTestId("mode-toggle").click();
     await expect(page.getByTestId("mode-action")).toHaveAttribute("data-on", "true");
 
     // 送信すると下書きは消える(リロード後はSAYモードに戻り、入力も空)
@@ -236,6 +243,7 @@ test.describe("メッセージ周りのUI", () => {
     await expect(page.getByTestId("generating")).toBeHidden({ timeout: 30_000 });
     await page.reload();
     await expect(page.getByPlaceholder(/セリフか/)).toHaveValue("");
+    await page.getByTestId("mode-toggle").click();
     await expect(page.getByTestId("mode-say")).toHaveAttribute("data-on", "true");
   });
 
@@ -247,7 +255,7 @@ test.describe("メッセージ周りのUI", () => {
     const users = await page.getByTestId("user-line").count();
     const ais = await page.getByTestId("ai-line").count();
 
-    await page.getByRole("button", { name: "つづきを生成" }).click();
+    await page.getByRole("button", { name: "つづきを読む" }).click();
     await expect(page.getByTestId("generating")).toBeHidden({ timeout: 30_000 });
     expect(await page.getByTestId("user-line").count()).toBe(users);
     expect(await page.getByTestId("ai-line").count()).toBe(ais + 1);

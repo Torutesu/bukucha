@@ -12,13 +12,17 @@ import {
   Asterisk,
   BookOpen,
   Brain,
+  Check,
+  ChevronDown,
+  ChevronRight,
   Clapperboard,
   Copy,
-  Ellipsis,
   FastForward,
   Feather,
   GitBranch,
   Info,
+  LogOut,
+  Menu,
   MessageCircle,
   Moon,
   Pencil,
@@ -29,7 +33,9 @@ import {
   Shuffle,
   Sparkle,
   Sparkles,
+  Trash2,
   Undo2,
+  UserRound,
   Zap,
 } from "lucide-react";
 
@@ -70,6 +76,24 @@ const COMPOSE_MODES: { key: ComposeMode; label: string; Icon: typeof MessageCirc
   { key: "ACTION", label: "動作", Icon: Asterisk },
   { key: "DIRECTION", label: "展開", Icon: Clapperboard },
 ];
+
+/** AIモデル(Zetaのモデル選択に相当)。midは高品質モデルのフラグ */
+const MODELS = [
+  {
+    id: "bukucha",
+    name: "bukucha",
+    mid: false,
+    desc: "テンポよく進む、標準のモデル",
+    cost: "無料",
+  },
+  {
+    id: "bukucha-pro",
+    name: "bukucha pro",
+    mid: true,
+    desc: "細かな設定も逃さない、高品質モデル",
+    cost: "ベータ公開中は無料",
+  },
+] as const;
 
 const MODE_PLACEHOLDER: Record<ComposeMode, string> = {
   SAY: "セリフか、*動作* を書く…",
@@ -231,6 +255,11 @@ export function StoryReader(props: {
   const [instructionOpen, setInstructionOpen] = useState(false);
   const [instruction, setInstruction] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [modelOpen, setModelOpen] = useState(false);
+  const [modeOpen, setModeOpen] = useState(false);
+  const [personaOpen, setPersonaOpen] = useState(false);
+  const [personas, setPersonas] = useState<{ id: string; name: string; isDefault: boolean }[] | null>(null);
+  const [personaId, setPersonaId] = useState<string | null>(null);
   const [memoryOpen, setMemoryOpen] = useState(false);
   const [userNote, setUserNote] = useState("");
   const [summary, setSummary] = useState("");
@@ -306,6 +335,7 @@ export function StoryReader(props: {
         setSituationId(st.situation.id);
         setChoicesEnabled(st.choicesEnabled ?? true);
         setUseMidModel(st.useMidModel ?? false);
+        setPersonaId(st.personaId ?? null);
         setMessages(
           st.messages.map((m: ReaderMessage & { choices: unknown }) => ({
             idx: m.idx,
@@ -697,6 +727,33 @@ export function StoryReader(props: {
     }
   };
 
+  /** 同じ作品で新しいトークを始める(いまのトークは本棚に残る) */
+  const startNewTalk = async () => {
+    const detail = await fetch(`/api/situations/${situationId}`).then((r) => r.json());
+    const r = await fetch("/api/stories", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ situationId, introVariantId: detail.intros[0].id }),
+    });
+    if (!r.ok) return;
+    const st = await r.json();
+    setMenuOpen(false);
+    router.push(`/story/${st.id}`);
+  };
+
+  const deleteTalk = async () => {
+    if (!confirm("このトークを削除しますか?(元に戻せません)")) return;
+    await fetch(`/api/stories/${props.storyId}`, { method: "DELETE" });
+    router.push("/bookshelf");
+  };
+
+  const openPersonas = async () => {
+    setPersonaOpen(true);
+    if (personas) return;
+    const r = await fetch("/api/me/personas");
+    if (r.ok) setPersonas(await r.json());
+  };
+
   const patchStorySetting = async (patch: { choicesEnabled?: boolean; useMidModel?: boolean }) => {
     if (typeof patch.choicesEnabled === "boolean") setChoicesEnabled(patch.choicesEnabled);
     if (typeof patch.useMidModel === "boolean") setUseMidModel(patch.useMidModel);
@@ -727,21 +784,35 @@ export function StoryReader(props: {
       >
         <button
           aria-label="戻る"
-          className="text-lg"
+          className="shrink-0"
           onClick={() => router.push(props.mode === "guest" ? `/s/${situationId}` : "/bookshelf")}
         >
-          <ArrowLeft size={19} strokeWidth={1.9} />
+          <ArrowLeft size={20} strokeWidth={1.9} />
         </button>
-        <p className="mx-2 flex-1 truncate text-center text-xs" style={{ color: "var(--c-textMuted)" }}>
-          {title}
-          {useMidModel && (
-            <span data-testid="model-chip" className="ml-1 inline-flex align-[-2px]" title="高品質モデル">
-              <Feather size={12} style={{ color: "var(--c-primary)" }} />
-            </span>
-          )}
-        </p>
-        <button aria-label="メニュー" className="text-lg" onClick={() => setMenuOpen(true)}>
-          <Ellipsis size={19} />
+        <p className="ml-2 flex-1 truncate text-[0.95rem] font-bold">{title}</p>
+        {props.mode === "auth" && (
+          <button
+            data-testid="model-chip"
+            className="chip mr-1 shrink-0 px-2.5 py-1 text-[0.72rem]"
+            onClick={() => setModelOpen(true)}
+          >
+            {MODELS.find((m) => m.mid === useMidModel)?.name}
+            <ChevronDown size={12} className="ml-0.5 inline align-[-2px]" />
+          </button>
+        )}
+        <button
+          aria-label="メニュー"
+          className="shrink-0"
+          onClick={() => {
+            setMenuOpen(true);
+            if (!personas && props.mode === "auth")
+              fetch("/api/me/personas")
+                .then((r) => (r.ok ? r.json() : null))
+                .then((d) => d && setPersonas(d))
+                .catch(() => {});
+          }}
+        >
+          <Menu size={20} />
         </button>
       </header>
 
@@ -1002,49 +1073,6 @@ export function StoryReader(props: {
             </div>
           )}
 
-          {/* 最新応答への操作(Zeta風の丸アイコン列) */}
-          {!generating && !rewindMode && messages && messages.some((m) => m.role === "AI") && props.mode === "auth" && (
-            <div className="flex justify-end gap-1.5">
-              <button className="icon-btn" aria-label="つづきを生成" title="つづきを読む" onClick={() => send("")}>
-                <FastForward size={16} />
-              </button>
-              <button
-                className="icon-btn"
-                aria-label="応答を編集"
-                title="最後の応答を直接直す"
-                onClick={() => {
-                  const lastAi = [...messages].reverse().find((m) => m.role === "AI");
-                  if (lastAi) startEdit(lastAi);
-                }}
-              >
-                <PenLine size={15} />
-              </button>
-              <button
-                className="icon-btn"
-                aria-label="方向を指定"
-                title="方向を指示して書き直す"
-                onClick={() => setInstructionOpen(true)}
-              >
-                <Sparkles size={15} />
-              </button>
-              <button
-                className="icon-btn"
-                aria-label="書き直す"
-                title="書き直す(長押しで方向指定)"
-                onPointerDown={() => (pressStartRef.current = Date.now())}
-                onClick={() => {
-                  if (Date.now() - pressStartRef.current >= 500) setInstructionOpen(true);
-                  else reroll();
-                }}
-              >
-                <RotateCcw size={15} />
-              </button>
-              <button className="icon-btn" aria-label="少し戻る" title="巻き戻す" onClick={() => setRewindMode(true)}>
-                <Undo2 size={15} />
-              </button>
-            </div>
-          )}
-
           {rewindMode && (
             <div className="card sticky bottom-24 z-10 p-3 text-sm">
               <p className="text-xs">戻りたい場所のメッセージをタップしてください</p>
@@ -1115,17 +1143,21 @@ export function StoryReader(props: {
           paddingBottom: "calc(0.625rem + env(safe-area-inset-bottom))",
         }}
       >
-        {/* 送信モード: セリフ / 動作(地の文) / 展開(作者指示) */}
-        {props.mode === "auth" && (
-          <div data-testid="compose-modes" className="hide-scrollbar mb-2 flex gap-1.5 overflow-x-auto">
+        {/* 送信モード(✱から開く): セリフ / 動作(地の文) / 展開(作者指示) */}
+        {props.mode === "auth" && modeOpen && (
+          <div data-testid="compose-modes" className="modal-pop mb-2 flex gap-1.5">
             {COMPOSE_MODES.map((m) => (
               <button
                 key={m.key}
                 data-testid={`mode-${m.key.toLowerCase()}`}
-                className="chip px-3 py-1 text-[0.72rem]"
+                className="chip px-3 py-1.5 text-[0.72rem]"
                 data-on={mode === m.key}
                 disabled={generating || !messages}
-                onClick={() => setMode(m.key)}
+                onClick={() => {
+                  setMode(m.key);
+                  setModeOpen(false);
+                  inputRef.current?.focus();
+                }}
               >
                 <m.Icon size={12} className="mr-1 inline align-[-1px]" />
                 {m.label}
@@ -1192,58 +1224,135 @@ export function StoryReader(props: {
             {suggestNotice}
           </p>
         )}
+        {/* 操作ツールバー(Zeta型: 左にあらすじ、右に丸アイコン) */}
+        {props.mode === "auth" && !rewindMode && messages && messages.some((m) => m.role === "AI") && (
+          <div data-testid="reader-toolbar" className="mb-2 flex items-center gap-2">
+            <button
+              className="chip flex items-center gap-1.5 px-3 py-1.5 text-[0.72rem]"
+              onClick={() => setMemoryOpen(true)}
+            >
+              <Brain size={13} />
+              あらすじ
+              <span style={{ color: "var(--c-textMuted)" }}>
+                第{Math.max(1, Math.floor((messages[messages.length - 1]?.idx ?? 0) / 2))}話
+              </span>
+            </button>
+            <div className="ml-auto flex items-center gap-1.5">
+              <button
+                className="icon-btn h-9 w-9"
+                aria-label="応答を編集"
+                title="最後の応答を直接直す"
+                disabled={generating}
+                onClick={() => {
+                  const lastAi = [...messages].reverse().find((m) => m.role === "AI");
+                  if (lastAi) startEdit(lastAi);
+                }}
+              >
+                <PenLine size={15} />
+              </button>
+              <button
+                className="icon-btn h-9 w-9"
+                aria-label="方向を指定"
+                title="方向を指示して書き直す"
+                disabled={generating}
+                onClick={() => setInstructionOpen(true)}
+              >
+                <Sparkles size={15} />
+              </button>
+              <button
+                className="icon-btn h-9 w-9"
+                aria-label="書き直す"
+                title="書き直す(長押しで方向指定)"
+                disabled={generating}
+                onPointerDown={() => (pressStartRef.current = Date.now())}
+                onClick={() => {
+                  if (Date.now() - pressStartRef.current >= 500) setInstructionOpen(true);
+                  else reroll();
+                }}
+              >
+                <RotateCcw size={15} />
+              </button>
+              <button
+                className="icon-btn h-9 w-9"
+                aria-label="少し戻る"
+                title="巻き戻す"
+                disabled={generating}
+                onClick={() => setRewindMode(true)}
+              >
+                <Undo2 size={15} />
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="flex items-end gap-2">
           {props.mode === "auth" && (
             <button
               aria-label="返信候補"
               title="返信に迷ったら(AIが候補を書く)"
-              className="icon-btn h-11 w-11"
+              className="icon-btn h-11 w-11 shrink-0 border-0"
+              style={{ background: "transparent", color: "var(--c-primary)" }}
               disabled={generating || !messages || suggestLoading}
               onClick={() => (suggestions ? setSuggestions(null) : fetchSuggestions())}
             >
-              {suggestLoading ? <span className="caret"><Zap size={17} /></span> : <Zap size={17} />}
+              {suggestLoading ? <span className="caret"><Zap size={19} /></span> : <Zap size={19} />}
             </button>
           )}
-          <textarea
-            ref={inputRef}
-            rows={1}
-            className="input max-h-28 flex-1 resize-none"
-            placeholder={props.mode === "auth" ? MODE_PLACEHOLDER[mode] : MODE_PLACEHOLDER.SAY}
-            value={input}
+          <div
+            className="flex flex-1 items-end gap-1 rounded-[22px] border px-3 py-1"
+            style={{
+              borderColor: modeOpen || mode !== "SAY" ? "var(--c-primary)" : "var(--c-border)",
+              background: "var(--c-bg)",
+            }}
+          >
+            <textarea
+              ref={inputRef}
+              rows={1}
+              className="max-h-28 flex-1 resize-none bg-transparent py-2 text-[0.95rem] outline-none"
+              placeholder={props.mode === "auth" ? MODE_PLACEHOLDER[mode] : MODE_PLACEHOLDER.SAY}
+              value={input}
+              disabled={generating || !messages}
+              onChange={(e) => {
+                setInput(e.target.value);
+                e.target.style.height = "auto";
+                e.target.style.height = `${Math.min(e.target.scrollHeight, 112)}px`;
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                  e.preventDefault();
+                  if (input.trim()) send(input);
+                }
+              }}
+            />
+            {props.mode === "auth" && (
+              <button
+                data-testid="mode-toggle"
+                aria-label="書き方を選ぶ"
+                title="セリフ / 動作 / 展開を選ぶ"
+                className="mb-1.5 shrink-0 p-1"
+                style={{ color: mode === "SAY" ? "var(--c-textMuted)" : "var(--c-primary)" }}
+                disabled={generating || !messages}
+                onClick={() => setModeOpen((o) => !o)}
+              >
+                <Asterisk size={18} />
+              </button>
+            )}
+          </div>
+          <button
+            aria-label={input.trim() ? "送信" : "つづきを読む"}
+            title={input.trim() ? "送信" : "空欄のまま送ると物語が進みます"}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white"
+            style={{
+              background:
+                "linear-gradient(140deg, var(--c-primary), color-mix(in oklab, var(--c-accent) 55%, var(--c-primary)))",
+              boxShadow: "0 6px 16px -8px color-mix(in oklab, var(--c-primary) 90%, transparent)",
+              opacity: generating || !messages ? 0.4 : 1,
+            }}
             disabled={generating || !messages}
-            onChange={(e) => {
-              setInput(e.target.value);
-              e.target.style.height = "auto";
-              e.target.style.height = `${Math.min(e.target.scrollHeight, 112)}px`;
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-                e.preventDefault();
-                if (input.trim()) send(input);
-              }
-            }}
-          />
-          {input.trim() ? (
-            <button
-              aria-label="送信"
-              className="btn-primary flex h-11 w-11 shrink-0 items-center justify-center !rounded-full p-0"
-              style={{ borderRadius: 999 }}
-              disabled={generating || !messages}
-              onClick={() => send(input)}
-            >
-              <Send size={17} />
-            </button>
-          ) : (
-            <button
-              aria-label="つづきを読む"
-              title="空欄のまま送ると物語が進みます"
-              className="icon-btn h-11 w-11"
-              disabled={generating || !messages}
-              onClick={() => send("")}
-            >
-              <FastForward size={17} />
-            </button>
-          )}
+            onClick={() => send(input.trim() ? input : "")}
+          >
+            {input.trim() ? <Send size={17} /> : <FastForward size={17} />}
+          </button>
         </div>
       </footer>
 
@@ -1281,62 +1390,216 @@ export function StoryReader(props: {
       {menuOpen && (
         <div className="backdrop fixed inset-0 z-30" onClick={() => setMenuOpen(false)}>
           <div
-            className="card drawer-in absolute right-0 top-0 h-full w-72 overflow-y-auto rounded-none p-4"
+            data-testid="reader-menu"
+            className="card drawer-in absolute right-0 top-0 flex h-full w-[78%] max-w-[320px] flex-col overflow-y-auto rounded-none p-4"
             onClick={(e) => e.stopPropagation()}
           >
-            <p className="mb-3 truncate text-sm font-bold">{title}</p>
-            {props.mode === "auth" && (
-              <button
-                className="block w-full py-2.5 text-left text-sm disabled:opacity-40"
-                disabled={!messages}
-                onClick={() => {
-                  setMenuOpen(false);
-                  setMemoryOpen(true);
-                }}
-              >
-                <Brain size={15} className="mr-1.5 inline align-[-2.5px]" /> 記憶
-              </button>
-            )}
-            {props.mode === "auth" && (
-              <button
-                className="block w-full py-2.5 text-left text-sm disabled:opacity-40"
-                disabled={!messages}
-                onClick={openRoutes}
-              >
-                <GitBranch size={15} className="mr-1.5 inline align-[-2.5px]" /> ルート(並行世界)
-              </button>
-            )}
-            <Link href={`/s/${situationId}`} className="block w-full py-2.5 text-left text-sm">
-              <BookOpen size={15} className="mr-1.5 inline align-[-2.5px]" /> この作品ページへ
-            </Link>
+            {/* ピース残高(課金基盤は準備中) */}
+            <div
+              className="mb-4 flex items-center gap-2 rounded-[12px] px-3 py-2.5"
+              style={{ background: "var(--c-surfaceAlt)" }}
+            >
+              <Sparkle size={15} style={{ color: "var(--c-accent)" }} />
+              <span className="text-sm font-bold">0</span>
+              <span className="ml-auto text-[11px]" style={{ color: "var(--c-textMuted)" }}>
+                ピース(準備中)
+              </span>
+            </div>
+
             {props.mode === "auth" && (
               <>
+                <button
+                  className="w-full py-2.5 text-left disabled:opacity-40"
+                  disabled={!messages}
+                  onClick={startNewTalk}
+                >
+                  <span className="block text-sm font-semibold">新しいトーク</span>
+                  <span className="block text-[11px]" style={{ color: "var(--c-textMuted)" }}>
+                    いまの内容を残したまま、最初から始めます
+                  </span>
+                </button>
+                <button
+                  className="flex w-full items-center py-2.5 text-left text-sm disabled:opacity-40"
+                  disabled={!messages}
+                  onClick={openRoutes}
+                >
+                  <GitBranch size={15} className="mr-2" /> 再開(ルート)
+                  <ChevronRight size={15} className="ml-auto" style={{ color: "var(--c-textMuted)" }} />
+                </button>
+                <button
+                  className="flex w-full items-center py-2.5 text-left text-sm disabled:opacity-40"
+                  disabled={!messages}
+                  onClick={deleteTalk}
+                >
+                  <Trash2 size={15} className="mr-2" /> トーク削除
+                </button>
+
                 <div className="my-2 border-t" style={{ borderColor: "var(--c-border)" }} />
+
+                <button
+                  data-testid="menu-persona"
+                  className="flex w-full items-center py-2.5 text-left text-sm disabled:opacity-40"
+                  disabled={!messages}
+                  onClick={openPersonas}
+                >
+                  <UserRound size={15} className="mr-2" /> トークプロフィール
+                  <span className="ml-auto flex items-center text-xs" style={{ color: "var(--c-textMuted)" }}>
+                    {personas?.find((p) => p.id === personaId)?.name ?? "未設定"}
+                    <ChevronRight size={15} className="ml-0.5" />
+                  </span>
+                </button>
                 {/* 初期fetch完了前に押すと結果で上書きされるため、ロード中は無効 */}
                 <button
                   data-testid="toggle-choices"
-                  className="flex w-full items-center justify-between py-2.5 text-left text-sm disabled:opacity-40"
+                  className="flex w-full items-center py-2.5 text-left text-sm disabled:opacity-40"
                   disabled={!messages}
                   onClick={() => patchStorySetting({ choicesEnabled: !choicesEnabled })}
                 >
-                  <span><Shuffle size={15} className="mr-1.5 inline align-[-2.5px]" /> 選択肢を表示</span>
-                  <span className="chip px-2.5 py-0.5 text-[0.7rem]" data-on={choicesEnabled}>
-                    {choicesEnabled ? "ON" : "OFF"}
+                  <Shuffle size={15} className="mr-2" /> 選択肢
+                  <span className="ml-auto text-xs" style={{ color: "var(--c-textMuted)" }}>
+                    {choicesEnabled ? "使用する" : "使用しない"}
                   </span>
                 </button>
                 <button
-                  data-testid="toggle-midmodel"
-                  className="flex w-full items-center justify-between py-2.5 text-left text-sm disabled:opacity-40"
+                  data-testid="menu-model"
+                  className="flex w-full items-center py-2.5 text-left text-sm disabled:opacity-40"
                   disabled={!messages}
-                  onClick={() => patchStorySetting({ useMidModel: !useMidModel })}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setModelOpen(true);
+                  }}
                 >
-                  <span><Feather size={15} className="mr-1.5 inline align-[-2.5px]" /> 高品質モデル(β)</span>
-                  <span className="chip px-2.5 py-0.5 text-[0.7rem]" data-on={useMidModel}>
-                    {useMidModel ? "ON" : "OFF"}
+                  <Feather size={15} className="mr-2" /> AIモデル
+                  <span className="ml-auto flex items-center text-xs" style={{ color: "var(--c-textMuted)" }}>
+                    {MODELS.find((m) => m.mid === useMidModel)?.name}
+                    <ChevronRight size={15} className="ml-0.5" />
                   </span>
                 </button>
+                <button
+                  className="flex w-full items-center py-2.5 text-left text-sm disabled:opacity-40"
+                  disabled={!messages}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setMemoryOpen(true);
+                  }}
+                >
+                  <Brain size={15} className="mr-2" /> 記憶
+                </button>
+
+                <div className="my-2 border-t" style={{ borderColor: "var(--c-border)" }} />
               </>
             )}
+
+            <Link href={`/s/${situationId}`} className="flex w-full items-center py-2.5 text-left text-sm">
+              <BookOpen size={15} className="mr-2" /> この作品ページへ
+            </Link>
+            <button
+              className="mt-auto flex w-full items-center py-3 text-left text-sm"
+              style={{ color: "var(--c-textMuted)" }}
+              onClick={() => router.push(props.mode === "guest" ? `/s/${situationId}` : "/bookshelf")}
+            >
+              <LogOut size={15} className="mr-2" /> トークルームを退出
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* AIモデル選択シート */}
+      {modelOpen && (
+        <div className="backdrop fixed inset-0 z-30" onClick={() => setModelOpen(false)}>
+          <div
+            data-testid="model-sheet"
+            className="card sheet-up absolute bottom-0 left-0 right-0 mx-auto max-h-[80dvh] max-w-[var(--shell-max)] overflow-y-auto rounded-b-none p-5 pt-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sheet-grabber" aria-hidden />
+            <p className="text-lg font-bold">AIモデルを選択</p>
+            <p className="mt-1 text-xs leading-relaxed" style={{ color: "var(--c-textMuted)" }}>
+              モデルによって文章の密度と、覚えていられる長さが変わります。物語の途中でも切り替えられます。
+            </p>
+            <p className="mt-2 text-xs" style={{ color: "var(--c-textMuted)" }}>
+              0ピース保有中 ・ <span style={{ color: "var(--c-primary)" }}>チャージ(準備中)</span>
+            </p>
+            <div className="mt-4 space-y-2.5">
+              {MODELS.map((m) => {
+                const on = m.mid === useMidModel;
+                return (
+                  <button
+                    key={m.id}
+                    data-testid={`model-${m.id}`}
+                    data-on={on}
+                    className="block w-full rounded-[14px] border p-4 text-left"
+                    style={{
+                      borderColor: on ? "var(--c-primary)" : "var(--c-border)",
+                      background: on ? "var(--c-primarySoft)" : "var(--c-surface)",
+                    }}
+                    onClick={() => {
+                      patchStorySetting({ useMidModel: m.mid });
+                      setModelOpen(false);
+                    }}
+                  >
+                    <span className="flex items-center">
+                      <span className="text-base font-bold tracking-tight">{m.name}</span>
+                      {on && <Check size={18} className="ml-auto" style={{ color: "var(--c-primary)" }} />}
+                    </span>
+                    <span className="mt-1.5 block text-[13px]">{m.desc}</span>
+                    <span className="mt-1 flex items-center gap-1 text-xs" style={{ color: "var(--c-accent)" }}>
+                      <Sparkle size={12} />
+                      {m.cost}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* トークプロフィール(ペルソナ)選択シート */}
+      {personaOpen && (
+        <div className="backdrop fixed inset-0 z-30" onClick={() => setPersonaOpen(false)}>
+          <div
+            data-testid="persona-sheet"
+            className="card sheet-up absolute bottom-0 left-0 right-0 mx-auto max-h-[70dvh] max-w-[var(--shell-max)] overflow-y-auto rounded-b-none p-5 pt-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sheet-grabber" aria-hidden />
+            <p className="text-base font-bold">トークプロフィール</p>
+            <p className="mt-1 text-xs" style={{ color: "var(--c-textMuted)" }}>
+              この物語でのあなたの設定です。キャラクターはこの名前であなたを呼びます。
+            </p>
+            <div className="mt-3 space-y-2">
+              {personas?.map((p) => (
+                <button
+                  key={p.id}
+                  data-testid="persona-option"
+                  className="card block w-full px-3 py-2.5 text-left text-sm"
+                  style={p.id === personaId ? { borderColor: "var(--c-primary)" } : undefined}
+                  onClick={async () => {
+                    setPersonaId(p.id);
+                    setPersonaOpen(false);
+                    await fetch(`/api/stories/${props.storyId}`, {
+                      method: "PATCH",
+                      headers: { "content-type": "application/json" },
+                      body: JSON.stringify({ personaId: p.id }),
+                    });
+                  }}
+                >
+                  {p.name}
+                  {p.id === personaId && (
+                    <Check size={15} className="ml-2 inline align-[-3px]" style={{ color: "var(--c-primary)" }} />
+                  )}
+                </button>
+              ))}
+              {personas?.length === 0 && (
+                <p className="text-xs" style={{ color: "var(--c-textMuted)" }}>
+                  まだトークプロフィールがありません
+                </p>
+              )}
+            </div>
+            <Link href="/me/edit" className="btn-ghost mt-3 block w-full py-2.5 text-center text-sm">
+              トークプロフィールを編集
+            </Link>
           </div>
         </div>
       )}
