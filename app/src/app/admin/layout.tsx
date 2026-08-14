@@ -45,19 +45,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </main>
     );
 
+  // SP: 上部タブ / PC(lg以上): 左サイドバー。読者向け画面と違い運営はPC前提 [USER-REQ]
   return (
-    <div className="flex min-h-dvh flex-col">
+    <div className="admin-shell flex min-h-dvh flex-col lg:flex-row">
       <header
-        className="sticky top-0 z-10 border-b px-4 py-3"
+        className="sticky top-0 z-10 border-b px-4 py-3 lg:h-dvh lg:w-52 lg:shrink-0 lg:border-b-0 lg:border-r lg:px-5 lg:py-6"
         style={{ background: "var(--c-bg)", borderColor: "var(--c-border)" }}
       >
         <h1 className="text-sm font-bold">運営管理</h1>
-        <nav className="mt-2 flex gap-1 overflow-x-auto text-sm" data-testid="admin-nav">
+        <nav
+          className="mt-2 flex gap-1 overflow-x-auto text-sm lg:mt-5 lg:flex-col lg:gap-2 lg:overflow-visible"
+          data-testid="admin-nav"
+        >
           {NAV.map((n) => (
             <Link
               key={n.href}
               href={n.href}
-              className="chip"
+              className="chip lg:block"
               data-on={pathname === n.href}
             >
               {n.label}
@@ -65,7 +69,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           ))}
         </nav>
       </header>
-      <main className="flex-1 space-y-4 p-4">{children}</main>
+      <main className="flex-1 p-4 lg:px-10 lg:py-8">
+        <div className="space-y-4 lg:max-w-3xl">{children}</div>
+      </main>
     </div>
   );
 }

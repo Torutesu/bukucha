@@ -21,7 +21,6 @@ export function useAdminList<T>(path: string) {
   );
   const [error, setError] = useState<string | null>(null);
   const pathRef = useRef(path);
-  pathRef.current = path;
 
   const load = useCallback(async () => {
     try {
@@ -35,10 +34,11 @@ export function useAdminList<T>(path: string) {
   }, [path]);
 
   useEffect(() => {
+    pathRef.current = path;
     (async () => {
       await load();
     })();
-  }, [load]);
+  }, [path, load]);
 
   const current = data?.key === path ? data : null;
 

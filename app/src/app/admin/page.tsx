@@ -32,7 +32,7 @@ export default function AdminHome() {
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-3" data-testid="admin-overview">
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-3" data-testid="admin-overview">
       {stats.map((s) => (
         <Link key={s.label} href={s.href} className="card block p-4">
           <p className="text-xs" style={{ color: "var(--c-textMuted)" }}>
