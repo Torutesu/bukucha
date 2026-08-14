@@ -57,6 +57,46 @@ body {
   border-radius: var(--radius-card);
 }
 
+.cover-frame {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 12px;
+  background: var(--c-surfaceAlt);
+  box-shadow: 0 8px 20px rgb(32 23 28 / 0.12);
+  isolation: isolate;
+}
+.cover-image {
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+  transition: transform 300ms ease;
+}
+.cover-shade {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(180deg, rgb(12 13 28 / 0.02) 25%, rgb(12 13 28 / 0.82) 100%);
+}
+.cover-title {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  left: 10px;
+  z-index: 2;
+  color: white;
+  font-family: var(--font-novel);
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1.45;
+  text-shadow: 0 1px 8px rgb(0 0 0 / 0.5);
+}
+.group:hover .cover-image,
+a:hover .cover-image {
+  transform: scale(1.04);
+}
+
 .chip {
   border-radius: var(--radius-chip);
   border: 1px solid var(--c-border);

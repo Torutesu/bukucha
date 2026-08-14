@@ -13,15 +13,21 @@ export interface CardData {
   tags: { tag: { id: string; name: string } }[];
 }
 
-const GRADIENTS = [
-  "linear-gradient(135deg, #b4436c, #7c5cbf)",
-  "linear-gradient(135deg, #7c5cbf, #4361b4)",
-  "linear-gradient(135deg, #b4436c, #d98e5f)",
-  "linear-gradient(135deg, #43847c, #7c5cbf)",
-];
+const FALLBACK_COVERS = [
+  { src: "/covers/rainy-school.png", match: ["学園", "先輩", "幼なじみ", "同僚"] },
+  { src: "/covers/moonlit-duke.png", match: ["王子", "公爵", "悪役令嬢", "西洋風", "異世界"] },
+  { src: "/covers/office-night.png", match: ["上司", "オフィス", "現代", "契約"] },
+  { src: "/covers/snow-court.png", match: ["和風", "後宮", "敵", "師弟", "ミステリー"] },
+] as const;
+
+function getFallbackCover(s: CardData) {
+  const tagNames = s.tags.map(({ tag }) => tag.name);
+  const matched = FALLBACK_COVERS.find((cover) => cover.match.some((tag) => tagNames.includes(tag)));
+  return matched?.src ?? FALLBACK_COVERS[s.title.charCodeAt(0) % FALLBACK_COVERS.length].src;
+}
 
 export function Cover({ s, className }: { s: CardData; className?: string }) {
-  const g = GRADIENTS[(s.title.charCodeAt(0) ?? 0) % GRADIENTS.length];
+  const src = s.coverImageUrl || getFallbackCover(s);
   return s.coverImageUrl ? (
     // eslint-disable-next-line @next/next/no-img-element
     <img
@@ -31,14 +37,11 @@ export function Cover({ s, className }: { s: CardData; className?: string }) {
       className={`aspect-[3/4] w-full rounded-[12px] object-cover ${className ?? ""}`}
     />
   ) : (
-    <div
-      data-testid="card-cover"
-      className={`flex aspect-[3/4] w-full items-end rounded-[12px] p-2 ${className ?? ""}`}
-      style={{ background: g }}
-    >
-      <span className="line-clamp-4 font-serif text-[11px] leading-snug text-white/95">
-        {s.title}
-      </span>
+    <div className={`cover-frame ${className ?? ""}`}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt="" data-testid="card-cover" className="cover-image" />
+      <div className="cover-shade" />
+      <span className="cover-title line-clamp-4">{s.title}</span>
     </div>
   );
 }
