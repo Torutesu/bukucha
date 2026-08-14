@@ -48,5 +48,16 @@ npm run test:e2e           # Playwright(LLMはモック) — P0 19件
 
 ## 状態
 
-MVP実装済み(13画面 / E2E P0 19件全通過 / build・型・lintクリーン)。
+MVP実装済み(13画面 / E2E 24件全通過 / build・型・lintクリーン)。
 課金・通知・ルート分岐UI・R18はスコープ外(`spec/00-prd.md` の out_of_scope 参照)。
+
+### 運営管理(/admin)
+
+role=ADMIN のユーザーのみアクセス可。操作はすべて `app/src/server/admin.ts` に集約し、
+`/api/admin/*` として露出(将来のMCP/CLIオペレーションも同じAPIを使う想定)。全操作は AuditLog に記録される。
+
+- 通報キュー: OPEN通報の一覧と resolve / dismiss
+- 審査フラグ: 公開ブロック(IP検出・禁止表現・表現水準)の誤検出承認 / 確定。全承認後は作品管理から強制公開
+- 作品: 検索、停止 / 復帰、強制公開、contentLevel修正
+- ユーザー: 検索、BAN(公開作品も同時停止・ログイン拒否) / 解除、クリエイターバッジ、ADMIN付与
+- 監査ログ: 操作の全履歴

@@ -51,6 +51,11 @@ enum ReportStatus {
   DISMISSED
 }
 
+enum UserStatus {
+  ACTIVE
+  BANNED
+}
+
 // ============ User / Auth ============
 
 model User {
@@ -61,10 +66,11 @@ model User {
   birthDate      DateTime?
   safeFilterOff  Boolean   @default(false)
   preferenceTags String[]
-  isCreatorBadge Boolean   @default(false)
-  role           String    @default("USER")
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  isCreatorBadge Boolean    @default(false)
+  role           String     @default("USER")
+  status         UserStatus @default(ACTIVE)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 
   accounts   AuthAccount[]
   personas   Persona[]
@@ -233,25 +239,49 @@ model Like {
 // ============ Trust & Safety ============
 
 model Report {
-  id         String       @id @default(cuid())
-  reporterId String
-  targetType String
-  targetId   String
-  reason     String
-  detail     String?
-  status     ReportStatus @default(OPEN)
-  createdAt  DateTime     @default(now())
-  reporter   User         @relation(fields: [reporterId], references: [id])
+  id             String       @id @default(cuid())
+  reporterId     String
+  targetType     String
+  targetId       String
+  reason         String
+  detail         String?
+  status         ReportStatus @default(OPEN)
+  resolvedById   String?
+  resolvedAt     DateTime?
+  resolutionNote String?
+  createdAt      DateTime     @default(now())
+  reporter       User         @relation(fields: [reporterId], references: [id])
+
+  @@index([status, createdAt])
 }
 
 model ModerationFlag {
-  id          String           @id @default(cuid())
-  situationId String?
-  targetType  String
-  targetId    String
-  kind        ModerationKind
-  detail      String
-  status      ModerationStatus @default(FLAGGED)
-  createdAt   DateTime         @default(now())
-  situation   Situation?       @relation(fields: [situationId], references: [id], onDelete: Cascade)
+  id           String           @id @default(cuid())
+  situationId  String?
+  targetType   String
+  targetId     String
+  kind         ModerationKind
+  detail       String
+  status       ModerationStatus @default(FLAGGED)
+  reviewedById String?
+  reviewedAt   DateTime?
+  reviewNote   String?
+  createdAt    DateTime         @default(now())
+  situation    Situation?       @relation(fields: [situationId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+}
+
+/** 運営操作の監査証跡。人間/AIエージェントどちらの操作も記録する */
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  action     String
+  targetType String
+  targetId   String
+  detail     String   @default("")
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([targetType, targetId])
 }
