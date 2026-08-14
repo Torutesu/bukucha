@@ -1,7 +1,10 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
 import { db } from "./db";
+import { HttpError } from "./errors";
 import type { User } from "@prisma/client";
+
+export { HttpError };
 
 /**
  * 最小の署名Cookieセッション。
@@ -68,11 +71,6 @@ export async function getSessionUser(): Promise<User | null> {
   return db.user.findUnique({ where: { id: uid } });
 }
 
-export class HttpError extends Error {
-  constructor(public status: number, public code: string, message?: string) {
-    super(message ?? code);
-  }
-}
 
 export async function requireUser(): Promise<User> {
   const user = await getSessionUser();

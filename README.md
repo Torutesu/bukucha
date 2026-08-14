@@ -63,12 +63,12 @@ Vercelへのインポートだけで動く構成にしてある(`app/vercel.json
 
 ```bash
 cd app
-npm run test:e2e           # Playwright(LLMはモック) — 26件
+npm run test:e2e           # Playwright(LLMはモック) — 40件
 ```
 
 ## 状態
 
-MVP実装済み(13画面 / E2E 31件全通過 / build・型・lintクリーン)。
+MVP実装済み(13画面 / E2E 40件全通過 / build・型・lintクリーン)。
 2026-08-07: Zeta詳細インタラクションを追補 — 返信候補(50回/日)、AI応答の直接編集、
 ここから分岐+並行ルート、選択肢ON/OFF、高品質モデル切替、組版・スクロール追従の強化
 (`pipeline/bukucha/decisions.md` の同日エントリ参照)。
@@ -85,3 +85,30 @@ role=ADMIN のユーザーのみアクセス可(SP: 上部タブ / PC: サイド
 - 作品: 検索、停止 / 復帰、強制公開、contentLevel修正
 - ユーザー: 検索、BAN(公開作品も同時停止・ログイン拒否) / 解除、クリエイターバッジ、ADMIN付与
 - 監査ログ: 操作の全履歴
+
+### 運営MCPサーバー(app/mcp/admin-mcp.ts)
+
+同じ `server/admin.ts` をMCPツール10個として露出。Claudeに「未対応の通報を確認して対応して」
+のような運営オペレーションを任せられる。実行者は `ADMIN_EMAIL`(role=ADMIN必須)で、
+操作は/admin画面と同じく全て AuditLog にそのユーザー名義で記録される。
+
+```jsonc
+// .mcp.json (Claude Code) の例
+{
+  "mcpServers": {
+    "bukucha-admin": {
+      "command": "npm",
+      "args": ["run", "-s", "mcp:admin"],
+      "cwd": "app",
+      "env": {
+        "DATABASE_URL": "postgresql://bukucha:bukucha@localhost:5432/bukucha",
+        "ADMIN_EMAIL": "seed-author@bukucha.local"
+      }
+    }
+  }
+}
+```
+
+ツール: `admin_overview` / `admin_list_reports` / `admin_resolve_report` / `admin_list_flags` /
+`admin_review_flag` / `admin_list_situations` / `admin_situation_action` / `admin_list_users` /
+`admin_user_action` / `admin_list_audit_logs`

@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { HttpError } from "@/lib/auth";
+import { HttpError } from "@/lib/errors";
 import type { ContentLevel, Prisma, User } from "@prisma/client";
 
 /**
