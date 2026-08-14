@@ -2,11 +2,39 @@
 
 /* テーマ変数は layout.tsx が brand.config から注入する(src/lib/theme.ts) */
 
+:root {
+  /* 影の段階(色はテーマトークン--c-shadowから作る) */
+  --elev-1: 0 1px 2px color-mix(in oklab, var(--c-shadow) 6%, transparent),
+    0 1px 3px color-mix(in oklab, var(--c-shadow) 4%, transparent);
+  --elev-2: 0 2px 6px color-mix(in oklab, var(--c-shadow) 7%, transparent),
+    0 6px 16px -6px color-mix(in oklab, var(--c-shadow) 10%, transparent);
+  --elev-3: 0 8px 28px -10px color-mix(in oklab, var(--c-shadow) 24%, transparent),
+    0 2px 8px color-mix(in oklab, var(--c-shadow) 8%, transparent);
+}
+
 html,
 body {
   background: var(--c-bg);
   color: var(--c-text);
   font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "palt" 1; /* 日本語の詰め組み */
+}
+
+/* 見出しは字間を締めて、本文は読みやすさ優先 */
+h1,
+h2,
+h3 {
+  letter-spacing: 0.005em;
+  line-height: 1.35;
+}
+
+/* キーボード操作時だけリングを出す */
+:where(button, a, input, textarea, select):focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--c-primary) 60%, transparent);
+  outline-offset: 2px;
+  border-radius: 8px;
 }
 
 * {
@@ -34,7 +62,7 @@ body {
       var(--c-surfaceAlt);
   }
   .app-shell {
-    box-shadow: 0 0 48px rgb(0 0 0 / 0.12);
+    box-shadow: 0 0 64px -12px color-mix(in oklab, var(--c-shadow) 30%, transparent);
   }
 }
 
@@ -55,11 +83,57 @@ body {
   font-style: italic;
   opacity: 0.85;
 }
+/* AI応答の「」セリフを主演キャラ色で強調(SCR-006 Layout) */
+.novel .dialogue {
+  font-weight: 600;
+  color: color-mix(in oklab, var(--c-primary) 72%, var(--c-novelText));
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.fade-in {
+  animation: fadeIn 0.5s ease 0.15s both;
+}
+
+/* ── 触感: 押せるものは押した感触を返す ── */
+button,
+a.card {
+  transition:
+    transform 0.12s ease,
+    background 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    color 0.2s ease,
+    opacity 0.15s ease;
+}
+button:active:not(:disabled),
+a.card:active {
+  transform: scale(0.965);
+}
+.pressable {
+  transition: transform 0.12s ease, opacity 0.15s ease;
+}
+.pressable:active {
+  transform: scale(0.97);
+}
 
 .card {
   background: var(--c-surface);
   border: 1px solid var(--c-border);
   border-radius: var(--radius-card);
+  box-shadow: var(--elev-1);
+}
+/* 情報を束ねるだけのカードは影を落とさない */
+.card-flat {
+  box-shadow: none;
 }
 
 .chip {
@@ -67,26 +141,36 @@ body {
   border: 1px solid var(--c-border);
   background: var(--c-surface);
   color: var(--c-text);
-  padding: 6px 14px;
-  font-size: 0.85rem;
+  padding: 6.5px 14px;
+  font-size: 0.82rem;
+  font-weight: 500;
   white-space: nowrap;
+  box-shadow: var(--elev-1);
 }
 .chip[data-on="true"] {
-  background: var(--c-primary);
-  border-color: var(--c-primary);
+  background: linear-gradient(120deg, var(--c-primary), color-mix(in oklab, var(--c-accent) 40%, var(--c-primary)));
+  border-color: transparent;
   color: #fff;
+  font-weight: 600;
+  box-shadow: 0 3px 12px -4px color-mix(in oklab, var(--c-primary) 60%, transparent);
 }
 
 .btn-primary {
-  background: var(--c-primary);
+  background: linear-gradient(120deg, var(--c-primary), color-mix(in oklab, var(--c-accent) 32%, var(--c-primary)));
   color: #fff;
   border-radius: var(--radius-input);
   padding: 12px 20px;
   font-weight: 600;
+  letter-spacing: 0.02em;
   text-align: center;
+  box-shadow: 0 6px 18px -8px color-mix(in oklab, var(--c-primary) 75%, transparent);
+}
+.btn-primary:hover:not(:disabled) {
+  filter: brightness(1.05);
 }
 .btn-primary:disabled {
-  opacity: 0.4;
+  opacity: 0.38;
+  box-shadow: none;
 }
 .btn-ghost {
   border: 1px solid var(--c-border);
@@ -94,6 +178,12 @@ body {
   padding: 10px 16px;
   background: var(--c-surface);
   color: var(--c-text);
+  font-weight: 500;
+  box-shadow: var(--elev-1);
+}
+.btn-ghost:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--c-primarySoft) 45%, var(--c-surface));
+  border-color: color-mix(in oklab, var(--c-primary) 25%, var(--c-border));
 }
 
 .input {
@@ -102,17 +192,27 @@ body {
   border-radius: var(--radius-input);
   background: var(--c-surface);
   color: var(--c-text);
-  padding: 10px 12px;
+  padding: 11px 13px;
+  font-size: 0.95rem;
+}
+.input::placeholder {
+  color: color-mix(in oklab, var(--c-textMuted) 78%, transparent);
+}
+.input {
+  transition: outline-color 0.15s ease, border-color 0.15s ease;
 }
 .input:focus {
   outline: 2px solid color-mix(in oklab, var(--c-primary) 45%, transparent);
+  border-color: color-mix(in oklab, var(--c-primary) 40%, var(--c-border));
 }
 
 .label {
-  font-size: 0.8rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
   color: var(--c-textMuted);
   display: block;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 @keyframes blink {
@@ -122,6 +222,77 @@ body {
 }
 .caret {
   animation: blink 1s step-start infinite;
+  color: var(--c-primary);
+}
+
+/* 初回トークン待ちのタイピングインジケータ */
+.typing-dots span {
+  display: inline-block;
+  font-size: 0.5rem;
+  margin-right: 4px;
+  color: var(--c-textMuted);
+}
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes typingBlink {
+    0%,
+    80%,
+    100% {
+      opacity: 0.25;
+      transform: translateY(0);
+    }
+    40% {
+      opacity: 1;
+      transform: translateY(-2px);
+    }
+  }
+  .typing-dots span {
+    animation: typingBlink 1.2s ease infinite;
+  }
+  .typing-dots span:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+  .typing-dots span:nth-child(3) {
+    animation-delay: 0.4s;
+  }
+}
+
+/* いいねのポップ(SCR-005) */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes heartPop {
+    0% {
+      transform: scale(1);
+    }
+    40% {
+      transform: scale(1.45);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+  .heart-pop {
+    animation: heartPop 0.35s cubic-bezier(0.2, 0.7, 0.3, 1);
+  }
+}
+
+/* 丸型アイコンボタン(SCR-006の操作列/送信まわり) */
+.icon-btn {
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--c-border);
+  background: var(--c-surface);
+  color: var(--c-text);
+  font-size: 1rem;
+}
+.icon-btn:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--c-primarySoft) 50%, var(--c-surface));
+  border-color: color-mix(in oklab, var(--c-primary) 22%, var(--c-border));
+}
+.icon-btn:disabled {
+  opacity: 0.4;
 }
 
 .hide-scrollbar::-webkit-scrollbar {
@@ -129,4 +300,119 @@ body {
 }
 .hide-scrollbar {
   scrollbar-width: none;
+}
+
+/* ── 出現アニメーション(シート/ドロワー/モーダル) ── */
+.backdrop {
+  background: rgb(0 0 0 / 0.5);
+}
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes backdropIn {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes sheetUp {
+    from {
+      transform: translateY(28px);
+      opacity: 0.4;
+    }
+  }
+  @keyframes drawerIn {
+    from {
+      transform: translateX(48px);
+      opacity: 0.4;
+    }
+  }
+  @keyframes popIn {
+    from {
+      transform: scale(0.95) translateY(6px);
+      opacity: 0;
+    }
+  }
+  .backdrop {
+    animation: backdropIn 0.2s ease both;
+  }
+  .sheet-up {
+    animation: sheetUp 0.28s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  }
+  .drawer-in {
+    animation: drawerIn 0.24s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  }
+  .modal-pop {
+    animation: popIn 0.2s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  }
+}
+
+/* ボトムシートのつまみ */
+.sheet-up,
+.drawer-in,
+.modal-pop {
+  box-shadow: var(--elev-3);
+}
+
+.sheet-grabber {
+  width: 36px;
+  height: 4px;
+  border-radius: 99px;
+  margin: 0 auto 12px;
+  background: color-mix(in oklab, var(--c-textMuted) 35%, transparent);
+}
+
+/* ── スケルトン(読み込み中) ── */
+.skeleton {
+  border-radius: 8px;
+  background: linear-gradient(
+    100deg,
+    var(--c-surfaceAlt) 40%,
+    color-mix(in oklab, var(--c-surface) 70%, var(--c-surfaceAlt)) 50%,
+    var(--c-surfaceAlt) 60%
+  );
+  background-size: 200% 100%;
+}
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes shimmer {
+    to {
+      background-position: -200% 0;
+    }
+  }
+  .skeleton {
+    animation: shimmer 1.4s linear infinite;
+  }
+}
+
+/* ── 選択肢カード(SCR-006) ── */
+.choice-card {
+  border-color: color-mix(in oklab, var(--c-primary) 45%, var(--c-border)) !important;
+}
+.choice-card:hover {
+  background: color-mix(in oklab, var(--c-primarySoft) 55%, var(--c-surface));
+  border-color: var(--c-primary) !important;
+}
+
+/* ── セクション見出し(画面間で共通のリズムを作る) ── */
+.section-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.section-title::before {
+  content: "";
+  width: 3px;
+  height: 14px;
+  border-radius: 99px;
+  background: linear-gradient(var(--c-primary), var(--c-accent));
+}
+
+/* 画面上部の固定ヘッダー(半透明+ぼかし) */
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: color-mix(in oklab, var(--c-bg) 88%, transparent);
+  backdrop-filter: blur(12px) saturate(1.4);
+  border-bottom: 1px solid color-mix(in oklab, var(--c-border) 70%, transparent);
 }

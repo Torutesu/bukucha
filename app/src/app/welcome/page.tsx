@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SituationCard, type CardData } from "@/components/SituationCard";
+import { LogoMark, Wordmark } from "@/components/Logo";
 import { brand } from "@/lib/theme";
 
 interface Tag {
@@ -47,8 +48,9 @@ export default function WelcomePage() {
 
   return (
     <main className="flex min-h-dvh flex-col px-5 py-10">
-      <h1 className="text-center text-2xl font-bold" style={{ color: "var(--c-primary)" }}>
-        {brand.name}
+      <h1 className="flex flex-col items-center gap-3">
+        <LogoMark size={56} />
+        <Wordmark size="1.6rem" />
       </h1>
       <p className="mt-1 text-center text-sm" style={{ color: "var(--c-textMuted)" }}>
         {brand.tagline}

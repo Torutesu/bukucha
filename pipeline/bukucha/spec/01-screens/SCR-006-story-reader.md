@@ -1,4 +1,6 @@
 # SCR-006: ノベルリーダー(チャット本体) ★コア画面
+- version: 3 (v3: 送信3モード+展開プリセット+打ち直し — research/zeta-progression-ux.md)
+- (v2: Zeta詳細インタラクション: 返信候補/AI編集/分岐・ルート/トグル/追従・組版 — teardown.md §4)
 - route: /story/[storyId] (ゲストモード: /story/guest ローカルのみ)
 - auth: authenticated (ゲストモードのみ例外)
 - purpose: 「文章が連続的に出てくるラノベ体験」の本体。没入最優先 [USER-REQ]
@@ -42,8 +44,22 @@
 | ChoiceCards | タップで選択テキストを即送信(selectedChoice記録)。「自分で書く」リンクで入力欄へフォーカス | 同上 |
 | RerollButton | 最新AI応答を破棄して再生成(SSE)。長押しで「方向を指定して書き直す」(一言指示入力→再生成) | POST /api/stories/:id/messages/:idx/reroll |
 | RewindButton | タップでメッセージ選択モード→選んだ位置まで巻き戻し(以降を論理削除)。確認ダイアログあり | POST /api/stories/:id/rewind |
-| StoryMenu(⋯) | ドロワー: 記憶(summary閲覧+userNote編集)/ペルソナ変更/最初から新しいルートで読む/この作品ページへ/通報 | GET・PUT /api/stories/:id/memory ほか |
+| StoryMenu(⋯) | ドロワー: 記憶(summary閲覧+userNote編集)/ルート(並行世界)/この作品ページへ/選択肢ON/OFF/高品質モデルON/OFF。ロード完了までデータ依存項目はdisabled(遅延fetchが操作を上書きするレース防止) | GET・PUT /api/stories/:id/memory ほか |
 | GuestGate | ゲストモード4往復目の送信で登録壁モーダル(「続きを保存して読むには登録」)→SCR-017 | localStorage |
+| SuggestButton(✦) | 入力欄横。タップでAIF-008の候補チップ2件+「今日の残り n 回」を表示。チップタップで入力欄に挿入(編集可能)。クォータ超過は小さな通知 | POST /api/stories/:id/suggest |
+| AiActionRow | AI応答タップで操作列: 「✎ 直接直す」(インライン編集→PATCH)/「🌱 ここから分岐」(atIdxまで複製した新Storyへ遷移)/「↩ ここまで戻す」(最新以外のみ) | PATCH /api/stories/:id/messages/:idx, POST /api/stories/:id/branch |
+| RouteSheet | ボトムシート: 同一作品の全Story(並行ルート)一覧。現在ルートに印、分岐由来は「(分岐)」表示。タップで切替、「＋最初から新しいルートで読む」 | GET /api/stories?situationId= |
+| LatestChip | 上に戻ると自動追従を停止し「↓最新へ」チップを表示。タップで最下部へ | - |
+| AutoHideHeader | 下方向のユーザースクロールでヘッダーを隠す(上スクロール/最上部で再表示)。自動スクロール(送信後・ロード後)では隠さない。高品質モデルON時は🖋チップ表示 | - |
+| InputPreview | 入力に `*〜*` を含むとき、または動作モードのとき、入力欄上に地の文プレビュー(斜体・ノベル書体) | - |
+| ComposeModes | 送信モードチップ: 💬セリフ(そのまま) / ✳️動作(地の文`*〜*`として送信・斜体描画) / 🎬展開(作者としての演出指示)。StoryMessage.kindとして永続化。展開は送信後セリフに自動復帰 | POST …/messages {kind} |
+| DirectionPresets | 展開モード時のプリセットチップ: 時間経過/場面転換/予想外の出来事/距離が縮まる/クライマックス(Zetaの`*あらすじ:〜*`裏ワザの製品化)。タップで即送信 | 同上 |
+| DirectionLine | DIRECTIONメッセージは主人公の発言ではないため、右寄せバブルでなく中央の演出行「── 🎬 指示 ──」で描画 | - |
+| SendStatus | 生成中、最後のユーザー発言の下に「✓ 送信済み」(完了で消える)。初回トークン待ちは●●●タイピングインジケータ | - |
+| Timestamps | メッセージタップ時の操作列に時刻(H:MM)。日付が変わる境目に「── M月D日 ──」セパレータ | - |
+| ContinueButton | 最新応答の操作列に「⏩ つづき」= 空欄送信のワンタップ化 | POST …/messages |
+| DraftAutosave | 入力とモードをlocalStorageに自動保存(storyId毎)。リロード・離脱で消えない。送信で自動削除 | - |
+| UserActionRow | 自分の発言タップ→「✍ 打ち直す」= その発言以降を取り消し、本文とモードを入力欄に復元(Zetaは削除→手で再入力が必要な痛点の解消) | POST …/rewind |
 
 ## States
 - loading: 既存本文を即表示(キャッシュ)→ 差分fetch
@@ -59,8 +75,17 @@
 - 少し戻る → 選択位置まで巻き戻し(論理削除)。巻き戻し後は入力欄フォーカス
 - ← → SCR-007(本棚)へ。離脱時に要約メモリ更新をトリガー(AIF-003)
 
+## Interactions (v2追加分)
+- AI応答タップ → 操作列(編集/分岐/巻き戻し)。編集はAIロールのみ(Zetaのペン編集)
+- ✦ → 返信候補2案(1日50回・朝9時リセット)。タップで入力欄へ=そのまま送信も書き換えも可
+- 巻き戻し選択はUSER行・AI行の両方をタップ可能に拡張
+- 分岐 → その時点までを複製した新Storyへ。ルートシートで並行世界を行き来(保存セッション文化の踏襲)
+- セリフ「」は主演キャラ色で強調、AI側の`*〜*`も地の文(斜体)描画
+- 導入部は150msディレイのフェードイン
+
 ## AI Behaviors
-- AIF-001: ノベル応答生成(ストリーミング) — 全送信で発火
+- AIF-001: ノベル応答生成(ストリーミング) — 全送信で発火。Story.useMidModelでmidティアに切替
 - AIF-003: 要約メモリ更新 — 10往復ごと+離脱時にバックグラウンド発火
-- AIF-005: 選択肢生成 — 応答生成に同梱
+- AIF-005: 選択肢生成 — 応答生成に同梱。Story.choicesEnabled=falseで停止(途中切替可)
 - AIF-007: 出力ライン制御 — 全応答に適用(安心フィルター状態とcontentLevelに応じたプロファイル)
+- AIF-008: 返信候補 — ✦ボタンで発火(クォータ管理)

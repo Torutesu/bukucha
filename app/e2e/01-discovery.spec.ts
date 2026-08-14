@@ -27,20 +27,30 @@ test.describe("発見フロー", () => {
   test("E2E-003: ホームのセクションとカード表示", async ({ page }) => {
     await loginAs(page, "reader-e2e003@test.com");
     await page.goto("/");
+    // Zeta型: トレンド/ベスト/新作のタブでグリッドを切り替える
     await expect(page.getByTestId("section-forYou")).toBeVisible();
+    await page.getByTestId("tab-popular").click();
     await expect(page.getByTestId("section-popular")).toBeVisible();
+    await page.getByTestId("tab-new").click();
     await expect(page.getByTestId("section-new")).toBeVisible();
+    await page.getByTestId("tab-forYou").click();
 
     const card = page.getByTestId("situation-card").first();
     await expect(card).toBeVisible();
     await expect(card.getByTestId("card-cover")).toBeVisible();
     await expect(card.getByTestId("card-title")).toBeVisible();
     await expect(card.getByTestId("card-catch")).toBeVisible();
-    await expect(card.getByTestId("card-readers")).toBeVisible();
-    await expect(card.getByTestId("card-likes")).toBeVisible();
+    await expect(card.getByTestId("card-stories")).toBeVisible();
+    await expect(card.getByTestId("card-author")).toBeVisible();
+    await expect(card.getByTestId("card-rank")).toHaveText("1");
+
+    // タグチップはその場でグリッドを絞り込む
+    await page.getByTestId("home-tags").getByRole("button", { name: "執着" }).click();
+    await expect(page.getByTestId("section-forYou")).toBeVisible();
+    await expect(page.getByTestId("situation-card").first()).toBeVisible();
 
     const tab = page.getByTestId("bottom-tab");
-    for (const name of ["ホーム", "本棚", "作る", "マイ"]) {
+    for (const name of ["ホーム", "トーク", "作成", "マイ"]) {
       await expect(tab.getByText(name)).toBeVisible();
     }
   });
@@ -48,8 +58,9 @@ test.describe("発見フロー", () => {
   test("E2E-004: タグ検索→絞り込み→結果から詳細へ", async ({ page }) => {
     await loginAs(page, "reader-e2e004@test.com");
     await page.goto("/");
-    await page.getByTestId("home-tags").getByRole("button", { name: "執着" }).click();
+    await page.getByRole("link", { name: "検索" }).click();
     await expect(page).toHaveURL(/\/search/);
+    await page.getByTestId("tag-option").getByText("執着", { exact: true }).click();
     await expect(page.getByTestId("selected-tag").getByText("執着")).toBeVisible();
     await expect(page.getByTestId("search-result").first()).toBeVisible();
 

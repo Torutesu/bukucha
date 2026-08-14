@@ -39,22 +39,46 @@ npm run dev                # http://localhost:3000
 
 `.env` の設定は `pipeline/bukucha/build-notes.md` を参照。
 
+## デプロイ(Vercel)
+
+Vercelへのインポートだけで動く構成にしてある(`app/vercel.json` がビルド時に
+`prisma migrate deploy → seed(冪等) → next build` を実行)。
+
+1. [vercel.com/new](https://vercel.com/new) でこのリポジトリをインポート
+2. **Root Directory を `app` に設定**(Framework: Next.js 自動検出)
+3. Storage タブから **Neon (Postgres)** を接続(`DATABASE_URL` が自動注入される)
+   ※他のPostgresを使う場合は `DATABASE_URL` を手動で設定
+4. Environment Variables に以下を設定して Deploy:
+
+| 変数 | 値 | 備考 |
+|---|---|---|
+| `AUTH_SECRET` | ランダムな長い文字列 | セッション署名 |
+| `AUTH_DEV_MODE` | `true` | メール即ログイン(デモ用。誰でも任意のメールでログイン可) |
+| `LLM_PROVIDER` | `mock` | デモは決定的応答。実LLMは `openai` + `LLM_BASE_URL`/`LLM_API_KEY`/`LLM_MODEL_LIGHT`/`LLM_MODEL_MID` |
+
+デモ公開の注意: `AUTH_DEV_MODE=true` は認証なし相当。限定共有に留め、
+本公開前にmagic link実装(`api/auth/login` のTODO)とレート制限強化が必要。
+
 ## テスト
 
 ```bash
 cd app
-npm run test:e2e           # Playwright(LLMはモック) — P0 19件
+npm run test:e2e           # Playwright(LLMはモック) — 26件
 ```
 
 ## 状態
 
-MVP実装済み(13画面 / E2E 24件全通過 / build・型・lintクリーン)。
-課金・通知・ルート分岐UI・R18はスコープ外(`spec/00-prd.md` の out_of_scope 参照)。
+MVP実装済み(13画面 / E2E 31件全通過 / build・型・lintクリーン)。
+2026-08-07: Zeta詳細インタラクションを追補 — 返信候補(50回/日)、AI応答の直接編集、
+ここから分岐+並行ルート、選択肢ON/OFF、高品質モデル切替、組版・スクロール追従の強化
+(`pipeline/bukucha/decisions.md` の同日エントリ参照)。
+課金・通知・R18はスコープ外(`spec/00-prd.md` の out_of_scope 参照)。
 
 ### 運営管理(/admin)
 
-role=ADMIN のユーザーのみアクセス可。操作はすべて `app/src/server/admin.ts` に集約し、
-`/api/admin/*` として露出(将来のMCP/CLIオペレーションも同じAPIを使う想定)。全操作は AuditLog に記録される。
+role=ADMIN のユーザーのみアクセス可(SP: 上部タブ / PC: サイドバー付きワイド表示)。
+操作はすべて `app/src/server/admin.ts` に集約し、`/api/admin/*` として露出。
+全操作は AuditLog に記録される。
 
 - 通報キュー: OPEN通報の一覧と resolve / dismiss
 - 審査フラグ: 公開ブロック(IP検出・禁止表現・表現水準)の誤検出承認 / 確定。全承認後は作品管理から強制公開

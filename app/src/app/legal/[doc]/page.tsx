@@ -1,3 +1,4 @@
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { brand } from "@/lib/theme";
@@ -59,7 +60,7 @@ export default async function LegalPage({ params }: { params: Promise<{ doc: str
   return (
     <main className="px-5 py-8">
       <Link href="/me" className="text-sm" style={{ color: "var(--c-textMuted)" }}>
-        ← もどる
+        <ArrowLeft size={15} className="mr-1 inline align-[-2px]" /> もどる
       </Link>
       <h1 className="mt-4 text-xl font-bold">{content.title}</h1>
       <div className="mt-4 whitespace-pre-wrap text-sm leading-relaxed">{content.body}</div>

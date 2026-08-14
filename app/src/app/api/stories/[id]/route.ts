@@ -23,6 +23,8 @@ export async function PATCH(req: Request, { params }: Params) {
     const data: Record<string, unknown> = {};
     if (b.status === "ACTIVE" || b.status === "ARCHIVED") data.status = b.status;
     if (typeof b.personaId === "string" || b.personaId === null) data.personaId = b.personaId;
+    if (typeof b.choicesEnabled === "boolean") data.choicesEnabled = b.choicesEnabled;
+    if (typeof b.useMidModel === "boolean") data.useMidModel = b.useMidModel;
     return Response.json(await db.story.update({ where: { id }, data }));
   } catch (e) {
     return errorResponse(e);

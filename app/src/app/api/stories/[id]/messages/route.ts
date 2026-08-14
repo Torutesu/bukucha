@@ -15,6 +15,7 @@ export async function POST(req: Request, { params }: Params) {
       storyTurn(user, id, {
         content: String(b.content ?? ""),
         selectedChoiceId: b.selectedChoiceId ? String(b.selectedChoiceId) : undefined,
+        kind: b.kind ? String(b.kind) : undefined,
       })
     );
   } catch (e) {

@@ -73,6 +73,8 @@ model User {
   birthDate      DateTime? // 年齢確認。null = 未確認 = 安心フィルター強制ON
   safeFilterOff  Boolean   @default(false) // trueにできるのは birthDate で18歳以上のみ(サーバー側で強制)
   preferenceTags String[]  // SCR-001で選んだ嗜好タグ名
+  suggestDate    String?   // AIF-008 返信候補クォータのdateKey(UTC日付=朝9時JSTリセット)
+  suggestUsed    Int       @default(0) // 当日の返信候補使用回数
   isCreatorBadge Boolean   @default(false) // 将来: 認定クリエイター
   role           String    @default("USER") // USER | ADMIN
   createdAt      DateTime  @default(now())
@@ -197,6 +199,8 @@ model Story {
   introVariantId      String
   personaId           String?
   status              StoryStatus @default(ACTIVE)
+  choicesEnabled      Boolean     @default(true)  // AIF-005 選択肢のON/OFF(Zetaの途中切替を踏襲)
+  useMidModel         Boolean     @default(false) // 高品質モデル(mid)切替(Zetaのkoji/luca相当の2段構成)
   lastRecap           String?     // AIF-004: 前回までのあらすじ(キャッシュ)
   lastRecapAtIdx      Int         @default(0) // recap生成時点のメッセージidx
   branchedFromStoryId String?     // IFルート派生元(MVPではUI無し、データだけ準備)
@@ -219,6 +223,7 @@ model StoryMessage {
   storyId        String
   idx            Int         // Story内連番(0始まり)。巻き戻し = idx以降を isDeleted
   role           MessageRole
+  kind           String      @default("SAY") // USER種別: SAY(セリフ)/ACTION(動作・地の文)/DIRECTION(作者の展開指示)
   content        String      // ノベル本文(地の文+「」セリフ)
   choices        Json?       // AIF-005: [{id, text}] 提示した選択肢
   selectedChoice String?     // ユーザーが選んだ選択肢id(自由入力ならnull)

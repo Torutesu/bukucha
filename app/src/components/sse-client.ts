@@ -14,7 +14,8 @@ export async function postSse(
   url: string,
   body: unknown,
   handlers: SseHandlers,
-  timeoutMs = 20_000
+  // アイドルタイムアウト(トークン毎にリセット)。初回トークンはコールドスタート込みで待つ
+  timeoutMs = 35_000
 ): Promise<void> {
   const controller = new AbortController();
   let timer = setTimeout(() => controller.abort(), timeoutMs);
