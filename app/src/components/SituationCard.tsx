@@ -24,6 +24,19 @@ function hash(str: string) {
   return h;
 }
 
+const FALLBACK_COVERS = [
+  { src: "/covers/rainy-school.png", match: ["学園", "先輩", "幼なじみ", "同僚"] },
+  { src: "/covers/moonlit-duke.png", match: ["王子", "公爵", "悪役令嬢", "西洋風", "異世界"] },
+  { src: "/covers/office-night.png", match: ["上司", "オフィス", "現代", "契約"] },
+  { src: "/covers/snow-court.png", match: ["和風", "後宮", "敵", "師弟", "ミステリー"] },
+] as const;
+
+function getFallbackCover(s: CardData) {
+  const tagNames = s.tags.map(({ tag }) => tag.name);
+  const matched = FALLBACK_COVERS.find((cover) => cover.match.some((tag) => tagNames.includes(tag)));
+  return matched?.src ?? FALLBACK_COVERS[hash(s.title) % FALLBACK_COVERS.length].src;
+}
+
 export function coverGradient(title: string) {
   return GRADIENTS[hash(title) % GRADIENTS.length];
 }
@@ -44,7 +57,6 @@ const GRADIENTS = [
  * グラデーション+内枠+縦組みタイトルで組む(のっぺりした色面にしない)。
  */
 export function Cover({ s, className }: { s: CardData; className?: string }) {
-  const g = coverGradient(s.title);
   const frame =
     "inset 0 0 0 1px rgb(255 255 255 / 0.1), 0 6px 18px -10px color-mix(in oklab, var(--c-shadow) 60%, transparent)";
   return s.coverImageUrl ? (
@@ -59,16 +71,18 @@ export function Cover({ s, className }: { s: CardData; className?: string }) {
   ) : (
     <div
       data-testid="card-cover"
-      className={`relative aspect-[3/4] w-full overflow-hidden rounded-[14px] ${className ?? ""}`}
-      style={{ background: g, boxShadow: frame }}
+      className={`relative aspect-[3/4] w-full overflow-hidden rounded-[14px] bg-[var(--c-surfaceAlt)] ${className ?? ""}`}
+      style={{ boxShadow: frame }}
     >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={getFallbackCover(s)} alt="" className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 hover:scale-[1.04]" />
       {/* 上からの光と足元の暗幕で奥行きを作る */}
       <span
         aria-hidden
         className="pointer-events-none absolute inset-0"
         style={{
           background:
-            "radial-gradient(110% 60% at 22% 0%, rgb(255 255 255 / 0.26), transparent 62%), linear-gradient(to top, rgb(0 0 0 / 0.34), transparent 58%)",
+            "radial-gradient(110% 60% at 22% 0%, rgb(255 255 255 / 0.12), transparent 62%), linear-gradient(to top, rgb(0 0 0 / 0.78), transparent 62%)",
         }}
       />
       {/* ジャケットの内枠 */}
