@@ -7,7 +7,7 @@
 
 ## AIF-001: ノベル応答生成(コア)
 - trigger: ユーザー操作(SCR-006送信 / 空欄送信 / SCR-009 Step4テスト)
-- input_context: システムプロンプト(ノベル文体規則: 地の文+「」セリフ、二人称視点、1応答300〜600字、`{user}`置換) + Situation.worldSetting + Characters(personality/speechStyle/relationship/exampleDialogs) + IntroVariant + StoryMemory.summary + StoryMemory.userNote + Persona(name/callName/profile) + 直近メッセージ20往復 + ユーザー入力(`*〜*`は行動描写として解釈)
+- input_context: システムプロンプト(ノベル文体規則: 地の文+「」セリフ、二人称視点、1応答300〜600字、`{user}`置換、`(展開指示: 〜)`は作者の演出指示として扱う規則) + Situation.worldSetting + Characters(personality/speechStyle/relationship/exampleDialogs) + IntroVariant + StoryMemory.summary + StoryMemory.userNote + Persona(name/callName/profile) + 直近メッセージ20往復(USER履歴はkindで整形: ACTION=`*〜*`/DIRECTION=`(展開指示:〜)`) + ユーザー入力(kindで同整形)
 - model_tier: light(既定)。[ASSUMED: 品質不足時はmidへの昇格をfeature flagで検証]
 - output: SSEストリーミングでノベル本文。完了時にStoryMessage永続化。空欄送信時は「物語を先へ進める」指示に切替
 - fallback: 20秒タイムアウト→「もう一度」ボタン(入力復元)。プロバイダ障害時は自動リトライ1回→エラーカード。連続失敗時はステータスバナー表示
@@ -60,6 +60,16 @@
 - output: 違反検知時はSSE `blocked` イベント(本文を確定させない)+ModerationFlag(message)。UI側はガイドラインカード表示+入力復元
 - fallback: 判定不能時は応答をそのまま通し、非同期で事後判定→違反確定ならメッセージを事後マスク
 - e2e_ref: [E2E-016]
+
+## AIF-008: 返信候補(ユーザー側セリフの代筆)
+- source: teardown.md §2「返信候補(答え推薦)」— Zetaの「文章力がない読者でも小説的体験ができる補助輪」の核。1日50回・朝9時リセットの日次ドーパミン装置を踏襲
+- trigger: ユーザー操作(SCR-006入力欄横の✦ボタン)
+- input_context: AIF-001と同一コンテキスト(直近展開まで) + 「主人公の次の一手を代筆せよ」指示。方向性の異なる2案(素直/踏み込む)
+- model_tier: light
+- output: JSON { suggestions: string[2] }(各60字以内、セリフ「」+地の文*〜*形式)。タップで入力欄に挿入(編集可能なまま=そのまま送信も書き換えも可)
+- quota: 50回/日、朝9時JSTリセット(=UTC 0時。User.suggestDate/suggestUsedで管理)。超過時は429 suggest_quota
+- fallback: JSONパース失敗・空配列は502(UI: 「候補を作れませんでした」の小さな通知。体験は継続)
+- e2e_ref: [E2E-030, E2E-031]
 
 ## 横断事項
 

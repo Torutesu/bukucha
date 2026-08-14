@@ -12,7 +12,8 @@ export default async function globalSetup() {
   );
   execSync(`npx prisma db push --skip-generate`, {
     stdio: "inherit",
-    env: { ...process.env, DATABASE_URL: E2E_DB },
+    // DIRECT_URLも上書きしないと、prismaが.envのDIRECT_URL(開発DB)に接続してしまう
+    env: { ...process.env, DATABASE_URL: E2E_DB, DIRECT_URL: E2E_DB },
   });
   const db = new PrismaClient({ datasources: { db: { url: E2E_DB } } });
   await seed(db);

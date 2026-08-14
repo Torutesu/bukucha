@@ -16,6 +16,7 @@ export const cardSelect = {
   readerCount: true,
   storyCount: true,
   publishedAt: true,
+  author: { select: { nickname: true } },
   tags: { select: { tag: { select: { id: true, name: true } } }, take: 2 },
 } satisfies Prisma.SituationSelect;
 

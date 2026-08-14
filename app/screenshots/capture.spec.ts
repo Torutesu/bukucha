@@ -55,6 +55,36 @@ test("capture screens", async ({ page }) => {
   await page.waitForTimeout(600);
   await shot("09-reader-choices");
 
+  // 5b. Zeta詳細インタラクション: 返信候補
+  await page.getByRole("button", { name: "返信候補" }).click();
+  await page.getByTestId("suggest-chip").first().waitFor();
+  await shot("09b-reader-suggest");
+  await page.getByRole("button", { name: "返信候補" }).click(); // 閉じる
+
+  // 5c. AI応答のペン編集(操作列→インライン編集)
+  await page.getByTestId("ai-line").last().click();
+  await page.getByTestId("ai-action-row").waitFor();
+  await page.getByRole("button", { name: "直接直す" }).click();
+  await page.getByTestId("edit-area").waitFor();
+  await shot("09c-reader-edit");
+  await page.getByRole("button", { name: "やめる" }).click();
+
+  // 5d. ここから分岐→ルート(並行世界)シート
+  await page.getByTestId("ai-line").last().click();
+  await page.getByTestId("branch-button").click();
+  await page.waitForTimeout(1500);
+  await page.getByRole("button", { name: "メニュー" }).click();
+  await page.getByRole("button", { name: /ルート/ }).click();
+  await page.getByTestId("route-item").first().waitFor();
+  await shot("09d-reader-routes");
+  await page.mouse.click(195, 100); // シートを閉じる
+
+  // 5e. メニュー(記憶/ルート/選択肢・高品質モデルのトグル)
+  await page.getByRole("button", { name: "メニュー" }).click();
+  await page.getByTestId("toggle-midmodel").waitFor();
+  await shot("09e-reader-menu");
+  await page.mouse.click(10, 400);
+
   // 6. 本棚
   await page.getByRole("button", { name: "戻る", exact: true }).click();
   await page.waitForTimeout(1800);

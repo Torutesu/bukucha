@@ -11,11 +11,14 @@ export type LlmProfileKind =
   | "draft" // AIF-002 妄想→下書き(mid)
   | "summary" // AIF-003
   | "recap" // AIF-004
-  | "judge"; // AIF-006/007 判定
+  | "judge" // AIF-006/007 判定
+  | "suggest"; // AIF-008 返信候補
 
 export interface LlmOptions {
   /** 選択肢を添付するか(AIF-005) */
   wantChoices?: boolean;
+  /** モデル段の上書き(Story.useMidModel。既定はプロファイル定義に従う) */
+  tier?: "light" | "mid";
   /** リロール時の方向指示 */
   instruction?: string;
   /** JSON出力を期待する */
