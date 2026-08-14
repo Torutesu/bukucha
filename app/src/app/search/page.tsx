@@ -1,4 +1,5 @@
 "use client";
+import { ArrowLeft, BookOpen, Heart, Plus } from "lucide-react";
 
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -76,7 +77,7 @@ function SearchInner() {
       <header className="sticky top-0 z-10 px-4 pb-2 pt-4" style={{ background: "var(--c-bg)" }}>
         <div className="flex items-center gap-2">
           <button aria-label="戻る" className="text-lg" onClick={() => router.push("/")}>
-            ←
+            <ArrowLeft size={20} strokeWidth={1.8} />
           </button>
           <input
             className="input"
@@ -165,7 +166,7 @@ function SearchInner() {
                     className="chip"
                     onClick={() => navigate({ tags: [...selectedTags, t.name] })}
                   >
-                    <span aria-hidden>＋</span>
+                    <Plus aria-hidden size={12} className="inline align-[-1px]" />
                     <span>{t.name}</span>
                   </button>
                 ))}
@@ -182,7 +183,7 @@ function SearchInner() {
             {!error && !results && (
               <div className="grid grid-cols-2 gap-3">
                 {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="card aspect-[3/4] animate-pulse" />
+                  <div key={i} className="skeleton aspect-[3/4] rounded-[12px]" />
                 ))}
               </div>
             )}
@@ -196,7 +197,8 @@ function SearchInner() {
                   href={`/create?fantasy=${encodeURIComponent(q)}`}
                   className="btn-primary mt-3 block"
                 >
-                  ＋ 物語を作る
+                  <Plus size={15} className="mr-1 inline align-[-2px]" />
+                  物語を作る
                 </Link>
               </div>
             )}
@@ -218,7 +220,8 @@ function SearchInner() {
                       {s.title}
                     </p>
                     <p className="text-[11px]" style={{ color: "var(--c-textMuted)" }}>
-                      📖 {s.readerCount.toLocaleString()} ♥ {s.likeCount.toLocaleString()}
+                      <BookOpen size={11} className="inline align-[-1px]" /> {s.readerCount.toLocaleString()}{" "}
+                      <Heart size={11} className="inline align-[-1px]" /> {s.likeCount.toLocaleString()}
                     </p>
                   </Link>
                 ))}

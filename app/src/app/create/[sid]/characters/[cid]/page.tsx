@@ -1,4 +1,5 @@
 "use client";
+import { ArrowLeft, Plus, Sparkles } from "lucide-react";
 
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -26,7 +27,7 @@ export default function CharacterEditPage({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const backToWizard = () => router.push(`/create?situationId=${sid}&step=2`);
+  const backToWizard = () => router.push(`/create?situationId=${sid}`);
 
   useEffect(() => {
     fetch(`/api/situations/${sid}`)
@@ -93,7 +94,7 @@ export default function CharacterEditPage({
   return (
     <main className="px-5 py-6">
       <button className="text-sm" onClick={backToWizard}>
-        ← 作成にもどる
+        <ArrowLeft size={15} className="mr-1 inline align-[-2px]" /> 作成にもどる
       </button>
       <h1 className="mt-3 text-lg font-bold">キャラ編集</h1>
 
@@ -186,11 +187,11 @@ export default function CharacterEditPage({
                 style={{ color: "var(--c-accent)" }}
                 onClick={() => setC({ ...c, exampleDialogs: [...c.exampleDialogs, { user: "", char: "" }] })}
               >
-                ＋ 追加
+                <Plus size={13} className="mr-0.5 inline align-[-2px]" /> 追加
               </button>
             )}
             <button className="text-xs" style={{ color: "var(--c-accent)" }} onClick={genSamples}>
-              ✦ 口調サンプルをAIに作らせる
+              <Sparkles size={13} className="mr-1 inline align-[-2px]" /> 口調サンプルをAIに作らせる
             </button>
           </div>
         </div>

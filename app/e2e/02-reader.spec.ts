@@ -21,9 +21,16 @@ test.describe("リーダー(コア体験)", () => {
 
     await page.getByTestId("guest-gate").getByRole("link", { name: /登録して続きを読む/ }).click();
     await expect(page).toHaveURL(/\/login/);
-    await page.getByRole("button", { name: "メールでつづける" }).click();
+    await page.getByRole("button", { name: "メールではじめる" }).click();
     await page.getByPlaceholder("メールアドレス").fill("guest-migrate@test.com");
-    await page.getByRole("button", { name: "ログイン" }).click();
+    await page.getByRole("button", { name: "ログイン", exact: true }).click();
+
+    // 新規ユーザー: アカウント登録ステップ(名前入力→規約同意シート)
+    await expect(page.getByRole("heading", { name: "アカウント登録" })).toBeVisible();
+    await page.getByPlaceholder("キャラクターに呼んで欲しい名前").fill("みなと");
+    await page.getByRole("button", { name: "次へ" }).click();
+    await page.getByRole("button", { name: "すべて同意する" }).click();
+    await page.getByRole("button", { name: "同意する", exact: true }).click();
 
     // 引き継ぎ後: ゲストの3往復が残り、4回目の入力が復元
     await expect(page).toHaveURL(/\/story\/(?!guest)/, { timeout: 15_000 });
@@ -135,6 +142,8 @@ test.describe("リーダー(コア体験)", () => {
     await page.getByRole("button", { name: "この物語をはじめる" }).click();
     await sendMessage(page, "1冊目のセリフ");
     await page.goto("/");
+    await page.getByTestId("tab-new").click();
+    await expect(page.getByTestId("section-new")).toBeVisible();
     await page.getByTestId("section-new").getByTestId("situation-card").first().click();
     await page.getByRole("button", { name: "この物語をはじめる" }).click();
     await sendMessage(page, "2冊目のセリフ");

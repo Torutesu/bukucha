@@ -4,7 +4,7 @@ import base64
 import os
 
 SHOTS = "shots_web"
-OUT = "/tmp/claude-0/-home-user-bukucha/96b4a2b7-24b9-5332-b6d4-26e84b36b483/scratchpad/bukucha-share.html"
+OUT = "/tmp/claude-0/-home-user-bukucha/d30bb6b4-b476-5ab7-b536-908a0efe0df4/scratchpad/bukucha-share.html"
 
 
 def img(name: str) -> str:
@@ -35,6 +35,18 @@ CHAPTERS = [
             ("09-reader-choices.webp", "分岐と、やり直し", "選択肢カード／書き直す（方向指定も可）／少し戻る。物語を自分で運転できる。"),
             ("10-bookshelf.webp", "本棚と、前回までのあらすじ", "トーク一覧ではなく本棚。AIが書いた「前回まで」で、何日空いても戻れる。"),
             ("17-reader-dark.webp", "夜の本文", "ダークテーマ。深夜に読む時間帯を想定した地の色。"),
+        ],
+    },
+    {
+        "kicker": "共作する",
+        "title": "読者は、いつでも作家側に回れる",
+        "lead": "Zetaの詳細インタラクションを徹底クローンした部分。返事の代筆、AI本文の直接編集、"
+                "任意の時点からの分岐——「読む」と「書く」の境界を意図的に曖昧にしてある。",
+        "shots": [
+            ("09b-reader-suggest.webp", "返信に迷ったら、AIが代筆", "✦で主人公側のセリフを2案(素直/踏み込む)。1日50回、朝9時リセット。タップ後も書き換えられる。"),
+            ("09c-reader-edit.webp", "AIの本文を、直接直す", "気に入らない一文はその場で書き換える。編集できるのはAIの応答だけ——自分の発言は巻き戻しで消す。"),
+            ("09d-reader-routes.webp", "並行世界を行き来する", "「ここから分岐」でその時点までを複製した新ルートへ。同じ物語を違う選択で読み直せる。"),
+            ("09e-reader-menu.webp", "物語ごとの運転設定", "選択肢のON/OFF、高品質モデルの切替、記憶の編集。全部この物語だけに効く。"),
         ],
     },
     {
@@ -70,7 +82,7 @@ STACK_ROWS = [
     ("UI", "React + Tailwind CSS v4", "色・書体は brand.config.ts のトークン経由のみ"),
     ("データベース", "PostgreSQL + Prisma", "15モデル。安全条件はDBではなくAPI層で強制"),
     ("AI", "外部LLM API（抽象化レイヤ経由）", "環境変数でモデル差し替え可。テストはモックで決定的に"),
-    ("テスト", "Playwright", "E2E 19件。実装より先に書いた"),
+    ("テスト", "Playwright", "E2E 26件。実装より先に書いた"),
 ]
 
 PLATFORMS = [
@@ -253,10 +265,10 @@ footer code{font-family:var(--mono);font-size:12.5px;background:var(--paper-2);p
       '</div>')
 
     A('<div class="stats">'
-      '<div class="stat"><span class="dot"></span>E2Eテスト <b>19</b>/19 通過</div>'
+      '<div class="stat"><span class="dot"></span>E2Eテスト <b>26</b>/26 通過</div>'
       '<div class="stat">画面 <b>13</b></div>'
-      '<div class="stat">APIエンドポイント <b>45</b></div>'
-      '<div class="stat">AI機能 <b>7</b></div>'
+      '<div class="stat">APIエンドポイント <b>48</b></div>'
+      '<div class="stat">AI機能 <b>8</b></div>'
       '<div class="stat">ビルド・型・Lint <b>クリーン</b></div>'
       '</div>')
     A('</header>')
@@ -323,7 +335,7 @@ footer code{font-family:var(--mono);font-size:12.5px;background:var(--paper-2);p
 
     A('<footer>画面はすべて実際に動作しているWeb版のスクリーンショット（AIの応答はテスト用のモック）。'
       'コードとスペックは <code>Torutesu/bukucha</code> の '
-      '<code>claude/ai-char-chat-app-design-tu7lq6</code> ブランチ。</footer>')
+      '<code>claude/zeta-clone-detailed-9gipyz</code> ブランチ。</footer>')
     A("</div>")
 
     return "\n".join(parts)

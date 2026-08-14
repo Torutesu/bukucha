@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL") // ランタイム(本番はNeonのpooled URL)
+  directUrl = env("DIRECT_URL") // migrate用の直結URL(ローカルはDATABASE_URLと同値)
 }
 
 // ============ enums ============
@@ -61,6 +62,13 @@ model User {
   birthDate      DateTime?
   safeFilterOff  Boolean   @default(false)
   preferenceTags String[]
+  // AIF-008 返信候補の日次クォータ(50回/日、朝9時JSTリセット)
+  suggestDate    String?
+  suggestUsed    Int       @default(0)
+  // Zeta型プロフィール: ID(@handle)・自己紹介・規約同意日時
+  handle         String?   @unique
+  bio            String?
+  agreedAt       DateTime?
   isCreatorBadge Boolean   @default(false)
   role           String    @default("USER")
   createdAt      DateTime  @default(now())
@@ -107,6 +115,11 @@ model Situation {
   contentLevel  ContentLevel    @default(ALL_AGES)
   status        SituationStatus @default(DRAFT)
   aiDraftInput  String?
+  // Zeta型プロット設定: スタイル(視点/時制/長さ/雰囲気ほか)・設定集(キーワード連動)・紹介/コメント
+  style           Json     @default("{}")
+  lore            Json     @default("[]")
+  commentsEnabled Boolean  @default(true)
+  creatorComment  String?
   publishedAt   DateTime?
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
@@ -177,6 +190,8 @@ model Story {
   introVariantId      String
   personaId           String?
   status              StoryStatus @default(ACTIVE)
+  choicesEnabled      Boolean     @default(true)
+  useMidModel         Boolean     @default(false)
   lastRecap           String?
   lastRecapAtIdx      Int         @default(0)
   branchedFromStoryId String?
@@ -198,6 +213,8 @@ model StoryMessage {
   storyId        String
   idx            Int
   role           MessageRole
+  // USERメッセージの種別: SAY(セリフ) / ACTION(動作・地の文) / DIRECTION(作者としての展開指示)
+  kind           String      @default("SAY")
   content        String
   choices        Json?
   selectedChoice String?

@@ -81,6 +81,9 @@ export class MockLlmProvider implements LlmProvider {
         hasUserNote: sys.includes("【ユーザーノート】") && !sys.includes("【ユーザーノート】\n(なし)"),
         hasSummary: sys.includes("【これまでのあらすじ】") && !sys.includes("【これまでのあらすじ】\n(なし)"),
         personaCallName: sys.match(/呼び方:\s*([^\n]+)/)?.[1]?.trim() ?? null,
+        modelTier: options?.tier ?? "light",
+        promptedInput: user.slice(0, 40),
+        activeLore: sys.match(/【設定集\(いま話題に出ている用語\)】\n([\s\S]*)$/)?.[1]?.trim() ?? null,
       },
     };
   }
@@ -124,6 +127,19 @@ export class MockLlmProvider implements LlmProvider {
     }
     if (profile === "recap") {
       return `前回まで——彼の秘密に触れてしまったあなた。次の一言が、二人の関係を変えようとしている。`;
+    }
+    if (profile === "suggest") {
+      // AIF-008: ユーザー側セリフ候補(決定的)。直近の実発言を織り込む(内部指示「(〜」は除外)
+      const lastReal = [...messages]
+        .reverse()
+        .find((m) => m.role === "user" && !m.content.startsWith("("));
+      const seed = (lastReal?.content ?? "").replace(/\s+/g, " ").slice(0, 12);
+      return JSON.stringify({
+        suggestions: [
+          `「そんなふうに見つめられたら、困ります」*目を伏せる*`,
+          `*一歩近づく* 「${seed ? `${seed}……` : "ねえ、"}本当のことを教えてください」`,
+        ],
+      });
     }
     if (profile === "judge") {
       // AIF-006/007のLLM判定モック: 常にpass(ルールベース前段が実検出を担う)

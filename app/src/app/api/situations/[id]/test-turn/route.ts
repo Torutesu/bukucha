@@ -32,6 +32,7 @@ export async function POST(req: Request, { params }: Params) {
 
     return sseResponse(async function* () {
       let full = "";
+      let debug: Record<string, unknown> | undefined;
       for await (const chunk of llm().stream("chat", messages, {})) {
         if (chunk.type === "token" && chunk.token) {
           full += chunk.token;
@@ -44,9 +45,13 @@ export async function POST(req: Request, { params }: Params) {
           return;
         } else if (chunk.type === "done") {
           full = chunk.content ?? full;
+          debug = chunk.debug;
         }
       }
-      yield { event: "done" as const, data: { message: { idx: history.length + 1, content: full, choices: null } } };
+      yield {
+        event: "done" as const,
+        data: { message: { idx: history.length + 1, content: full, choices: null }, debug },
+      };
     });
   } catch (e) {
     return errorResponse(e);
