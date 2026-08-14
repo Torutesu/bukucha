@@ -72,6 +72,31 @@ test.describe("安全・ソーシャル", () => {
     await expect(page.getByText("ひなた").first()).toBeVisible();
   });
 
+  test("E2E-045: 表示テーマの切替と永続化", async ({ page }) => {
+    await loginAs(page, "theme-e2e045@test.com");
+    await page.goto("/settings");
+    const html = page.locator("html");
+    await expect(page.getByTestId("theme-picker")).toBeVisible();
+
+    // ダークにするとdata-themeが付き、リロード後も維持される
+    await page.getByTestId("theme-dark").click();
+    await expect(html).toHaveAttribute("data-theme", "dark");
+    await page.reload();
+    await expect(html).toHaveAttribute("data-theme", "dark");
+    await expect(page.getByTestId("theme-dark")).toHaveAttribute("data-on", "true");
+
+    // 他画面に移動しても維持される
+    await page.goto("/");
+    await expect(html).toHaveAttribute("data-theme", "dark");
+
+    // ライトに戻す→システムに戻すと属性が外れる
+    await page.goto("/settings");
+    await page.getByTestId("theme-light").click();
+    await expect(html).toHaveAttribute("data-theme", "light");
+    await page.getByTestId("theme-system").click();
+    await expect(html).not.toHaveAttribute("data-theme", /.*/);
+  });
+
   test("E2E-019: いいね", async ({ page }) => {
     await loginAs(page, "like-e2e019@test.com");
     await page.goto("/");

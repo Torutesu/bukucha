@@ -283,9 +283,6 @@ export default function SituationDetailPage({ params }: { params: Promise<{ id: 
             >
               {detail.title}
             </h1>
-            <p className="mt-0.5 text-[0.8rem]" style={{ color: "var(--c-textMuted)" }}>
-              {detail.catchphrase}
-            </p>
           </div>
         </div>
 

@@ -118,7 +118,7 @@ export default function ProfileEditPage() {
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="flex h-12 items-center justify-between px-2">
+      <header className="app-header flex h-12 items-center justify-between px-2">
         <button aria-label="戻る" className="icon-btn" onClick={() => router.push("/me")}>
           <ArrowLeft size={20} />
         </button>

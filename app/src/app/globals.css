@@ -2,11 +2,39 @@
 
 /* テーマ変数は layout.tsx が brand.config から注入する(src/lib/theme.ts) */
 
+:root {
+  /* 影の段階(色はテーマトークン--c-shadowから作る) */
+  --elev-1: 0 1px 2px color-mix(in oklab, var(--c-shadow) 6%, transparent),
+    0 1px 3px color-mix(in oklab, var(--c-shadow) 4%, transparent);
+  --elev-2: 0 2px 6px color-mix(in oklab, var(--c-shadow) 7%, transparent),
+    0 6px 16px -6px color-mix(in oklab, var(--c-shadow) 10%, transparent);
+  --elev-3: 0 8px 28px -10px color-mix(in oklab, var(--c-shadow) 24%, transparent),
+    0 2px 8px color-mix(in oklab, var(--c-shadow) 8%, transparent);
+}
+
 html,
 body {
   background: var(--c-bg);
   color: var(--c-text);
   font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "palt" 1; /* 日本語の詰め組み */
+}
+
+/* 見出しは字間を締めて、本文は読みやすさ優先 */
+h1,
+h2,
+h3 {
+  letter-spacing: 0.005em;
+  line-height: 1.35;
+}
+
+/* キーボード操作時だけリングを出す */
+:where(button, a, input, textarea, select):focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--c-primary) 60%, transparent);
+  outline-offset: 2px;
+  border-radius: 8px;
 }
 
 * {
@@ -34,7 +62,7 @@ body {
       var(--c-surfaceAlt);
   }
   .app-shell {
-    box-shadow: 0 0 48px rgb(0 0 0 / 0.12);
+    box-shadow: 0 0 64px -12px color-mix(in oklab, var(--c-shadow) 30%, transparent);
   }
 }
 
@@ -96,6 +124,11 @@ a.card:active {
   background: var(--c-surface);
   border: 1px solid var(--c-border);
   border-radius: var(--radius-card);
+  box-shadow: var(--elev-1);
+}
+/* 情報を束ねるだけのカードは影を落とさない */
+.card-flat {
+  box-shadow: none;
 }
 
 .chip {
@@ -103,30 +136,35 @@ a.card:active {
   border: 1px solid var(--c-border);
   background: var(--c-surface);
   color: var(--c-text);
-  padding: 6px 14px;
-  font-size: 0.85rem;
+  padding: 6.5px 14px;
+  font-size: 0.82rem;
+  font-weight: 500;
   white-space: nowrap;
+  box-shadow: var(--elev-1);
 }
 .chip[data-on="true"] {
-  background: var(--c-primary);
-  border-color: var(--c-primary);
+  background: linear-gradient(120deg, var(--c-primary), color-mix(in oklab, var(--c-accent) 40%, var(--c-primary)));
+  border-color: transparent;
   color: #fff;
+  font-weight: 600;
+  box-shadow: 0 3px 12px -4px color-mix(in oklab, var(--c-primary) 60%, transparent);
 }
 
 .btn-primary {
-  background: var(--c-primary);
+  background: linear-gradient(120deg, var(--c-primary), color-mix(in oklab, var(--c-accent) 32%, var(--c-primary)));
   color: #fff;
   border-radius: var(--radius-input);
   padding: 12px 20px;
   font-weight: 600;
+  letter-spacing: 0.02em;
   text-align: center;
-  box-shadow: 0 2px 12px color-mix(in oklab, var(--c-primary) 32%, transparent);
+  box-shadow: 0 6px 18px -8px color-mix(in oklab, var(--c-primary) 75%, transparent);
 }
 .btn-primary:hover:not(:disabled) {
-  filter: brightness(1.06);
+  filter: brightness(1.05);
 }
 .btn-primary:disabled {
-  opacity: 0.4;
+  opacity: 0.38;
   box-shadow: none;
 }
 .btn-ghost {
@@ -135,6 +173,12 @@ a.card:active {
   padding: 10px 16px;
   background: var(--c-surface);
   color: var(--c-text);
+  font-weight: 500;
+  box-shadow: var(--elev-1);
+}
+.btn-ghost:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--c-primarySoft) 45%, var(--c-surface));
+  border-color: color-mix(in oklab, var(--c-primary) 25%, var(--c-border));
 }
 
 .input {
@@ -143,7 +187,11 @@ a.card:active {
   border-radius: var(--radius-input);
   background: var(--c-surface);
   color: var(--c-text);
-  padding: 10px 12px;
+  padding: 11px 13px;
+  font-size: 0.95rem;
+}
+.input::placeholder {
+  color: color-mix(in oklab, var(--c-textMuted) 78%, transparent);
 }
 .input {
   transition: outline-color 0.15s ease, border-color 0.15s ease;
@@ -154,10 +202,12 @@ a.card:active {
 }
 
 .label {
-  font-size: 0.8rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
   color: var(--c-textMuted);
   display: block;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 @keyframes blink {
@@ -232,6 +282,10 @@ a.card:active {
   color: var(--c-text);
   font-size: 1rem;
 }
+.icon-btn:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--c-primarySoft) 50%, var(--c-surface));
+  border-color: color-mix(in oklab, var(--c-primary) 22%, var(--c-border));
+}
 .icon-btn:disabled {
   opacity: 0.4;
 }
@@ -286,6 +340,12 @@ a.card:active {
 }
 
 /* ボトムシートのつまみ */
+.sheet-up,
+.drawer-in,
+.modal-pop {
+  box-shadow: var(--elev-3);
+}
+
 .sheet-grabber {
   width: 36px;
   height: 4px;
@@ -323,4 +383,31 @@ a.card:active {
 .choice-card:hover {
   background: color-mix(in oklab, var(--c-primarySoft) 55%, var(--c-surface));
   border-color: var(--c-primary) !important;
+}
+
+/* ── セクション見出し(画面間で共通のリズムを作る) ── */
+.section-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.section-title::before {
+  content: "";
+  width: 3px;
+  height: 14px;
+  border-radius: 99px;
+  background: linear-gradient(var(--c-primary), var(--c-accent));
+}
+
+/* 画面上部の固定ヘッダー(半透明+ぼかし) */
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: color-mix(in oklab, var(--c-bg) 88%, transparent);
+  backdrop-filter: blur(12px) saturate(1.4);
+  border-bottom: 1px solid color-mix(in oklab, var(--c-border) 70%, transparent);
 }

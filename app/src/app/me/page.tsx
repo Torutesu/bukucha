@@ -69,7 +69,7 @@ export default function MyPage() {
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="flex h-12 items-center justify-between px-4">
+      <header className="app-header flex h-12 items-center justify-between px-4">
         <h1 className="text-lg font-bold">マイページ</h1>
         <div className="flex items-center gap-1">
           <button aria-label="お知らせ" className="icon-btn" onClick={() => notify("お知らせは準備中です")}>
@@ -116,10 +116,17 @@ export default function MyPage() {
           </div>
           {me.bio && <p className="mt-3 whitespace-pre-wrap text-xs leading-relaxed">{me.bio}</p>}
           <div className="mt-3 flex gap-2">
-            <button className="btn-ghost flex-1 py-2 text-sm" onClick={shareProfile}>
-              <Share2 size={14} className="mr-1 inline align-[-2px]" /> プロフィール共有
+            <button
+              className="btn-ghost flex-1 whitespace-nowrap px-2 py-2 text-[13px]"
+              onClick={shareProfile}
+            >
+              <Share2 size={13} className="mr-1 inline align-[-2px]" />
+              プロフィール共有
             </button>
-            <Link href="/me/edit" className="btn-ghost flex-1 py-2 text-center text-sm">
+            <Link
+              href="/me/edit"
+              className="btn-ghost flex-1 whitespace-nowrap px-2 py-2 text-center text-[13px]"
+            >
               プロフィール編集
             </Link>
           </div>
@@ -164,10 +171,21 @@ export default function MyPage() {
         </section>
 
         {/* いいねした物語(E2E-019) */}
+        {likes.length === 0 && (
+          <section className="card card-flat px-4 py-7 text-center">
+            <p className="text-sm font-semibold">いいねした物語はまだありません</p>
+            <p className="mt-1 text-xs" style={{ color: "var(--c-textMuted)" }}>
+              気になった作品にハートを付けると、ここに並びます
+            </p>
+            <Link href="/" className="btn-ghost mt-3 inline-block px-5 py-2 text-sm">
+              物語を探す
+            </Link>
+          </section>
+        )}
         {likes.length > 0 && (
           <section>
             <div className="mb-2 flex items-center justify-between">
-              <h2 className="text-sm font-bold">いいねした物語</h2>
+              <h2 className="section-title">いいねした物語</h2>
             </div>
             <div data-testid="liked-row" className="hide-scrollbar flex gap-3 overflow-x-auto">
               {likes.map((s) => (

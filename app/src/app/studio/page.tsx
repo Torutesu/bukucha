@@ -82,7 +82,7 @@ export default function StudioPage() {
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="flex h-12 items-center px-4">
+      <header className="app-header flex h-12 items-center px-4">
         <h1 className="text-lg font-bold">作成</h1>
       </header>
 

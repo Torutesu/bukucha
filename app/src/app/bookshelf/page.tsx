@@ -95,7 +95,7 @@ export default function BookshelfPage() {
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="px-4 pt-4">
+      <header className="app-header px-4 pt-4">
         <h1 className="text-xl font-bold">トーク</h1>
         <div className="mt-2 flex items-center gap-2">
           <button className="chip" data-on={tab === "ACTIVE"} onClick={() => setTab("ACTIVE")}>

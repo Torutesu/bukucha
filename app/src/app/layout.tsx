@@ -19,6 +19,10 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   viewportFit: "cover", // iOSセーフエリア(env(safe-area-inset-*))を有効化
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: brand.colors.light.bg },
+    { media: "(prefers-color-scheme: dark)", color: brand.colors.dark.bg },
+  ],
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -28,7 +32,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <style dangerouslySetInnerHTML={{ __html: buildThemeCss() }} />
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{var t=localStorage.getItem('bukucha_theme');if(t&&t!=='system')document.documentElement.setAttribute('data-theme',t);}catch(e){}`,
+            __html: `try{var t=localStorage.getItem('bukucha_theme');if(t&&t!=='system'){document.documentElement.setAttribute('data-theme',t);var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',t==='dark'?'${brand.colors.dark.bg}':'${brand.colors.light.bg}');}}catch(e){}`,
           }}
         />
         {/* デプロイ切替直後の古いHTML×新チャンクの不一致(全ボタン無反応になる)を検知したら一度だけ自動リロード */}

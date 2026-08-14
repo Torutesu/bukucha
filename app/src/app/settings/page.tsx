@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ThemePicker } from "@/components/ThemePicker";
 
 interface Me {
   birthDate: string | null;
@@ -15,7 +16,6 @@ interface Me {
 export default function SettingsPage() {
   const router = useRouter();
   const [me, setMe] = useState<Me | null>(null);
-  const [theme, setTheme] = useState("system");
   const [birthInput, setBirthInput] = useState("");
   const [confirmBirth, setConfirmBirth] = useState(false);
   const [filterModal, setFilterModal] = useState(false);
@@ -33,17 +33,9 @@ export default function SettingsPage() {
   useEffect(() => {
     (async () => {
       await load();
-      setTheme(localStorage.getItem("bukucha_theme") ?? "system");
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const applyTheme = (t: string) => {
-    setTheme(t);
-    localStorage.setItem("bukucha_theme", t);
-    if (t === "system") document.documentElement.removeAttribute("data-theme");
-    else document.documentElement.setAttribute("data-theme", t);
-  };
 
   const saveBirth = async () => {
     const r = await fetch("/api/me", {
@@ -87,8 +79,16 @@ export default function SettingsPage() {
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="flex items-center gap-2 px-4 py-3">
-        <button aria-label="戻る" onClick={() => (window.history.length > 2 || document.referrer.startsWith(location.origin) ? router.back() : router.push("/"))}>
+      <header className="app-header flex items-center gap-2 px-2 py-2">
+        <button
+          aria-label="戻る"
+          className="icon-btn"
+          onClick={() =>
+            window.history.length > 2 || document.referrer.startsWith(location.origin)
+              ? router.back()
+              : router.push("/me/details")
+          }
+        >
           <ArrowLeft size={20} strokeWidth={1.8} />
         </button>
         <h1 className="text-lg font-bold">設定</h1>
@@ -96,22 +96,15 @@ export default function SettingsPage() {
 
       <main className="flex-1 space-y-6 px-4 py-2">
         <section>
-          <h2 className="label">表示</h2>
-          <div className="flex gap-2">
-            {[
-              { v: "system", l: "システム" },
-              { v: "light", l: "ライト" },
-              { v: "dark", l: "ダーク" },
-            ].map((t) => (
-              <button key={t.v} className="chip" data-on={theme === t.v} onClick={() => applyTheme(t.v)}>
-                {t.l}
-              </button>
-            ))}
-          </div>
+          <h2 className="section-title mb-2.5">表示テーマ</h2>
+          <ThemePicker />
+          <p className="mt-2 text-[11px]" style={{ color: "var(--c-textMuted)" }}>
+            選んだテーマはこの端末に保存され、次回も同じ見た目で開きます
+          </p>
         </section>
 
         <section>
-          <h2 className="label">コンテンツ</h2>
+          <h2 className="section-title mb-2.5">コンテンツ</h2>
           <div className="card space-y-4 p-4">
             <div>
               <label htmlFor="birth" className="label">
@@ -168,7 +161,7 @@ export default function SettingsPage() {
         </section>
 
         <section>
-          <h2 className="label">アカウント</h2>
+          <h2 className="section-title mb-2.5">アカウント</h2>
           <div className="card p-4 text-sm">
             <p style={{ color: "var(--c-textMuted)" }}>{me.email ?? "メール未設定"}</p>
             <button

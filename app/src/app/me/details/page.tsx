@@ -13,6 +13,7 @@ import {
   LogOut,
   Megaphone,
   MessageSquare,
+  Palette,
   Settings,
   Ticket,
   UserX,
@@ -80,7 +81,7 @@ export default function DetailsPage() {
 
   return (
     <div className="mx-auto min-h-dvh w-full max-w-[var(--shell-max)]">
-      <header className="flex h-12 items-center gap-1 px-2">
+      <header className="app-header flex h-12 items-center gap-1 px-2">
         <button
           aria-label="戻る"
           className="icon-btn"
@@ -112,6 +113,7 @@ export default function DetailsPage() {
         </Section>
 
         <Section>
+          <Row icon={<Palette size={18} />} label="表示テーマ(ライト/ダーク)" href="/settings" />
           <Row icon={<Bell size={18} />} label="通知設定" onClick={soon("通知設定")} />
           <Row icon={<Settings size={18} />} label="アカウント設定" href="/settings" />
         </Section>

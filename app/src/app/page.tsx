@@ -78,7 +78,7 @@ export default function HomePage() {
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="sticky top-0 z-10 border-b" style={{ background: "color-mix(in oklab, var(--c-bg) 94%, transparent)", backdropFilter: "blur(8px)", borderColor: "var(--c-border)" }}>
+      <header className="app-header">
         <div className="flex items-center justify-between px-4 pt-3">
           <h1>
             <Logo size={26} wordSize="1.1rem" />
@@ -101,8 +101,11 @@ export default function HomePage() {
               {t.label}
               <span
                 aria-hidden
-                className="absolute inset-x-0 -bottom-px h-0.5 rounded-full"
-                style={{ background: tab === t.key ? "var(--c-primary)" : "transparent" }}
+                className="absolute inset-x-0 -bottom-px h-[3px] rounded-full"
+                style={{
+                  background:
+                    tab === t.key ? "linear-gradient(90deg, var(--c-primary), var(--c-accent))" : "transparent",
+                }}
               />
             </button>
           ))}
@@ -110,7 +113,7 @@ export default function HomePage() {
       </header>
 
       {/* カテゴリチップ(その場絞り込み) */}
-      <div data-testid="home-tags" className="hide-scrollbar flex gap-2 overflow-x-auto px-4 pt-3">
+      <div data-testid="home-tags" className="hide-scrollbar flex gap-2 overflow-x-auto px-4 pb-1 pt-3">
         <button className="chip" data-on={activeTag === null} onClick={() => setActiveTag(null)}>
           全体
         </button>

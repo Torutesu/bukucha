@@ -17,38 +17,79 @@ export interface CardData {
   tags: { tag: { id: string; name: string } }[];
 }
 
+/** タイトル全体から決まる安定したハッシュ(先頭一文字だけだと色が偏るため) */
+function hash(str: string) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
+  return h;
+}
+
 export function coverGradient(title: string) {
-  return GRADIENTS[(title.charCodeAt(0) ?? 0) % GRADIENTS.length];
+  return GRADIENTS[hash(title) % GRADIENTS.length];
 }
 
 const GRADIENTS = [
-  "linear-gradient(135deg, #b4436c, #7c5cbf)",
-  "linear-gradient(135deg, #7c5cbf, #4361b4)",
-  "linear-gradient(135deg, #b4436c, #d98e5f)",
-  "linear-gradient(135deg, #43847c, #7c5cbf)",
+  "linear-gradient(150deg, #8e2f56, #5b3f96)",
+  "linear-gradient(150deg, #4c3b8f, #24406e)",
+  "linear-gradient(150deg, #a03c5e, #b9683c)",
+  "linear-gradient(150deg, #2f6b63, #4b3f8c)",
+  "linear-gradient(150deg, #6b2f52, #2c2a4a)",
+  "linear-gradient(150deg, #34506e, #7a4a86)",
+  "linear-gradient(150deg, #8a4a2f, #4e2b4a)",
+  "linear-gradient(150deg, #47325e, #a34a72)",
 ];
 
+/**
+ * 表紙。画像がない作品は「和書のジャケット」に見えるよう、
+ * グラデーション+内枠+縦組みタイトルで組む(のっぺりした色面にしない)。
+ */
 export function Cover({ s, className }: { s: CardData; className?: string }) {
-  const g = GRADIENTS[(s.title.charCodeAt(0) ?? 0) % GRADIENTS.length];
+  const g = coverGradient(s.title);
+  const frame =
+    "inset 0 0 0 1px rgb(255 255 255 / 0.1), 0 6px 18px -10px color-mix(in oklab, var(--c-shadow) 60%, transparent)";
   return s.coverImageUrl ? (
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src={s.coverImageUrl}
       alt=""
       data-testid="card-cover"
-      className={`aspect-[3/4] w-full rounded-[12px] object-cover ${className ?? ""}`}
+      className={`aspect-[3/4] w-full rounded-[14px] object-cover ${className ?? ""}`}
+      style={{ boxShadow: frame }}
     />
   ) : (
     <div
       data-testid="card-cover"
-      className={`flex aspect-[3/4] w-full items-end rounded-[12px] p-2 ${className ?? ""}`}
-      style={{ background: g }}
+      className={`relative aspect-[3/4] w-full overflow-hidden rounded-[14px] ${className ?? ""}`}
+      style={{ background: g, boxShadow: frame }}
     >
+      {/* 上からの光と足元の暗幕で奥行きを作る */}
       <span
-        className="line-clamp-4 font-serif text-[11px] leading-snug text-white/95"
-        style={{ textShadow: "0 1px 4px rgb(0 0 0 / 0.35)" }}
-      >
-        {s.title}
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(110% 60% at 22% 0%, rgb(255 255 255 / 0.26), transparent 62%), linear-gradient(to top, rgb(0 0 0 / 0.34), transparent 58%)",
+        }}
+      />
+      {/* ジャケットの内枠 */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-[7px] rounded-[8px]"
+        style={{ border: "1px solid rgb(255 255 255 / 0.24)" }}
+      />
+      {/* ジャケットの題字。明朝+細い罫で本の表紙らしく見せる */}
+      <span className="absolute inset-x-[15px] bottom-[15px] block">
+        <span
+          aria-hidden
+          className="mb-1.5 block h-px w-7"
+          style={{ background: "rgb(255 255 255 / 0.6)" }}
+        />
+        <span
+          className="line-clamp-3 block text-[12.5px] font-medium leading-[1.5] tracking-[0.04em] text-white"
+          style={{ fontFamily: "var(--font-novel)", textShadow: "0 1px 8px rgb(0 0 0 / 0.55)" }}
+        >
+          {s.title}
+        </span>
       </span>
     </div>
   );
@@ -107,8 +148,10 @@ export function PlotGridCard({ s, rank }: { s: CardData; rank?: number }) {
         {rank !== undefined && (
           <span
             data-testid="card-rank"
-            className="absolute left-0 top-0 flex h-7 w-7 items-center justify-center rounded-br-xl rounded-tl-[12px] text-sm font-bold text-white"
-            style={{ background: "color-mix(in oklab, var(--c-primary) 85%, black)" }}
+            className="absolute left-0 top-0 flex h-7 w-8 items-center justify-center rounded-br-[14px] rounded-tl-[14px] text-sm font-bold text-white"
+            style={{
+              background: "linear-gradient(140deg, var(--c-primary), color-mix(in oklab, var(--c-primary) 60%, black))",
+            }}
           >
             {rank}
           </span>
@@ -116,13 +159,13 @@ export function PlotGridCard({ s, rank }: { s: CardData; rank?: number }) {
         <span
           data-testid="card-stories"
           className="absolute right-1.5 top-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold text-white"
-          style={{ background: "rgb(0 0 0 / 0.45)", backdropFilter: "blur(3px)" }}
+          style={{ background: "rgb(0 0 0 / 0.38)", backdropFilter: "blur(6px)" }}
         >
           <MessageCircle size={11} className="mr-0.5 inline align-[-1px]" />
           {fmtCount(s.storyCount ?? 0)}
         </span>
       </div>
-      <div className="mt-1.5 space-y-0.5">
+      <div className="mt-2 space-y-1">
         <p data-testid="card-title" className="line-clamp-1 text-[0.95rem] font-bold leading-snug">
           {s.contentLevel === "R15" && (
             <span
@@ -135,12 +178,12 @@ export function PlotGridCard({ s, rank }: { s: CardData; rank?: number }) {
           )}
           {s.title}
         </p>
-        <p data-testid="card-catch" className="line-clamp-2 text-xs leading-relaxed" style={{ color: "var(--c-textMuted)" }}>
+        <p data-testid="card-catch" className="line-clamp-2 text-[11.5px] leading-relaxed" style={{ color: "var(--c-textMuted)" }}>
           {s.catchphrase}
         </p>
         <p className="line-clamp-1">
           {s.tags.map((t) => (
-            <span key={t.tag.id} className="mr-1.5 text-[11px]" style={{ color: "var(--c-accent)" }}>
+            <span key={t.tag.id} className="mr-1.5 text-[10.5px] font-medium" style={{ color: "var(--c-accent)" }}>
               #{t.tag.name}
             </span>
           ))}
