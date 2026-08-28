@@ -12,12 +12,14 @@ interface Tag {
 }
 
 const CATEGORY_LABEL: Record<string, string> = {
-  desire: "欲望から探す",
-  relationship: "関係から探す",
-  genre: "世界から探す",
+  trope: "By trope",
+  relationship: "By relationship",
+  genre: "By genre",
+  warning: "Content warnings",
 };
 
-// SCR-003: 検索/タグ(欲求性ドリブン)
+// SCR-003: search and tags. Named search is the demand engine in this market,
+// so this screen is the front door, not a filter panel.
 function SearchInner() {
   const router = useRouter();
   const params = useSearchParams();
@@ -75,13 +77,13 @@ function SearchInner() {
     <div className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-10 px-4 pb-2 pt-4" style={{ background: "var(--c-bg)" }}>
         <div className="flex items-center gap-2">
-          <button aria-label="戻る" className="text-lg" onClick={() => router.push("/")}>
+          <button aria-label="Back" className="text-lg" onClick={() => router.push("/")}>
             ←
           </button>
           <input
             className="input"
             autoFocus
-            placeholder="どんな物語を読む?"
+            placeholder="Search stories, tropes, creators"
             value={input}
             onChange={(e) => {
               setInput(e.target.value);
@@ -136,25 +138,25 @@ function SearchInner() {
           <>
             <div className="flex items-center gap-2 py-2">
               <span className="text-xs" style={{ color: "var(--c-textMuted)" }}>
-                並び替え:
+                Sort:
               </span>
               <button
                 className="chip"
                 data-on={sort === "popular"}
                 onClick={() => navigate({ sort: "popular" })}
               >
-                人気
+                Most played
               </button>
               <button
                 className="chip"
                 data-on={sort === "new"}
                 onClick={() => navigate({ sort: "new" })}
               >
-                新着
+                Newest
               </button>
             </div>
 
-            {/* さらに絞り込むタグ(常時表示) */}
+            {/* Narrowing tags, always visible. */}
             <div className="hide-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 pb-2">
               {tags
                 .filter((t) => !selectedTags.includes(t.name))
@@ -173,9 +175,9 @@ function SearchInner() {
 
             {error && (
               <div className="card p-4 text-center text-sm">
-                読み込みに失敗しました
+                We could not run that search.
                 <button className="btn-ghost mt-2 w-full" onClick={() => location.reload()}>
-                  再試行
+                  Try again
                 </button>
               </div>
             )}
@@ -188,15 +190,15 @@ function SearchInner() {
             )}
             {results && results.length === 0 && (
               <div data-testid="search-empty" className="card mt-4 p-5 text-center">
-                <p className="text-sm">見つかりませんでした</p>
+                <p className="text-sm">Nothing matched that.</p>
                 <p className="mt-2 text-xs" style={{ color: "var(--c-textMuted)" }}>
-                  この妄想、自分で作ってみませんか?
+                  Nobody has written this one yet. You could.
                 </p>
                 <Link
                   href={`/create?fantasy=${encodeURIComponent(q)}`}
                   className="btn-primary mt-3 block"
                 >
-                  ＋ 物語を作る
+                  Write it yourself
                 </Link>
               </div>
             )}
@@ -208,7 +210,7 @@ function SearchInner() {
                     <p className="mt-1 line-clamp-2 text-[13px] font-semibold leading-tight">
                       {s.contentLevel === "TEEN" && (
                         <span
-                          data-testid="r15-badge"
+                          data-testid="teen-badge"
                           className="mr-1 rounded px-1 text-[10px] font-bold text-white"
                           style={{ background: "var(--c-danger)" }}
                         >

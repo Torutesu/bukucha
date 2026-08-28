@@ -1,8 +1,9 @@
 import { test } from "@playwright/test";
-import { loginAs, sendMessage, E2E_SITUATION } from "../e2e/helpers";
+import { loginAs, sendMessage, E2E_STORY } from "../e2e/helpers";
 import * as fs from "fs";
 
-const OUT = "shots";  // 生PNG(gitignore)。共有用webpは build-share-page.py が shots_web/ に生成
+// Raw PNGs (gitignored). build-share-page.py converts these into shots_web/.
+const OUT = "shots";
 
 test("capture screens", async ({ page }) => {
   fs.mkdirSync(OUT, { recursive: true });
@@ -11,102 +12,110 @@ test("capture screens", async ({ page }) => {
     await page.screenshot({ path: `${OUT}/${name}.png` });
   };
 
-  // 1. オンボーディング
+  // 1. Onboarding
   await page.goto("/welcome");
-  await page.getByRole("button", { name: "溺愛" }).click();
-  await page.getByRole("button", { name: "身分差" }).click();
-  await page.getByRole("button", { name: "執着" }).click();
+  await page.getByRole("button", { name: "slow burn", exact: true }).click();
+  await page.getByRole("button", { name: "enemies to lovers", exact: true }).click();
+  await page.getByRole("button", { name: "court intrigue", exact: true }).click();
   await shot("01-onboarding");
 
-  await page.getByRole("button", { name: "つぎへ" }).click();
+  await page.getByRole("button", { name: "Show me something" }).click();
   await page.waitForTimeout(800);
   await shot("02-onboarding-recommend");
 
-  // 2. ホーム
-  await loginAs(page, "demo@bukucha.local", "ゆめの");
+  // 2. Discover
+  await loginAs(page, "demo@headcanon.local", "Wren");
   await page.goto("/");
   await page.waitForTimeout(1200);
   await shot("03-home");
 
-  // 3. 検索
+  // 3. Search
   await page.goto("/search");
   await page.waitForTimeout(900);
   await shot("04-search-tags");
 
-  await page.goto("/search?tags=" + encodeURIComponent("溺愛"));
+  await page.goto("/search?tags=" + encodeURIComponent("slow burn"));
   await page.waitForTimeout(1200);
   await shot("05-search-results");
 
-  // 4. 作品詳細
-  await page.goto(`/story/${E2E_SITUATION}`);
+  // 4. Story page
+  await page.goto(`/story/${E2E_STORY}`);
   await page.waitForTimeout(1200);
   await shot("06-story-detail");
 
-  // 5. ノベルリーダー
-  await page.getByRole("button", { name: "この物語をはじめる" }).click();
+  // 5. The reader
+  await page.getByRole("button", { name: "Start this story" }).click();
   await page.waitForTimeout(1200);
   await shot("07-reader-start");
 
-  await sendMessage(page, "*そっと隣に並ぶ* 先輩、傘、持ってないんです");
+  await sendMessage(page, "*steps under the awning beside him* I forgot mine again.");
   await page.waitForTimeout(500);
   await shot("08-reader-turn");
 
-  await sendMessage(page, "……どうして、そんなこと言うんですか");
+  await sendMessage(page, "Why do you always say things like that?");
   await page.waitForTimeout(600);
   await shot("09-reader-choices");
 
-  // 6. 本棚
-  await page.getByRole("button", { name: "戻る", exact: true }).click();
+  // 6. Canon — the differentiator, so it gets its own frame.
+  await page.getByRole("button", { name: "Menu" }).click();
+  await page.getByTestId("open-canon").click();
+  await page.waitForTimeout(600);
+  await shot("10-canon");
+  await page.getByRole("button", { name: "Close" }).click();
+
+  // 7. Library
+  await page.getByRole("button", { name: "Back", exact: true }).click();
   await page.waitForTimeout(1800);
-  await shot("10-bookshelf");
+  await shot("11-library");
 
-  // 7. 作成ウィザード
+  // 8. The builder
   await page.goto("/create");
-  await page.getByLabel(/妄想を、一文で/).fill("没落令嬢の私を買ったのは、冷酷と噂の若き公爵だった");
-  await shot("11-create-fantasy");
+  await page
+    .getByLabel(/One line/)
+    .fill("The duke who bought my family's debt has never once mentioned money.");
+  await shot("12-create-premise");
 
-  await page.getByRole("button", { name: "AIに下書きしてもらう" }).click();
+  await page.getByRole("button", { name: "Draft it for me" }).click();
   await page.waitForTimeout(2500);
-  await shot("12-create-draft");
+  await shot("13-create-draft");
 
-  await page.getByRole("button", { name: "次へ" }).click();
+  await page.getByRole("button", { name: "Next" }).click();
   await page.waitForTimeout(700);
-  await shot("13-create-characters");
+  await shot("14-create-cast");
 
-  await page.goto("/create?storyId=" + (await page.url().split("storyId=")[1] ?? ""), {
-    waitUntil: "domcontentloaded",
-  }).catch(() => {});
-
-  // 8. スタジオ
+  // 9. Studio
   await page.goto("/studio");
   await page.waitForTimeout(1200);
-  await shot("14-studio");
+  await shot("15-studio");
 
-  // 9. 設定(年齢確認/安心フィルター)
+  // 10. Plans and age gate
   await page.goto("/settings");
   await page.waitForTimeout(900);
-  await shot("15-settings");
+  await shot("16-settings-plans");
 
-  // 10. マイページ
+  // 11. Account
   await page.goto("/me");
   await page.waitForTimeout(900);
-  await shot("16-mypage");
+  await shot("17-account");
 
-  // 11. ダークテーマのリーダー
+  // 12. The reader in dark
   await page.goto("/settings");
-  await page.getByRole("button", { name: "ダーク" }).click();
+  await page.getByRole("button", { name: "Dark" }).click();
   await page.waitForTimeout(400);
   await page.goto("/library");
   await page.waitForTimeout(1500);
-  await page.getByTestId("route-card").first().getByRole("link", { name: "つづきを読む" }).click();
+  await page.getByTestId("route-card").first().getByRole("link", { name: "Continue" }).click();
   await page.waitForTimeout(1500);
-  await shot("17-reader-dark");
+  await shot("18-reader-dark");
 
-  // 12. PC中央SPビュー
-  await page.goto("/settings");
-  await page.getByRole("button", { name: "システム" }).click();
+  // 13. The reader on desktop, two panes
   await page.setViewportSize({ width: 1440, height: 900 });
+  await page.waitForTimeout(1000);
+  await page.screenshot({ path: `${OUT}/19-reader-desktop.png` });
+
+  await page.goto("/settings");
+  await page.getByRole("button", { name: "System" }).click();
   await page.goto("/");
   await page.waitForTimeout(1500);
-  await page.screenshot({ path: `${OUT}/18-desktop.png` });
+  await page.screenshot({ path: `${OUT}/20-desktop-home.png` });
 });

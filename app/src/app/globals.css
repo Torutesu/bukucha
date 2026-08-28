@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* テーマ変数は layout.tsx が brand.config から注入する(src/lib/theme.ts) */
+/* Theme variables are injected by layout.tsx from brand.config (src/lib/theme.ts). */
 
 html,
 body {
@@ -17,13 +17,37 @@ body {
   min-height: 100dvh;
 }
 
-/* PC中央SPビュー [USER-REQ] */
+/* Phone-first shell, centred on desktop. */
 .app-shell {
   max-width: var(--shell-max);
   margin: 0 auto;
   min-height: 100dvh;
   background: var(--c-bg);
   position: relative;
+}
+
+.reader-rail {
+  display: none;
+}
+
+/* The reader is the one screen that earns a wider shell. North American
+   readers skew far more desktop than the Japanese market this was first built
+   for, and the SillyTavern crowd we want to win over lives on a PC. */
+@media (min-width: 900px) {
+  .app-shell:has(.reader-root) {
+    max-width: var(--reader-wide);
+  }
+  .reader-body {
+    display: grid;
+    grid-template-columns: 1fr var(--sidebar-w);
+    gap: 32px;
+    align-items: start;
+  }
+  .reader-rail {
+    display: block;
+    position: sticky;
+    top: 88px;
+  }
 }
 
 @media (min-width: 600px) {
@@ -38,12 +62,11 @@ body {
   }
 }
 
-/* ノベル組版(SCR-006) */
+/* Prose typography (SCR-006). */
 .novel {
   font-family: var(--font-novel);
-  line-height: 1.95;
-  letter-spacing: 0.03em;
-  font-size: 1.02rem;
+  line-height: 1.72;
+  font-size: 1.03rem;
   color: var(--c-novelText);
 }
 .novel em {

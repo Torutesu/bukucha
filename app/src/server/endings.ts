@@ -121,8 +121,13 @@ export async function evaluateEndings(routeId: string): Promise<ReachedEnding | 
     .filter((d) =>
       d.rules.every((r) => ruleMet(r, values.get(r.statDefId) ?? r.statDef.initialValue))
     )
-    // The rarest thing the reader qualified for is the one they get.
-    .sort((a, b) => RARITY_ORDER[b.rarity] - RARITY_ORDER[a.rarity]);
+    // An earned ending beats a default one, and the rarest earned ending wins.
+    // Without this, an unconditional ending would end every route the moment it
+    // became eligible, which is not what a fallback is for.
+    .sort((a, b) => {
+      const earned = Number(b.rules.length > 0) - Number(a.rules.length > 0);
+      return earned !== 0 ? earned : RARITY_ORDER[b.rarity] - RARITY_ORDER[a.rarity];
+    });
 
   const won = eligible[0];
   if (!won) return null;

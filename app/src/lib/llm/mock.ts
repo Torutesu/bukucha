@@ -198,7 +198,7 @@ export class MockLlmProvider implements LlmProvider {
           {
             name: "The ledger closes",
             rarity: "N",
-            minTurns: 10,
+            minTurns: 30,
             prompt: "You leave with the debt paid and nothing else.",
             epilogue:
               "You walk out through the front door, which no one has ever done. The rain has stopped. Somewhere behind you a lamp goes out, and that is the whole of it.",

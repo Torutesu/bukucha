@@ -31,14 +31,14 @@ interface Story {
   tags: { tag: { id: string; name: string } }[];
 }
 
-const STEPS = ["妄想", "世界観", "人物", "はじまり", "テスト", "公開"];
+const STEPS = ["Premise", "World", "Cast", "Openings", "Test play", "Publish"];
 
 function CreateInner() {
   const router = useRouter();
   const params = useSearchParams();
   const [step, setStep] = useState(0);
   const [story, setStory] = useState<Story | null>(null);
-  const [fantasy, setFantasy] = useState(params.get("fantasy") ?? "");
+  const [premise, setPremise] = useState(params.get("premise") ?? "");
   const [drafting, setDrafting] = useState(false);
   const [draftError, setDraftError] = useState(false);
   const [allTags, setAllTags] = useState<{ id: string; name: string }[]>([]);
@@ -51,7 +51,7 @@ function CreateInner() {
     { status: string } | { blocked: { kind: string; detail: string }[] } | null
   >(null);
   const [publishError, setPublishError] = useState<string | null>(null);
-  // 保存中のリクエストを追跡し、ステップ移動・公開の前に必ず完了させる(取りこぼし防止)
+  // Track in-flight saves so a step change or publish never races a write.
   const pendingSaves = useRef<Promise<unknown>[]>([]);
   const track = <T,>(p: Promise<T>): Promise<T> => {
     pendingSaves.current.push(p);
@@ -74,7 +74,7 @@ function CreateInner() {
       .catch(() => {});
   }, []);
 
-  // 既存下書きの再開
+  // Resume an existing draft.
   useEffect(() => {
     const sid = params.get("storyId");
     if (sid) {
@@ -89,7 +89,7 @@ function CreateInner() {
         });
     }
     if (params.get("blank") || params.get("storyId")) return;
-    // fetch("/api/me") で未ログインなら弾く
+    // Bounce to sign-in if there is no session.
     fetch("/api/me").then((r) => {
       if (r.status === 401) router.replace(`/login?returnTo=${encodeURIComponent("/create")}`);
     });
@@ -120,14 +120,14 @@ function CreateInner() {
   );
 
   const runDraft = async () => {
-    if (fantasy.trim().length < 10) return;
+    if (premise.trim().length < 10) return;
     setDrafting(true);
     setDraftError(false);
     try {
       const r = await fetch("/api/stories/draft", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ fantasy }),
+        body: JSON.stringify({ premise }),
       });
       if (!r.ok) throw new Error();
       setStory(normalize(await r.json()));
@@ -160,7 +160,7 @@ function CreateInner() {
       {
         onToken: (t) => setTestStream((s) => s + t),
         onDone: (d) => setTestMessages((m) => [...m, { role: "AI", content: d.message?.content ?? "" }]),
-        onError: () => setTestMessages((m) => [...m, { role: "AI", content: "(生成に失敗しました)" }]),
+        onError: () => setTestMessages((m) => [...m, { role: "AI", content: "(that one did not come through — try again)" }]),
       }
     );
     setTestStream("");
@@ -180,70 +180,71 @@ function CreateInner() {
     });
     const j = await r.json();
     if (!r.ok || j.error) {
-      setPublishError(j?.error?.message ?? "公開できませんでした");
+      setPublishError(j?.error?.message ?? "We could not publish that.");
     } else {
       setPublishResult(j);
     }
     setPublishing(false);
   };
 
-  // ---- Step0: 妄想入力 ----
+  // ---- Step 0: the premise ----
   if (step === 0 && !story) {
     return (
       <main className="flex min-h-dvh flex-col px-5 py-8">
         <StepBar step={0} />
-        <label htmlFor="fantasy" className="mt-6 block text-lg font-bold">
-          あなたの妄想を、一文で。
+        <label htmlFor="premise" className="mt-6 block text-lg font-bold">
+          One line. That is all we need.
         </label>
         <p className="mt-1 text-xs" style={{ color: "var(--c-textMuted)" }}>
-          AIが世界観・登場人物・冒頭シーンまで下書きします
+          We will draft the world, the cast, the openings, the stats and four endings. You
+          edit from there.
         </p>
         <textarea
-          id="fantasy"
+          id="premise"
           className="input mt-4 h-28"
-          placeholder="例: 没落令嬢の私を買ったのは、冷酷と噂の若き公爵だった"
+          placeholder="e.g. The duke who bought my family's debt has never once mentioned money."
           maxLength={200}
-          value={fantasy}
-          onChange={(e) => setFantasy(e.target.value)}
+          value={premise}
+          onChange={(e) => setPremise(e.target.value)}
         />
         {drafting && (
           <div className="card mt-4 p-4 text-center text-sm">
-            <p className="animate-pulse">世界を組み立てています…</p>
+            <p className="animate-pulse">Building the world…</p>
             <p className="mt-1 text-xs" style={{ color: "var(--c-textMuted)" }}>
-              世界観 → 人物 → 冒頭
+              world → cast → openings → stats → endings
             </p>
           </div>
         )}
         {draftError && (
           <div className="card mt-4 p-3 text-sm">
-            うまく作れませんでした。もう一度試すか、白紙から作れます。
+            That did not come together. Try again, or start from a blank story.
           </div>
         )}
         <button
           className="btn-primary mt-4 w-full disabled:opacity-40"
-          disabled={fantasy.trim().length < 10 || drafting}
+          disabled={premise.trim().length < 10 || drafting}
           onClick={runDraft}
         >
-          ✦ AIに下書きしてもらう
+          Draft it for me
         </button>
         <button className="mt-3 text-center text-xs underline" style={{ color: "var(--c-textMuted)" }} onClick={startBlank}>
-          白紙から作る
+          Start blank
         </button>
       </main>
     );
   }
 
-  if (!story) return <main className="p-8 text-center text-sm">読み込み中…</main>;
+  if (!story) return <main className="p-8 text-center text-sm">Loading…</main>;
 
   return (
     <main className="flex min-h-dvh flex-col px-5 py-6">
       <StepBar step={step} />
 
-      {/* Step1: 世界観 */}
+      {/* Step 1: the world */}
       {step === 1 && (
         <div className="mt-6 space-y-4">
           <FieldWithAi
-            label="タイトル"
+            label="Title"
             value={story.title}
             maxLength={60}
             onSave={(v) => patch({ title: v })}
@@ -252,7 +253,7 @@ function CreateInner() {
             onAiResult={(v) => patch({ title: v })}
           />
           <FieldWithAi
-            label="ひとこと紹介"
+            label="Logline"
             value={story.logline}
             maxLength={60}
             onSave={(v) => patch({ logline: v })}
@@ -261,7 +262,7 @@ function CreateInner() {
             onAiResult={(v) => patch({ logline: v })}
           />
           <FieldWithAi
-            label="世界観"
+            label="The world"
             value={story.worldSetting}
             textarea
             onSave={(v) => patch({ worldSetting: v })}
@@ -273,10 +274,10 @@ function CreateInner() {
         </div>
       )}
 
-      {/* Step2: 人物 */}
+      {/* Step 2: the cast */}
       {step === 2 && (
         <div className="mt-6 space-y-3">
-          <p className="text-sm font-bold">登場人物</p>
+          <p className="text-sm font-bold">Cast</p>
           {story.characters
             .sort((a, b) => a.sortOrder - b.sortOrder)
             .map((c) => (
@@ -288,10 +289,15 @@ function CreateInner() {
               >
                 <div>
                   <p className="text-sm font-semibold">
-                    {c.name} {c.sortOrder === 0 && <span className="text-[10px]" style={{ color: "var(--c-primary)" }}>主演</span>}
+                    {c.name}{" "}
+                    {c.sortOrder === 0 && (
+                      <span className="text-[10px]" style={{ color: "var(--c-primary)" }}>
+                        lead
+                      </span>
+                    )}
                   </p>
                   <p className="line-clamp-1 text-[11px]" style={{ color: "var(--c-textMuted)" }}>
-                    {c.relationship || "関係未設定"}
+                    {c.relationship || "no relationship set"}
                   </p>
                 </div>
                 <span>›</span>
@@ -304,7 +310,7 @@ function CreateInner() {
                 const r = await fetch(`/api/stories/${story.id}/characters`, {
                   method: "POST",
                   headers: { "content-type": "application/json" },
-                  body: JSON.stringify({ name: "新しいキャラ" }),
+                  body: JSON.stringify({ name: "New character" }),
                 });
                 if (r.ok) {
                   const c = await r.json();
@@ -312,22 +318,22 @@ function CreateInner() {
                 }
               }}
             >
-              ＋ 人物を追加
+              + Add a character
             </button>
           )}
           <NavButtons onBack={() => goStep(1)} onNext={() => goStep(3)} />
         </div>
       )}
 
-      {/* Step3: はじまり */}
+      {/* Step 3: the openings */}
       {step === 3 && (
         <div className="mt-6 space-y-4">
-          <p className="text-sm font-bold">はじまりの場面(最大3)</p>
+          <p className="text-sm font-bold">Openings (up to 3)</p>
           {story.intros.map((iv, idx) => (
             <div key={iv.id} className="card space-y-2 p-3">
               <div>
                 <label className="label" htmlFor={`intro-label-${iv.id}`}>
-                  ラベル
+                  Name
                 </label>
                 <input
                   id={`intro-label-${iv.id}`}
@@ -349,7 +355,7 @@ function CreateInner() {
               </div>
               <div>
                 <label className="label" htmlFor={`intro-text-${iv.id}`}>
-                  導入の地の文
+                  Establishing prose
                 </label>
                 <textarea
                   id={`intro-text-${iv.id}`}
@@ -371,7 +377,7 @@ function CreateInner() {
               </div>
               <div>
                 <label className="label" htmlFor={`intro-first-${iv.id}`}>
-                  最初の返答
+                  Opening scene
                 </label>
                 <textarea
                   id={`intro-first-${iv.id}`}
@@ -400,22 +406,22 @@ function CreateInner() {
                 const r = await fetch(`/api/stories/${story.id}/intros`, {
                   method: "POST",
                   headers: { "content-type": "application/json" },
-                  body: JSON.stringify({ label: "新しいはじまり" }),
+                  body: JSON.stringify({ label: "New opening" }),
                 });
                 if (r.ok) setStory({ ...story, intros: [...story.intros, await r.json()] });
               }}
             >
-              ＋ はじまりを追加
+              + Add an opening
             </button>
           )}
           <NavButtons onBack={() => goStep(2)} onNext={() => goStep(4)} />
         </div>
       )}
 
-      {/* Step4: テスト */}
+      {/* Step 4: test play */}
       {step === 4 && (
         <div className="mt-6 flex flex-1 flex-col">
-          <p className="text-sm font-bold">この口調でOK?(お試し・保存されません)</p>
+          <p className="text-sm font-bold">Does this sound right? (nothing here is saved)</p>
           <div className="card novel my-3 flex-1 space-y-3 overflow-y-auto p-3" style={{ minHeight: "40vh" }}>
             <p className="text-xs" style={{ color: "var(--c-textMuted)" }}>
               {story.intros[0]?.introText}
@@ -441,12 +447,12 @@ function CreateInner() {
           <div className="flex gap-2">
             <input
               className="input flex-1"
-              placeholder="セリフか、*動作* を書く…"
+              placeholder="Say something, or *do something*"
               value={testInput}
               onChange={(e) => setTestInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && runTest()}
             />
-            <button aria-label="送信" className="btn-primary px-4" onClick={runTest} disabled={testGenerating}>
+            <button aria-label="Send" className="btn-primary px-4" onClick={runTest} disabled={testGenerating}>
               ▶
             </button>
           </div>
@@ -454,11 +460,11 @@ function CreateInner() {
         </div>
       )}
 
-      {/* Step5: 公開 */}
+      {/* Step 5: publish */}
       {step === 5 && (
         <div className="mt-6 space-y-4">
           <div>
-            <p className="label">タグ(最大6)</p>
+            <p className="label">Tags (up to 6)</p>
             <div data-testid="tag-select" className="flex flex-wrap gap-2">
               {allTags.map((t) => {
                 const on = story.tags.some((st) => st.tag.id === t.id);
@@ -483,17 +489,17 @@ function CreateInner() {
             </div>
           </div>
           <div>
-            <p className="label">コンテンツレベル</p>
+            <p className="label">Rating</p>
             <div className="flex gap-4 text-sm">
               <label className="flex items-center gap-2">
                 <input
                   type="radio"
                   name="level"
-                  aria-label="全年齢"
+                  aria-label="All ages"
                   checked={story.contentLevel === "ALL_AGES"}
                   onChange={() => patch({ contentLevel: "ALL_AGES" })}
                 />
-                全年齢
+                All ages
               </label>
               <label className="flex items-center gap-2">
                 <input
@@ -503,12 +509,12 @@ function CreateInner() {
                   checked={story.contentLevel === "TEEN"}
                   onChange={() => patch({ contentLevel: "TEEN" })}
                 />
-                TEEN(センシティブ)
+                18+ (charged, never explicit)
               </label>
             </div>
             {story.contentLevel === "TEEN" && (
               <p className="mt-1 text-[11px]" style={{ color: "var(--c-textMuted)" }}>
-                ※TEEN作品は年齢確認済みの読者にのみ表示されます
+                18+ stories are shown only to readers who have confirmed their age.
               </p>
             )}
           </div>
@@ -528,10 +534,10 @@ function CreateInner() {
               ))}
               <div className="mt-2 flex gap-2">
                 <button className="btn-ghost flex-1 py-2 text-xs" onClick={() => setStep(1)}>
-                  Step1にもどる
+                  Back to step 1
                 </button>
                 <button className="btn-ghost flex-1 py-2 text-xs" onClick={() => setStep(5)}>
-                  Step5で再公開
+                  Publish again from step 5
                 </button>
               </div>
             </div>
@@ -539,26 +545,26 @@ function CreateInner() {
 
           {publishResult && "status" in publishResult && publishResult.status === "PUBLISHED" ? (
             <div className="card p-5 text-center">
-              <p className="text-lg font-bold">🎉 公開しました</p>
+              <p className="text-lg font-bold">It is live.</p>
               <Link href={`/story/${story.id}`} className="btn-primary mt-3 block">
-                作品ページを見る
+                See the story page
               </Link>
               <a
-                href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`「${story.title}」を書きました`)}`}
+                href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`I wrote "${story.title}" — come play it`)}`}
                 target="_blank"
                 className="mt-2 block text-xs underline"
                 style={{ color: "var(--c-textMuted)" }}
               >
-                Xでシェア
+                Share
               </a>
             </div>
           ) : (
             <>
               <button className="btn-primary w-full" disabled={publishing} onClick={() => publish("PUBLISHED")}>
-                公開する
+                Publish
               </button>
               <button className="btn-ghost w-full text-sm" disabled={publishing} onClick={() => publish("PRIVATE")}>
-                非公開で保存
+                Save as private
               </button>
             </>
           )}
@@ -593,12 +599,12 @@ function NavButtons({ onBack, onNext }: { onBack?: () => void; onNext?: () => vo
     <div className="mt-6 flex gap-2">
       {onBack && (
         <button className="btn-ghost flex-1" onClick={onBack}>
-          もどる
+          Back
         </button>
       )}
       {onNext && (
         <button className="btn-primary flex-1" onClick={onNext}>
-          次へ
+          Next
         </button>
       )}
     </div>
@@ -628,7 +634,7 @@ function FieldWithAi({
   const [syncedValue, setSyncedValue] = useState(value);
   const [loading, setLoading] = useState(false);
   const fieldId = `field-${field}`;
-  // 外部(AI下書き等)でvalueが変わったらレンダー中に追従させる
+  // Follow an externally changed value (an AI draft landing) during render.
   if (syncedValue !== value) {
     setSyncedValue(value);
     setLocal(value);
@@ -654,7 +660,7 @@ function FieldWithAi({
           {label}
         </label>
         <button className="text-[11px]" style={{ color: "var(--c-accent)" }} onClick={runAi} disabled={loading}>
-          {loading ? "…" : "✦ AIに書き直してもらう"}
+          {loading ? "…" : "Rewrite this for me"}
         </button>
       </div>
       {textarea ? (

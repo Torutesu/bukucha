@@ -20,7 +20,7 @@ export async function POST(req: Request) {
     const persona = await db.persona.create({
       data: {
         userId: user.id,
-        name: String(b.name ?? "わたし").slice(0, 20),
+        name: String(b.name ?? "You").slice(0, 40),
         callName: b.callName ? String(b.callName).slice(0, 20) : null,
         profile: b.profile ? String(b.profile).slice(0, 500) : null,
         isDefault: Boolean(b.isDefault),

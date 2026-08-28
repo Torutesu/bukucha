@@ -47,7 +47,7 @@ export async function DELETE(_req: Request, { params }: Params) {
     const { id } = await params;
     const user = await requireUser();
     await requireOwnedStory(user, id);
-    // 論理削除: 既読Routeは読み続けられる(SCR-012 [ASSUMED])
+    // Soft delete: routes people are already playing keep working.
     await db.story.update({ where: { id }, data: { status: "SUSPENDED" } });
     return Response.json({ ok: true });
   } catch (e) {

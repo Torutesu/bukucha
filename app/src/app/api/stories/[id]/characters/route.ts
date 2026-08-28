@@ -9,12 +9,12 @@ export async function POST(req: Request, { params }: Params) {
     const { id } = await params;
     const user = await requireUser();
     const s = await requireOwnedStory(user, id);
-    if (s.characters.length >= 3) throw new HttpError(422, "too_many", "キャラは3人までです");
+    if (s.characters.length >= 3) throw new HttpError(422, "too_many", "Three characters is the limit for now.");
     const b = await req.json();
     const c = await db.character.create({
       data: {
         storyId: id,
-        name: String(b.name ?? "新しいキャラ").slice(0, 30),
+        name: String(b.name ?? "New character").slice(0, 40),
         personality: String(b.personality ?? ""),
         speechStyle: String(b.speechStyle ?? ""),
         relationship: String(b.relationship ?? ""),

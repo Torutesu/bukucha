@@ -5,9 +5,9 @@ import { llm } from "@/lib/llm";
 type Params = { params: Promise<{ id: string; cid: string }> };
 
 const FALLBACK = [
-  { user: "おはようございます", char: "「……ああ。今日も、来たんだな」" },
-  { user: "何を考えてるの?", char: "「おまえには、まだ言えない」" },
-  { user: "また明日ね", char: "「……待ってる。明日も、その先も」" },
+  { user: "Good morning.", char: "You came back. — Sit down before you say anything else." },
+  { user: "What are you thinking about?", char: "Nothing I am willing to tell you yet." },
+  { user: "See you tomorrow.", char: "Tomorrow. And the day after that, presumably." },
 ];
 
 export async function POST(_req: Request, { params }: Params) {
@@ -22,15 +22,18 @@ export async function POST(_req: Request, { params }: Params) {
         {
           role: "system",
           content:
-            '性格と口調から会話例を3組生成しJSONのみ出力: {"dialogs":[{"user":"...","char":"..."}]}。charは「」セリフ形式。',
+            'From the personality and voice, write 3 short exchanges that show how this character speaks. Output JSON only: {"dialogs":[{"user":"...","char":"..."}]}. Show the voice, not the plot.',
         },
-        { role: "user", content: `性格: ${c.personality}\n口調: ${c.speechStyle}\n関係: ${c.relationship}` },
+        {
+          role: "user",
+          content: `personality: ${c.personality}\nvoice: ${c.speechStyle}\nrelationship: ${c.relationship}`,
+        },
       ]);
       const parsed = JSON.parse(raw.replace(/^```json?\s*|```\s*$/g, ""));
       const dialogs = Array.isArray(parsed.dialogs) ? parsed.dialogs.slice(0, 3) : FALLBACK;
       return Response.json({ dialogs });
     } catch {
-      // AIF-002c fallback: テンプレ例文
+      // Fallback: a neutral template beats an empty builder field.
       return Response.json({ dialogs: FALLBACK, fallback: true });
     }
   } catch (e) {

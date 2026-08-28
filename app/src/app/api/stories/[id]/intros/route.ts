@@ -9,12 +9,12 @@ export async function POST(req: Request, { params }: Params) {
     const { id } = await params;
     const user = await requireUser();
     const s = await requireOwnedStory(user, id);
-    if (s.intros.length >= 3) throw new HttpError(422, "too_many", "開始シチュは3つまでです");
+    if (s.intros.length >= 3) throw new HttpError(422, "too_many", "Three openings is the limit for now.");
     const b = await req.json();
     const iv = await db.intro.create({
       data: {
         storyId: id,
-        label: String(b.label ?? "新しいはじまり").slice(0, 30),
+        label: String(b.label ?? "New opening").slice(0, 60),
         introText: String(b.introText ?? "").slice(0, 2000),
         firstMessage: String(b.firstMessage ?? "").slice(0, 1000),
         sortOrder: s.intros.length,

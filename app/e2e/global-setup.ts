@@ -2,12 +2,12 @@ import { execSync } from "child_process";
 import { PrismaClient } from "@prisma/client";
 import { seed } from "../prisma/seed";
 
-const E2E_DB = "postgresql://bukucha:bukucha@localhost:5432/bukucha_e2e";
+const E2E_DB = "postgresql://headcanon:headcanon@localhost:5432/headcanon_e2e";
 
 export default async function globalSetup() {
-  // E2E専用DBを作り直してスキーマ適用+シード
+  // Rebuild the E2E database from scratch, then seed it.
   execSync(
-    `psql postgresql://bukucha:bukucha@localhost:5432/postgres -c "DROP DATABASE IF EXISTS bukucha_e2e;" -c "CREATE DATABASE bukucha_e2e;"`,
+    `psql postgresql://headcanon:headcanon@localhost:5432/postgres -c "DROP DATABASE IF EXISTS headcanon_e2e;" -c "CREATE DATABASE headcanon_e2e;"`,
     { stdio: "inherit" }
   );
   execSync(`npx prisma db push --skip-generate`, {

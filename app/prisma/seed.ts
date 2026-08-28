@@ -270,7 +270,9 @@ export async function seed(db: PrismaClient) {
       {
         name: "The forecast clears",
         rarity: "N",
-        minTurns: 10,
+        // The unconditional ending is the one you reach by not reaching any
+        // other, so it takes the longest.
+        minTurns: 30,
         epilogue:
           "The rain stops on a Tuesday and does not come back that term. He is polite in the studio and you are polite back, and that is the whole of it.",
         hint: "Some things simply end when the weather does.",

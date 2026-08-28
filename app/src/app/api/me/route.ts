@@ -1,12 +1,19 @@
 import { db } from "@/lib/db";
 import { requireUser, errorResponse, HttpError, clearSessionCookie } from "@/lib/auth";
 import { isAdult } from "@/lib/policy";
+import { PLANS, quotaState } from "@/lib/quota";
 
 export async function GET() {
   try {
     const user = await requireUser();
     const personas = await db.persona.findMany({ where: { userId: user.id } });
-    return Response.json({ ...user, personas, isAdult: isAdult(user) });
+    return Response.json({
+      ...user,
+      personas,
+      isAdult: isAdult(user),
+      quota: quotaState(user),
+      plans: Object.values(PLANS),
+    });
   } catch (e) {
     return errorResponse(e);
   }

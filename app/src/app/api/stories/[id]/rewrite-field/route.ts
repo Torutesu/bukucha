@@ -5,9 +5,9 @@ import { llm } from "@/lib/llm";
 type Params = { params: Promise<{ id: string }> };
 
 const FIELD_PROMPTS: Record<string, string> = {
-  title: "女性向けWeb小説の定番構文でタイトルを60字以内で1つ。出力はタイトルのみ。",
-  logline: "作品カード用のひとこと紹介を60字以内で1つ。出力は本文のみ。",
-  worldSetting: "世界観・設定を400〜800字で書き直す。出力は本文のみ。",
+  title: "Write one title under 60 characters — the kind a webnovel reader clicks. Output the title only.",
+  logline: "Write one hook under 100 characters, second person, for the story card. Output the line only.",
+  worldSetting: "Rewrite the world in 150-300 words: place, stakes, tone, and what makes it specific. Output the prose only.",
 };
 
 export async function POST(req: Request, { params }: Params) {
@@ -19,10 +19,13 @@ export async function POST(req: Request, { params }: Params) {
     const sys = FIELD_PROMPTS[String(field)];
     if (!sys) throw new HttpError(422, "invalid_field");
     const text = await llm().complete("draft", [
-      { role: "system", content: `あなたは女性向けライトノベルの編集者AIです。${sys}` },
+      {
+        role: "system",
+        content: `You are an editor for an interactive anime-style fiction platform. ${sys}`,
+      },
       {
         role: "user",
-        content: `作品情報:\nタイトル: ${s.title}\n一言: ${s.logline}\n世界観: ${s.worldSetting.slice(0, 2000)}\n元の妄想: ${s.aiDraftInput ?? ""}\n${hint ? `要望: ${hint}` : ""}`,
+        content: `title: ${s.title}\nlogline: ${s.logline}\nworld: ${s.worldSetting.slice(0, 2000)}\noriginal premise: ${s.aiDraftInput ?? ""}\n${hint ? `author's note: ${hint}` : ""}`,
       },
     ]);
     return Response.json({ text: text.trim() });

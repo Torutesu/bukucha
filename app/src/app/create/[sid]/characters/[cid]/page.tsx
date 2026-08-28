@@ -13,7 +13,7 @@ interface Character {
   sortOrder: number;
 }
 
-// SCR-010: キャラ編集(作成ウィザードのサブ画面)
+// SCR-010: character editor, a sub-screen of the builder.
 export default function CharacterEditPage({
   params,
 }: {
@@ -33,12 +33,12 @@ export default function CharacterEditPage({
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (!d) {
-          setError("読み込めませんでした");
+          setError("We could not load that.");
           return;
         }
         const found = d.characters.find((x: Character) => x.id === cid);
         if (!found) {
-          setError("キャラが見つかりません");
+          setError("That character does not exist.");
           return;
         }
         setC({
@@ -47,7 +47,7 @@ export default function CharacterEditPage({
         });
         setCanDelete(d.characters.length > 1);
       })
-      .catch(() => setError("読み込めませんでした"));
+      .catch(() => setError("We could not load that."));
   }, [sid, cid]);
 
   if (error)
@@ -55,11 +55,11 @@ export default function CharacterEditPage({
       <main className="p-8 text-center text-sm">
         {error}
         <button className="btn-ghost mt-4 w-full" onClick={backToWizard}>
-          作成にもどる
+          Back to the builder
         </button>
       </main>
     );
-  if (!c) return <main className="p-8 text-center text-sm">読み込み中…</main>;
+  if (!c) return <main className="p-8 text-center text-sm">Loading…</main>;
 
   const save = async () => {
     setSaving(true);
@@ -77,7 +77,7 @@ export default function CharacterEditPage({
     });
     setSaving(false);
     if (r.ok) backToWizard();
-    else setError("保存に失敗しました");
+    else setError("That did not save.");
   };
 
   const genSamples = async () => {
@@ -93,14 +93,14 @@ export default function CharacterEditPage({
   return (
     <main className="px-5 py-6">
       <button className="text-sm" onClick={backToWizard}>
-        ← 作成にもどる
+        ← Back to the builder
       </button>
-      <h1 className="mt-3 text-lg font-bold">キャラ編集</h1>
+      <h1 className="mt-3 text-lg font-bold">Character</h1>
 
       <div className="mt-4 space-y-4">
         <div>
           <label className="label" htmlFor="cname">
-            名前
+            Name
           </label>
           <input id="cname" className="input" value={c.name} onChange={(e) => setC({ ...c, name: e.target.value })} />
         </div>
@@ -108,17 +108,17 @@ export default function CharacterEditPage({
         <div className="flex gap-4 text-sm">
           <label className="flex items-center gap-2">
             <input type="radio" checked={c.sortOrder === 0} onChange={() => setC({ ...c, sortOrder: 0 })} />
-            主演
+            Lead
           </label>
           <label className="flex items-center gap-2">
             <input type="radio" checked={c.sortOrder !== 0} onChange={() => setC({ ...c, sortOrder: 1 })} />
-            脇役
+            Supporting
           </label>
         </div>
 
         <div>
           <label className="label" htmlFor="cpers">
-            性格
+            Personality
           </label>
           <textarea
             id="cpers"
@@ -130,12 +130,12 @@ export default function CharacterEditPage({
 
         <div>
           <label className="label" htmlFor="cspeech">
-            口調・話し方
+            Voice
           </label>
           <textarea
             id="cspeech"
             className="input h-20"
-            placeholder="一人称、語尾、敬語/タメ口、呼び方"
+            placeholder="Rhythm, register, what they call you, what they never say"
             value={c.speechStyle}
             onChange={(e) => setC({ ...c, speechStyle: e.target.value })}
           />
@@ -143,7 +143,7 @@ export default function CharacterEditPage({
 
         <div>
           <label className="label" htmlFor="crel">
-            主人公との関係
+            Relationship to you
           </label>
           <textarea
             id="crel"
@@ -154,12 +154,12 @@ export default function CharacterEditPage({
         </div>
 
         <div>
-          <p className="label">会話例(最大5組)</p>
+          <p className="label">Sample exchanges (up to 5)</p>
           {c.exampleDialogs.map((d, i) => (
             <div key={i} className="mb-1 flex gap-1">
               <input
                 className="input text-xs"
-                placeholder="あなた"
+                placeholder="you"
                 value={d.user}
                 onChange={(e) => {
                   const ex = [...c.exampleDialogs];
@@ -169,7 +169,7 @@ export default function CharacterEditPage({
               />
               <input
                 className="input text-xs"
-                placeholder="キャラ"
+                placeholder="them"
                 value={d.char}
                 onChange={(e) => {
                   const ex = [...c.exampleDialogs];
@@ -186,29 +186,29 @@ export default function CharacterEditPage({
                 style={{ color: "var(--c-accent)" }}
                 onClick={() => setC({ ...c, exampleDialogs: [...c.exampleDialogs, { user: "", char: "" }] })}
               >
-                ＋ 追加
+                + Add
               </button>
             )}
             <button className="text-xs" style={{ color: "var(--c-accent)" }} onClick={genSamples}>
-              ✦ 口調サンプルをAIに作らせる
+              Write samples for me
             </button>
           </div>
         </div>
 
         <button className="btn-primary w-full" onClick={save} disabled={saving}>
-          保存して戻る
+          Save and go back
         </button>
         {canDelete && (
           <button
             className="w-full text-center text-xs"
             style={{ color: "var(--c-danger)" }}
             onClick={async () => {
-              if (!confirm("このキャラを削除しますか?")) return;
+              if (!confirm("Delete this character?")) return;
               await fetch(`/api/stories/${sid}/characters/${cid}`, { method: "DELETE" });
               backToWizard();
             }}
           >
-            このキャラを削除
+            Delete this character
           </button>
         )}
       </div>

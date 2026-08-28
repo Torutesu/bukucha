@@ -7,9 +7,9 @@ export async function GET(req: Request) {
     const user = await getSessionUser();
     const url = new URL(req.url);
     const category = url.searchParams.get("category") ?? undefined;
-    const showR15 = visibleLevels(user).includes("TEEN");
+    const showMature = visibleLevels(user).includes("TEEN");
     const tags = await db.tag.findMany({
-      where: { ...(category ? { category } : {}), ...(showR15 ? {} : { isR15: false }) },
+      where: { ...(category ? { category } : {}), ...(showMature ? {} : { isMature: false }) },
       orderBy: { name: "asc" },
     });
     return Response.json(tags);

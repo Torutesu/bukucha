@@ -4,7 +4,7 @@ import type { LlmProvider } from "./types";
 
 let provider: LlmProvider | null = null;
 
-/** LLM抽象化レイヤ(05-ai-features.md)。envで実装を切替 */
+/** Provider abstraction. Swapping the model vendor happens here and nowhere else. */
 export function llm(): LlmProvider {
   if (!provider) {
     provider =

@@ -27,7 +27,7 @@ export async function DELETE(_req: Request, { params }: Params) {
     const user = await requireUser();
     const s = await requireOwnedStory(user, id);
     if (s.intros.length <= 1)
-      throw new HttpError(422, "last_intro", "最後の1つは削除できません");
+      throw new HttpError(422, "last_intro", "A story needs at least one opening.");
     await db.intro.delete({ where: { id: iid } });
     return Response.json({ ok: true });
   } catch (e) {

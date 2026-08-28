@@ -19,10 +19,15 @@ interface Summary {
   weekLikesDelta: number;
 }
 
-// SCR-012: マイ作品(スタジオ)
+// SCR-012: the creator's own view of their work.
+//
+// The benchmark gates monetisation behind 1,000 readers, 500 followers, ten
+// public works and 100,000 interactions before a creator can even apply. Here
+// earnings accrue from the first turn of the first story, so this screen shows
+// them from day one.
 export default function StudioPage() {
   const router = useRouter();
-  const [tab, setTab] = useState<"PUBLISHED" | "DRAFT" | "PRIVATE">("PUBLISHED");
+  const [tab, setTab] = useState<"PUBLISHED" | "DRAFT" | "UNLISTED" | "PRIVATE">("PUBLISHED");
   const [worksData, setWorksData] = useState<{ tab: string; items: Work[] } | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [openStats, setOpenStats] = useState<string | null>(null);
@@ -72,9 +77,9 @@ export default function StudioPage() {
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="flex items-center justify-between px-4 pt-4">
-        <h1 className="text-xl font-bold">マイ作品</h1>
+        <h1 className="text-xl font-bold">Studio</h1>
         <Link href="/create" className="btn-primary px-3 py-1.5 text-sm">
-          ＋ 新しく作る
+          + New story
         </Link>
       </header>
 
@@ -83,7 +88,7 @@ export default function StudioPage() {
           {summary ? (
             <div className="flex gap-6 text-sm">
               <div>
-                <span style={{ color: "var(--c-textMuted)" }}>今週の読者</span>
+                <span style={{ color: "var(--c-textMuted)" }}>Players this week</span>
                 <p className="text-lg font-bold">
                   📖 {summary.weekReaders}{" "}
                   <span className="text-xs" style={{ color: "var(--c-primary)" }}>
@@ -93,7 +98,7 @@ export default function StudioPage() {
                 </p>
               </div>
               <div>
-                <span style={{ color: "var(--c-textMuted)" }}>今週のいいね</span>
+                <span style={{ color: "var(--c-textMuted)" }}>Likes this week</span>
                 <p className="text-lg font-bold">
                   ♥ {summary.weekLikes}{" "}
                   <span className="text-xs" style={{ color: "var(--c-primary)" }}>
@@ -109,9 +114,15 @@ export default function StudioPage() {
         </div>
 
         <div className="flex gap-2">
-          {(["PUBLISHED", "DRAFT", "PRIVATE"] as const).map((s) => (
+          {(["PUBLISHED", "DRAFT", "UNLISTED", "PRIVATE"] as const).map((s) => (
             <button key={s} className="chip" data-on={tab === s} onClick={() => setTab(s)}>
-              {s === "PUBLISHED" ? "公開中" : s === "DRAFT" ? "下書き" : "非公開"}
+              {s === "PUBLISHED"
+                ? "Published"
+                : s === "DRAFT"
+                  ? "Draft"
+                  : s === "UNLISTED"
+                    ? "Link only"
+                    : "Private"}
             </button>
           ))}
         </div>
@@ -119,19 +130,19 @@ export default function StudioPage() {
         {!works && <div className="card h-24 animate-pulse" />}
         {works && works.length === 0 && (
           <div className="card p-6 text-center">
-            <p className="text-sm">最初の物語を作ってみましょう</p>
+            <p className="text-sm">You have not written anything yet.</p>
             <p className="mt-1 text-xs" style={{ color: "var(--c-textMuted)" }}>
-              一文の妄想から、AIが下書きします
+              Give us one line and we will build the whole thing — world, cast, stats and endings.
             </p>
             <Link href="/create" className="btn-primary mt-3 block">
-              ＋ 作る
+              Start writing
             </Link>
           </div>
         )}
         {works?.map((w) => (
           <div key={w.id} data-testid="work-card" className="card p-3">
             <Link href={w.status === "PUBLISHED" ? `/story/${w.id}` : "#"} className="block">
-              <p className="text-sm font-semibold">{w.title || "(無題)"}</p>
+              <p className="text-sm font-semibold">{w.title || "(untitled)"}</p>
             </Link>
             <p className="mt-1 flex gap-3 text-[11px]" style={{ color: "var(--c-textMuted)" }}>
               <span data-testid="stat-readers">📖 {w.playerCount.toLocaleString()}</span>
@@ -140,10 +151,10 @@ export default function StudioPage() {
             </p>
             <div className="mt-2 flex gap-2">
               <Link href={`/create?storyId=${w.id}`} className="btn-ghost px-3 py-1.5 text-xs">
-                編集
+                Edit
               </Link>
               <button className="btn-ghost px-3 py-1.5 text-xs" onClick={() => loadStats(w.id)}>
-                統計 {openStats === w.id ? "▲" : "▾"}
+                Stats {openStats === w.id ? "▲" : "▾"}
               </button>
             </div>
             {openStats === w.id && (

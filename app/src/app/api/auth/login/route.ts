@@ -3,19 +3,20 @@ import { db } from "@/lib/db";
 import { errorResponse, HttpError, setSessionCookie } from "@/lib/auth";
 
 /**
- * メールログイン。
- * AUTH_DEV_MODE=true では magic link送信を省略して即ログイン(E2E/開発用)。
- * [build-notes] 本番はメール送信+トークン検証をここに実装する。
+ * Email sign-in.
+ * With AUTH_DEV_MODE=true the magic link is skipped and the session is issued
+ * immediately, which is what E2E and local development use.
+ * [build-notes] Production sends the mail and verifies the token here.
  */
 export async function POST(req: Request) {
   try {
     if (process.env.AUTH_DEV_MODE !== "true") {
-      throw new HttpError(501, "not_implemented", "メール送信は未設定です");
+      throw new HttpError(501, "not_implemented", "Email delivery is not configured.");
     }
     const body = await req.json();
     const email = String(body.email ?? "").trim().toLowerCase();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))
-      throw new HttpError(422, "invalid_email", "メールアドレスの形式が不正です");
+      throw new HttpError(422, "invalid_email", "That does not look like an email address.");
     const displayName = String(body.displayName ?? email.split("@")[0]).slice(0, 20);
     const preferenceTags: string[] = Array.isArray(body.preferenceTags)
       ? body.preferenceTags.slice(0, 12).map(String)

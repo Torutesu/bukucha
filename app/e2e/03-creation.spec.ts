@@ -1,105 +1,127 @@
 import { test, expect } from "@playwright/test";
 import { loginAs, sendMessage } from "./helpers";
 
-/** 次へを押して、ステップインジケータが目的のステップになるまで待つ */
+/** Advance a step and wait for the indicator to catch up. */
 async function nextStep(page: import("@playwright/test").Page, to: number) {
-  await page.getByRole("button", { name: "次へ" }).click();
+  await page.getByRole("button", { name: "Next" }).click();
   await expect(page.getByTestId("step-indicator")).toHaveAttribute("data-step", String(to));
 }
 
-test.describe("創作フロー", () => {
-  test("E2E-013: 妄想一文→AI下書き→編集→テスト→公開", async ({ page }) => {
-    await loginAs(page, "creator-e2e013@test.com", "ゆめの");
+test.describe("Creating", () => {
+  test("E2E-013: one line becomes a whole story, then goes live", async ({ page }) => {
+    await loginAs(page, "creator-e2e013@test.com", "Wren");
     await page.goto("/");
-    await page.getByTestId("bottom-tab").getByText("作る").click();
+    await page.getByTestId("bottom-tab").getByText("Create").click();
     await expect(page).toHaveURL(/\/create/);
 
-    // Step0: 妄想入力→AI下書き
     await page
-      .getByLabel(/妄想を、一文で/)
-      .fill("没落令嬢の私を買ったのは、冷酷と噂の若き公爵だった");
-    await page.getByRole("button", { name: "AIに下書きしてもらう" }).click();
+      .getByLabel(/One line/)
+      .fill("The duke who bought my family's debt has never once mentioned money.");
+    await page.getByRole("button", { name: "Draft it for me" }).click();
 
-    // Step1: フォームが埋まっている
-    await expect(page.getByLabel("タイトル")).toHaveValue(/没落令嬢/, { timeout: 40_000 });
-    await expect(page.getByLabel("世界観")).not.toHaveValue("");
+    await expect(page.getByLabel("Title")).toHaveValue(/duke/i, { timeout: 40_000 });
+    await expect(page.getByLabel("The world")).not.toHaveValue("");
     await nextStep(page, 2);
 
-    // Step2: キャラ編集(SCR-010)
-    await page.getByTestId("character-item").getByText("アルベルト").click();
+    await page.getByTestId("character-item").getByText("Aldric Vaun").click();
     await expect(page).toHaveURL(/\/characters\//);
-    await page.getByLabel("口調・話し方").fill("俺様口調。一人称は俺。命令形が多い。");
-    await page.getByRole("button", { name: "保存して戻る" }).click();
+    await page.getByLabel("Voice").fill("Clipped, imperative, formal only when he is losing.");
+    await page.getByRole("button", { name: "Save and go back" }).click();
     await expect(page.getByTestId("step-indicator")).toHaveAttribute("data-step", "2");
     await nextStep(page, 3);
 
-    // Step3: 開始シチュのラベル変更
-    await page.getByLabel("ラベル").first().fill("初夜の交渉");
+    await page.getByLabel("Name").first().fill("The night of the contract");
     await nextStep(page, 4);
 
-    // Step4: テスト会話
-    await sendMessage(page, "よろしくお願いします");
-    await expect(page.getByTestId("ai-line").last()).toContainText("「");
+    await sendMessage(page, "Good evening.");
+    await expect(page.getByTestId("ai-line").last()).toContainText('"');
     await nextStep(page, 5);
 
-    // Step5: タグ・レベル・公開
-    await page.getByTestId("tag-select").getByRole("button", { name: "身分差" }).click();
-    await page.getByTestId("tag-select").getByRole("button", { name: "策略婚" }).click();
-    await page.getByRole("radio", { name: "全年齢" }).check();
-    await page.getByRole("button", { name: "公開する" }).click();
+    await page.getByTestId("tag-select").getByRole("button", { name: "slow burn" }).click();
+    await page.getByTestId("tag-select").getByRole("button", { name: "court intrigue" }).click();
+    await page.getByRole("radio", { name: "All ages" }).check();
+    await page.getByRole("button", { name: "Publish", exact: true }).click();
 
-    // 完了→作品ページ
-    await expect(page.getByText("公開しました")).toBeVisible({ timeout: 20_000 });
-    await page.getByRole("link", { name: "作品ページを見る" }).click();
-    await expect(page).toHaveURL(/\/s\//);
-    await expect(page.getByTestId("story-title")).toContainText("没落令嬢");
+    await expect(page.getByText("It is live.")).toBeVisible({ timeout: 20_000 });
+    await page.getByRole("link", { name: "See the story page" }).click();
+    await expect(page).toHaveURL(/\/story\//);
+    await expect(page.getByTestId("story-title")).toContainText(/duke/i);
 
-    // ホーム新着に出る
     await page.goto("/");
     await expect(
-      page.getByTestId("section-new").getByText(/没落令嬢の私を買ったのは/).first()
+      page.getByTestId("section-new").getByText(/duke/i).first()
     ).toBeVisible();
   });
 
-  test("E2E-014: 二次創作の公開ブロック", async ({ page }) => {
+  /**
+   * The benchmark's builder generates stats and endings field by field, behind
+   * an eight-step wizard. Generating them up front is what makes a first-time
+   * creator finish, so it has to actually happen — not just be offered.
+   */
+  test("E2E-027: the AI draft ships playable structure, not just prose", async ({ page }) => {
+    await loginAs(page, "creator-e2e027@test.com");
+    const created = await page.request.post("/api/stories/draft", {
+      data: { premise: "A city that runs on debts nobody writes down." },
+    });
+    expect(created.ok()).toBeTruthy();
+    const story = await created.json();
+
+    expect(story.intros.length).toBeGreaterThanOrEqual(2);
+    const intro = story.intros[0];
+    expect(intro.stats.length).toBeGreaterThanOrEqual(2);
+    expect(intro.stats[0].levels.length).toBeGreaterThanOrEqual(2);
+    expect(intro.endings.length).toBeGreaterThanOrEqual(4);
+    expect(intro.endings.map((e: { rarity: string }) => e.rarity)).toContain("SSR");
+    // Rarer endings must actually be harder, not just labelled.
+    const ssr = intro.endings.find((e: { rarity: string }) => e.rarity === "SSR");
+    expect(ssr.rules.length).toBeGreaterThan(0);
+    expect(story.keywords.length).toBeGreaterThanOrEqual(3);
+    expect(intro.playGuide).not.toEqual("");
+  });
+
+  test("E2E-014: publishing is blocked when the story uses someone else's IP", async ({ page }) => {
     await loginAs(page, "creator-e2e014@test.com");
     await page.goto("/create?blank=1");
-    // 白紙から作る
-    await page.getByRole("button", { name: "白紙から作る" }).click();
-    await page.getByLabel("タイトル").fill("最強の術師と結婚しました");
-    await page.getByLabel("ひとこと紹介").fill("テスト用のひとこと。");
-    await page.getByLabel("世界観").fill("五条悟が出てくる学園で、彼と結婚する物語。");
+    await page.getByRole("button", { name: "Start blank" }).click();
+    await page.getByLabel("Title").fill("I married the strongest sorcerer");
+    await page.getByLabel("Logline").fill("A test logline.");
+    await page
+      .getByLabel("The world")
+      .fill("A school where Gojo Satoru teaches, and you end up married to him.");
     await nextStep(page, 2);
-    await nextStep(page, 3); // Step2(デフォルトキャラのまま)
-    // Step3: はじまりは公開に必須
-    await page.getByLabel("導入の地の文").first().fill("薄暗い術式の教室で、彼は振り返った。");
-    await page.getByLabel("最初の返答").first().fill("「よく来たね。待ってたよ」");
+    await nextStep(page, 3);
+    await page
+      .getByLabel("Establishing prose")
+      .first()
+      .fill("A dim classroom full of chalk dust, and he turns around.");
+    await page.getByLabel("Opening scene").first().fill('"You came," he says. "I wondered."');
     await nextStep(page, 4);
-    await nextStep(page, 5); // Step4スキップ
-    await page.getByRole("radio", { name: "全年齢" }).check();
-    await page.getByRole("button", { name: "公開する" }).click();
+    await nextStep(page, 5);
+    await page.getByRole("radio", { name: "All ages" }).check();
+    await page.getByRole("button", { name: "Publish", exact: true }).click();
 
     const err = page.getByTestId("moderation-error");
-    await expect(err).toContainText("既存作品のキャラクター・作品名が含まれています");
-    await expect(err).toContainText("五条悟");
+    await expect(err).toContainText("existing work or character");
+    await expect(err).toContainText("gojo satoru");
 
-    // 該当箇所を修正して再公開
-    await page.getByRole("button", { name: /Step1/ }).click();
+    // Fix the offending field and publish again.
+    await page.getByRole("button", { name: /Back to step 1/ }).click();
     await expect(page.getByTestId("step-indicator")).toHaveAttribute("data-step", "1");
-    await page.getByLabel("世界観").fill("最強の術師の彼と結婚する、オリジナルの物語。");
+    await page
+      .getByLabel("The world")
+      .fill("A school of sorcery, and the strongest teacher in it is nobody you have heard of.");
     await nextStep(page, 2);
     await nextStep(page, 3);
     await nextStep(page, 4);
     await nextStep(page, 5);
-    await page.getByRole("button", { name: "公開する" }).click();
-    await expect(page.getByText("公開しました")).toBeVisible({ timeout: 20_000 });
+    await page.getByRole("button", { name: "Publish", exact: true }).click();
+    await expect(page.getByText("It is live.")).toBeVisible({ timeout: 20_000 });
   });
 
-  test("E2E-018: スタジオの統計表示", async ({ page }) => {
-    // 作者が作品を公開
-    await loginAs(page, "author-e2e018@test.com", "統計作者");
+  test("E2E-018: the studio shows real numbers from the first story", async ({ page }) => {
+    await loginAs(page, "author-e2e018@test.com", "Stats Author");
     const created = await page.request.post("/api/stories/draft", {
-      data: { fantasy: "統計テスト用の物語。彼はいつも数字の話ばかりする。" },
+      data: { premise: "A statistician who only ever talks in numbers, and the one who listens." },
     });
     expect(created.ok()).toBeTruthy();
     const story = await created.json();
@@ -108,28 +130,24 @@ test.describe("創作フロー", () => {
     });
     expect(pub.ok()).toBeTruthy();
 
-    // 読者3人がRoute開始、うち2人がいいね
     for (let i = 1; i <= 3; i++) {
       await loginAs(page, `stats-reader${i}@test.com`);
-      const intro = story.intros[0];
       const st = await page.request.post("/api/routes", {
-        data: { storyId: story.id, introId: intro.id },
+        data: { storyId: story.id, introId: story.intros[0].id },
       });
       expect(st.ok()).toBeTruthy();
       if (i <= 2) {
-        const like = await page.request.post(`/api/stories/${story.id}/like`);
-        expect(like.ok()).toBeTruthy();
+        expect((await page.request.post(`/api/stories/${story.id}/like`)).ok()).toBeTruthy();
       }
     }
 
-    // 作者でスタジオ確認
     await loginAs(page, "author-e2e018@test.com");
     await page.goto("/studio");
-    const card = page.getByTestId("work-card").filter({ hasText: "統計テスト用" });
+    const card = page.getByTestId("work-card").filter({ hasText: "statistician" });
     await expect(card.getByTestId("stat-readers")).toContainText("3");
     await expect(card.getByTestId("stat-likes")).toContainText("2");
-    await card.getByRole("button", { name: "統計" }).click();
+    await card.getByRole("button", { name: "Stats" }).click();
     await expect(card.getByTestId("mini-chart")).toBeVisible();
-    await expect(page.getByTestId("weekly-summary")).toContainText("読者");
+    await expect(page.getByTestId("weekly-summary")).toContainText("Players");
   });
 });

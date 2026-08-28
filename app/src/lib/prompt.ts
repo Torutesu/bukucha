@@ -246,6 +246,8 @@ From one line of premise, build a complete, playable story. Output JSON only:
 - stats: 2-3. Use "affinity" style keys, 0-100 ranges, 3 named levels each with a prompt describing
   how the cast behaves in that band. changeRule tells the narrator when the number moves and by how much.
 - endings: 4, one each of rarity N, R, SR, SSR. Rarer endings need higher stat thresholds and more turns.
+  The N ending is the one reached by reaching nothing else, so give it no stat rules and the
+  HIGHEST minTurns of the four. Every other ending must carry at least one stat rule.
   epilogue is 60-120 words of closing prose. hint is one teasing line shown while the ending is locked.
 - keywords: 3-5 world-note entries with trigger words.
 - suggestedTags: 3-6, drawn from tropes readers search for (slow burn, enemies to lovers, isekai,

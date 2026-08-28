@@ -31,7 +31,7 @@ export async function DELETE(_req: Request, { params }: Params) {
     const user = await requireUser();
     const s = await requireOwnedStory(user, id);
     if (s.characters.length <= 1)
-      throw new HttpError(422, "last_character", "最後の1人は削除できません");
+      throw new HttpError(422, "last_character", "A story needs at least one character.");
     await db.character.delete({ where: { id: cid } });
     return Response.json({ ok: true });
   } catch (e) {

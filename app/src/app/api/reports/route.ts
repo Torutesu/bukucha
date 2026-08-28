@@ -13,7 +13,7 @@ export async function POST(req: Request) {
         reporterId: user.id,
         targetType,
         targetId: String(b.targetId ?? ""),
-        reason: String(b.reason ?? "その他").slice(0, 50),
+        reason: String(b.reason ?? "Something else").slice(0, 80),
         detail: b.detail ? String(b.detail).slice(0, 1000) : null,
       },
     });

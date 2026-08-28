@@ -19,7 +19,7 @@ interface Me {
   personas: Persona[];
 }
 
-// SCR-014: マイページ
+// SCR-014: your account
 export default function MyPage() {
   const router = useRouter();
   const [me, setMe] = useState<Me | null>(null);
@@ -97,36 +97,41 @@ export default function MyPage() {
                   load();
                 }}
               >
-                保存
+                Save
               </button>
             </div>
           ) : (
             <>
               <p className="flex-1 text-lg font-bold">{me.displayName}</p>
               <button className="text-xs underline" style={{ color: "var(--c-textMuted)" }} onClick={() => setEditNick(true)}>
-                編集
+                Edit
               </button>
             </>
           )}
         </section>
 
         <section>
-          <h2 className="mb-2 text-sm font-bold">── わたしの設定(ペルソナ) ──</h2>
+          <h2 className="mb-2 text-sm font-bold">Who you are in the story</h2>
           <div className="space-y-2">
             {me.personas.map((p) => (
               <div key={p.id} className="card flex items-center justify-between p-3">
                 <div>
                   <p className="text-sm font-semibold">
-                    {p.name} {p.isDefault && <span className="text-[10px]" style={{ color: "var(--c-primary)" }}>デフォルト</span>}
+                    {p.name}{" "}
+                    {p.isDefault && (
+                      <span className="text-[10px]" style={{ color: "var(--c-primary)" }}>
+                        default
+                      </span>
+                    )}
                   </p>
                   {p.callName && (
                     <p className="text-[11px]" style={{ color: "var(--c-textMuted)" }}>
-                      呼ばれ方: {p.callName}
+                      called {p.callName}
                     </p>
                   )}
                 </div>
                 <button className="text-xs underline" onClick={() => setEditingPersona(p)}>
-                  編集
+                  Edit
                 </button>
               </div>
             ))}
@@ -134,7 +139,7 @@ export default function MyPage() {
               className="btn-ghost w-full text-sm"
               onClick={() => setEditingPersona({ name: "", isDefault: me.personas.length === 0 })}
             >
-              ＋ ペルソナを追加
+              + Add a persona
             </button>
           </div>
         </section>
@@ -142,7 +147,7 @@ export default function MyPage() {
         {likes.length > 0 && (
           <section>
             <div className="mb-2 flex items-center justify-between">
-              <h2 className="text-sm font-bold">── いいねした物語 ──</h2>
+              <h2 className="text-sm font-bold">Stories you liked</h2>
             </div>
             <div data-testid="liked-row" className="hide-scrollbar flex gap-3 overflow-x-auto">
               {likes.map((s) => (
@@ -153,22 +158,25 @@ export default function MyPage() {
         )}
 
         <section className="space-y-1 text-sm">
-          <h2 className="mb-1 text-sm font-bold">── その他 ──</h2>
+          <h2 className="mb-1 text-sm font-bold">More</h2>
           <Link href="/settings" className="block py-2">
-            ▸ 設定
+            Settings and plan
+          </Link>
+          <Link href="/studio" className="block py-2">
+            Creator studio
           </Link>
           <Link href="/legal/terms" className="block py-2">
-            ▸ 利用規約 / プライバシー
+            Terms, privacy and content policy
           </Link>
           <button
             className="block py-2 text-left"
             onClick={async () => {
-              if (!confirm("ログアウトしますか?")) return;
+              if (!confirm("Sign out?")) return;
               await fetch("/api/auth/logout", { method: "POST" });
               router.push("/");
             }}
           >
-            ▸ ログアウト
+            Sign out
           </button>
         </section>
       </main>
@@ -177,20 +185,23 @@ export default function MyPage() {
       {editingPersona && (
         <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/50 px-6">
           <div className="card w-full max-w-sm p-4">
-            <p className="text-sm font-bold">ペルソナ</p>
-            <label className="label mt-3">名前(作中でのわたし)</label>
+            <p className="text-sm font-bold">Persona</p>
+            <p className="mt-1 text-[11px]" style={{ color: "var(--c-textMuted)" }}>
+              This is who &quot;you&quot; are inside a story.
+            </p>
+            <label className="label mt-3">Name</label>
             <input
               className="input"
               value={editingPersona.name ?? ""}
               onChange={(e) => setEditingPersona({ ...editingPersona, name: e.target.value })}
             />
-            <label className="label mt-3">呼ばれ方</label>
+            <label className="label mt-3">What they call you</label>
             <input
               className="input"
               value={editingPersona.callName ?? ""}
               onChange={(e) => setEditingPersona({ ...editingPersona, callName: e.target.value })}
             />
-            <label className="label mt-3">設定(容姿など)</label>
+            <label className="label mt-3">Anything else worth knowing</label>
             <textarea
               className="input h-20"
               value={editingPersona.profile ?? ""}
@@ -202,14 +213,14 @@ export default function MyPage() {
                 checked={editingPersona.isDefault ?? false}
                 onChange={(e) => setEditingPersona({ ...editingPersona, isDefault: e.target.checked })}
               />
-              デフォルトにする
+              Use this by default
             </label>
             <div className="mt-3 flex gap-2">
               <button className="btn-primary flex-1 py-2 text-sm" onClick={savePersona}>
-                保存
+                Save
               </button>
               <button className="btn-ghost flex-1 py-2 text-sm" onClick={() => setEditingPersona(null)}>
-                やめる
+                Cancel
               </button>
             </div>
           </div>

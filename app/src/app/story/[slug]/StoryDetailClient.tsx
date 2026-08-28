@@ -67,6 +67,11 @@ export function StoryDetailClient({
   const [reportOpen, setReportOpen] = useState(false);
   const [reported, setReported] = useState(false);
   const [worldExpanded, setWorldExpanded] = useState(false);
+  const [ready, setReady] = useState(false);
+
+  // This page is server-rendered, so its controls exist before React has
+  // attached to them. Keep them disabled until they actually work.
+  useEffect(() => setReady(true), []);
 
   const intro = detail.intros.find((i) => i.id === introId) ?? detail.intros[0];
 
@@ -142,13 +147,14 @@ export function StoryDetailClient({
             data-count={likeCount}
             data-liked={liked}
             onClick={toggleLike}
+            disabled={!ready}
             className="text-sm"
             style={{ color: liked ? "var(--c-primary)" : "var(--c-textMuted)" }}
           >
             ♥ {likeCount.toLocaleString()}
           </button>
           <div className="relative">
-            <button aria-label="More" onClick={() => setReportOpen((v) => !v)}>
+            <button aria-label="More" disabled={!ready} onClick={() => setReportOpen((v) => !v)}>
               ⋯
             </button>
             {reportOpen && (
@@ -351,7 +357,7 @@ export function StoryDetailClient({
             ))}
           </fieldset>
         )}
-        <button className="btn-primary w-full" onClick={start} disabled={starting}>
+        <button className="btn-primary w-full" onClick={start} disabled={starting || !ready}>
           {me ? "Start this story" : "Play a few turns — no account needed"}
         </button>
       </footer>
