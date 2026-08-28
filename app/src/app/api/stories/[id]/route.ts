@@ -1,14 +1,14 @@
 import { db } from "@/lib/db";
-import { requireUser, errorResponse } from "@/lib/auth";
-import { getStory } from "@/server/stories";
+import { getSessionUser, requireUser, errorResponse } from "@/lib/auth";
+import { requireOwnedStory, storyDetail } from "@/server/stories";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function GET(_req: Request, { params }: Params) {
   try {
     const { id } = await params;
-    const user = await requireUser();
-    return Response.json(await getStory(user, id));
+    const user = await getSessionUser();
+    return Response.json(await storyDetail(user, id));
   } catch (e) {
     return errorResponse(e);
   }
@@ -18,12 +18,25 @@ export async function PATCH(req: Request, { params }: Params) {
   try {
     const { id } = await params;
     const user = await requireUser();
-    await getStory(user, id);
-    const b = await req.json();
+    await requireOwnedStory(user, id);
+    const body = await req.json();
     const data: Record<string, unknown> = {};
-    if (b.status === "ACTIVE" || b.status === "ARCHIVED") data.status = b.status;
-    if (typeof b.personaId === "string" || b.personaId === null) data.personaId = b.personaId;
-    return Response.json(await db.story.update({ where: { id }, data }));
+    if (typeof body.title === "string") data.title = body.title.slice(0, 60);
+    if (typeof body.logline === "string") data.logline = body.logline.slice(0, 60);
+    if (typeof body.worldSetting === "string") data.worldSetting = body.worldSetting.slice(0, 4000);
+    if (typeof body.coverImageUrl === "string" || body.coverImageUrl === null)
+      data.coverImageUrl = body.coverImageUrl;
+    if (body.contentLevel === "ALL_AGES" || body.contentLevel === "TEEN")
+      data.contentLevel = body.contentLevel;
+    const updated = await db.story.update({ where: { id }, data });
+    if (Array.isArray(body.tagIds)) {
+      await db.storyTag.deleteMany({ where: { storyId: id } });
+      await db.storyTag.createMany({
+        data: body.tagIds.slice(0, 6).map((tagId: string) => ({ storyId: id, tagId })),
+        skipDuplicates: true,
+      });
+    }
+    return Response.json(updated);
   } catch (e) {
     return errorResponse(e);
   }
@@ -33,8 +46,9 @@ export async function DELETE(_req: Request, { params }: Params) {
   try {
     const { id } = await params;
     const user = await requireUser();
-    await getStory(user, id);
-    await db.story.delete({ where: { id } });
+    await requireOwnedStory(user, id);
+    // 論理削除: 既読Routeは読み続けられる(SCR-012 [ASSUMED])
+    await db.story.update({ where: { id }, data: { status: "SUSPENDED" } });
     return Response.json({ ok: true });
   } catch (e) {
     return errorResponse(e);

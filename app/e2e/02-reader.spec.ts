@@ -3,9 +3,9 @@ import { loginAs, sendMessage, E2E_SITUATION } from "./helpers";
 
 test.describe("リーダー(コア体験)", () => {
   test("E2E-002: ゲスト3往復体験→登録壁→引き継ぎ", async ({ page }) => {
-    await page.goto(`/s/${E2E_SITUATION}`);
+    await page.goto(`/story/${E2E_SITUATION}`);
     await page.getByRole("button", { name: "この物語をはじめる" }).click();
-    await expect(page).toHaveURL(/\/story\/guest/);
+    await expect(page).toHaveURL(/\/route\/guest/);
     await expect(page.getByTestId("novel-stream")).toContainText("湊先輩");
 
     for (let i = 1; i <= 3; i++) {
@@ -26,7 +26,7 @@ test.describe("リーダー(コア体験)", () => {
     await page.getByRole("button", { name: "ログイン" }).click();
 
     // 引き継ぎ後: ゲストの3往復が残り、4回目の入力が復元
-    await expect(page).toHaveURL(/\/story\/(?!guest)/, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/route\/(?!guest)/, { timeout: 15_000 });
     await expect(page.getByTestId("novel-stream")).toContainText("こんにちは1");
     await expect(page.getByTestId("novel-stream")).toContainText("こんにちは3");
     await expect(page.getByPlaceholder(/セリフか/)).toHaveValue("4回目のメッセージ");
@@ -34,10 +34,10 @@ test.describe("リーダー(コア体験)", () => {
 
   test("E2E-006: 読む(streaming/ノベル組版/開始シチュ選択)", async ({ page }) => {
     await loginAs(page, "reader-e2e006@test.com");
-    await page.goto(`/s/${E2E_SITUATION}`);
+    await page.goto(`/story/${E2E_SITUATION}`);
     await page.getByRole("radio", { name: /雨の帰り道で/ }).check();
     await page.getByRole("button", { name: "この物語をはじめる" }).click();
-    await expect(page).toHaveURL(/\/story\//);
+    await expect(page).toHaveURL(/\/route\//);
     // 選択したイントロの内容
     await expect(page.getByTestId("novel-stream")).toContainText("昇降口");
     await expect(page.getByTestId("novel-stream")).toContainText("半分濡れるのは、俺でいい");
@@ -55,7 +55,7 @@ test.describe("リーダー(コア体験)", () => {
 
   test("E2E-007: 空欄送信=つづきを読む", async ({ page }) => {
     await loginAs(page, "reader-e2e007@test.com");
-    await page.goto(`/s/${E2E_SITUATION}`);
+    await page.goto(`/story/${E2E_SITUATION}`);
     await page.getByRole("button", { name: "この物語をはじめる" }).click();
     await sendMessage(page, "ねえ、先輩");
     const userLines = page.getByTestId("user-line");
@@ -69,7 +69,7 @@ test.describe("リーダー(コア体験)", () => {
 
   test("E2E-008: 選択肢タップで分岐", async ({ page }) => {
     await loginAs(page, "reader-e2e008@test.com");
-    await page.goto(`/s/${E2E_SITUATION}`);
+    await page.goto(`/story/${E2E_SITUATION}`);
     await page.getByRole("button", { name: "この物語をはじめる" }).click();
     await sendMessage(page, "一言目");
     await sendMessage(page, "二言目"); // 2回目のAI応答に選択肢(決定的)
@@ -91,7 +91,7 @@ test.describe("リーダー(コア体験)", () => {
 
   test("E2E-009: リロールと指示付き書き直し", async ({ page }) => {
     await loginAs(page, "reader-e2e009@test.com");
-    await page.goto(`/s/${E2E_SITUATION}`);
+    await page.goto(`/story/${E2E_SITUATION}`);
     await page.getByRole("button", { name: "この物語をはじめる" }).click();
     await sendMessage(page, "書き直しテスト");
     const aiCount = await page.getByTestId("ai-line").count();
@@ -110,7 +110,7 @@ test.describe("リーダー(コア体験)", () => {
 
   test("E2E-010: 巻き戻し", async ({ page }) => {
     await loginAs(page, "reader-e2e010@test.com");
-    await page.goto(`/s/${E2E_SITUATION}`);
+    await page.goto(`/story/${E2E_SITUATION}`);
     await page.getByRole("button", { name: "この物語をはじめる" }).click();
     for (let i = 1; i <= 5; i++) await sendMessage(page, `発言${i}`);
 
@@ -131,30 +131,30 @@ test.describe("リーダー(コア体験)", () => {
   test("E2E-011: 本棚→あらすじ→再開", async ({ page }) => {
     await loginAs(page, "reader-e2e011@test.com");
     // 2作品を進める
-    await page.goto(`/s/${E2E_SITUATION}`);
+    await page.goto(`/story/${E2E_SITUATION}`);
     await page.getByRole("button", { name: "この物語をはじめる" }).click();
     await sendMessage(page, "1冊目のセリフ");
     await page.goto("/");
-    await page.getByTestId("section-new").getByTestId("situation-card").first().click();
+    await page.getByTestId("section-new").getByTestId("story-card").first().click();
     await page.getByRole("button", { name: "この物語をはじめる" }).click();
     await sendMessage(page, "2冊目のセリフ");
 
     // SCR-006は没入のため下部タブ非表示。←で本棚に戻る
     await page.getByRole("button", { name: "戻る", exact: true }).click();
     await expect(page).toHaveURL(/\/bookshelf/);
-    const cards = page.getByTestId("story-card");
+    const cards = page.getByTestId("route-card");
     await expect(cards).toHaveCount(2);
-    await expect(cards.first().getByTestId("story-recap")).toContainText(/前回まで/);
-    await expect(cards.first().getByTestId("story-progress")).toBeVisible();
+    await expect(cards.first().getByTestId("route-recap")).toContainText(/前回まで/);
+    await expect(cards.first().getByTestId("route-progress")).toBeVisible();
 
     await cards.first().getByRole("link", { name: "つづきを読む" }).click();
-    await expect(page).toHaveURL(/\/story\//);
+    await expect(page).toHaveURL(/\/route\//);
     await expect(page.getByTestId("novel-stream")).toContainText("2冊目のセリフ");
   });
 
   test("E2E-012: 記憶(ユーザーノート)の編集と反映", async ({ page }) => {
     await loginAs(page, "reader-e2e012@test.com");
-    await page.goto(`/s/${E2E_SITUATION}`);
+    await page.goto(`/story/${E2E_SITUATION}`);
     await page.getByRole("button", { name: "この物語をはじめる" }).click();
 
     await page.getByRole("button", { name: "メニュー" }).click();
@@ -176,7 +176,7 @@ test.describe("リーダー(コア体験)", () => {
 
   test("E2E-016: 生成中の出力ブロック(寸止めライン)", async ({ page }) => {
     await loginAs(page, "reader-e2e016@test.com");
-    await page.goto(`/s/${E2E_SITUATION}`);
+    await page.goto(`/story/${E2E_SITUATION}`);
     await page.getByRole("button", { name: "この物語をはじめる" }).click();
     const input = page.getByPlaceholder(/セリフか/);
     await input.fill("NGトリガー");
@@ -192,7 +192,7 @@ test.describe("リーダー(コア体験)", () => {
 
   test("E2E-017: 無料枠の上限(レート制限)体験", async ({ page }) => {
     await loginAs(page, "ratelimit@test.com"); // E2E_MODEでは上限3
-    await page.goto(`/s/${E2E_SITUATION}`);
+    await page.goto(`/story/${E2E_SITUATION}`);
     await page.getByRole("button", { name: "この物語をはじめる" }).click();
     for (let i = 1; i <= 3; i++) await sendMessage(page, `メッセージ${i}`);
 

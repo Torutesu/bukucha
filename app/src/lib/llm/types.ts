@@ -5,21 +5,24 @@ export interface LlmMessage {
   content: string;
 }
 
-/** プロファイル = モデル×温度×出力フィルタ水準の束。AIFごとに定義(05-ai-features.md) */
+/** A profile bundles model, temperature and output handling. One per AI feature. */
 export type LlmProfileKind =
-  | "chat" // AIF-001 ノベル応答
-  | "draft" // AIF-002 妄想→下書き(mid)
-  | "summary" // AIF-003
-  | "recap" // AIF-004
-  | "judge"; // AIF-006/007 判定
+  | "chat" // AIF-002 narration
+  | "state" // AIF-001 + AIF-003 canon + stat extraction
+  | "draft" // AIF-005 premise -> whole story
+  | "summary" // rolling summary (memory layer 2)
+  | "recap" // AIF-006 "Previously on..."
+  | "judge"; // AIF-009 publish-time rating judgement
 
 export interface LlmOptions {
-  /** 選択肢を添付するか(AIF-005) */
+  /** Attach branch choices to this response. */
   wantChoices?: boolean;
-  /** リロール時の方向指示 */
+  /** Steering note for a re-roll. */
   instruction?: string;
-  /** JSON出力を期待する */
+  /** Expect a JSON body back. */
   json?: boolean;
+  /** Quality tier for the narration profile. Ignored elsewhere. */
+  tier?: "STANDARD" | "CINEMATIC";
   signal?: AbortSignal;
 }
 
@@ -28,18 +31,18 @@ export interface LlmChunk {
   token?: string;
   content?: string;
   choices?: { id: string; text: string }[];
-  /** mockプロバイダのみ: E2E検証用 */
+  /** Mock provider only — lets the E2E suite assert on what reached the model. */
   debug?: Record<string, unknown>;
 }
 
 export interface LlmProvider {
-  /** ストリーミング生成。最後に必ず done か blocked を1回emitする */
+  /** Streaming generation. Always ends with exactly one done or blocked chunk. */
   stream(
     profile: LlmProfileKind,
     messages: LlmMessage[],
     options?: LlmOptions
   ): AsyncGenerator<LlmChunk>;
-  /** 非ストリーミング(判定・JSON用) */
+  /** Non-streaming, for judgements and JSON payloads. */
   complete(
     profile: LlmProfileKind,
     messages: LlmMessage[],

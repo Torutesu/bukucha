@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { requireUser, errorResponse } from "@/lib/auth";
-import { cardSelect } from "@/server/situations";
+import { cardSelect } from "@/server/stories";
 import { visibleLevels } from "@/lib/policy";
 
 export async function GET() {
@@ -9,13 +9,13 @@ export async function GET() {
     const likes = await db.like.findMany({
       where: {
         userId: user.id,
-        situation: { status: "PUBLISHED", contentLevel: { in: visibleLevels(user) } },
+        story: { status: "PUBLISHED", contentLevel: { in: visibleLevels(user) } },
       },
-      include: { situation: { select: cardSelect } },
+      include: { story: { select: cardSelect } },
       orderBy: { createdAt: "desc" },
       take: 50,
     });
-    return Response.json({ items: likes.map((l) => l.situation) });
+    return Response.json({ items: likes.map((l) => l.story) });
   } catch (e) {
     return errorResponse(e);
   }

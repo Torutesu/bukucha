@@ -1,3 +1,12 @@
+// HEADCANON — data schema
+// spec: pipeline/bukucha/spec/02-schema.md  |  teardown: pipeline/bukucha/teardown.md §5
+//
+// Domain language follows the North American benchmark (OOC):
+//   Story = the authored work        (was: Situation)
+//   Route = one playthrough of it    (was: Story)
+//   Intro = a start setting          (was: IntroVariant)
+// A Story is first-class; Characters belong to it. There is no standalone character.
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -9,21 +18,32 @@ datasource db {
 
 // ============ enums ============
 
+/// Store builds ship ALL_AGES + TEEN only. MATURE is reserved for a future
+/// web-only, age-verified tier and is never returned to a store client.
 enum ContentLevel {
   ALL_AGES
-  R15
-  R18 // MVP未使用。派生用に予約
+  TEEN
+  MATURE
 }
 
-enum SituationStatus {
+enum Plan {
+  FREE
+  READER
+  AUTHOR
+}
+
+/// Mirrors OOC's Public / Link Only / Private, plus draft and moderation states.
+enum StoryStatus {
   DRAFT
   PUBLISHED
+  UNLISTED
   PRIVATE
   SUSPENDED
 }
 
-enum StoryStatus {
+enum RouteStatus {
   ACTIVE
+  ENDED
   ARCHIVED
 }
 
@@ -31,6 +51,40 @@ enum MessageRole {
   USER
   AI
   SYSTEM
+}
+
+enum ModelTier {
+  STANDARD
+  CINEMATIC
+}
+
+/// Categories of the Canon ledger (SCR-024 / AIF-001).
+enum CanonCategory {
+  PERSON
+  RELATIONSHIP
+  PROMISE
+  WORLD
+  EVENT
+  TRAIT
+}
+
+enum CanonSource {
+  AI_EXTRACTED
+  USER_ADDED
+  USER_EDITED
+  CREATOR_SEED
+}
+
+enum Comparator {
+  GTE
+  LT
+}
+
+enum EndingRarity {
+  N
+  R
+  SR
+  SSR
 }
 
 enum ModerationKind {
@@ -51,27 +105,54 @@ enum ReportStatus {
   DISMISSED
 }
 
+/// Compliance evidence. NY GBL Art. 47 and CA SB 243 both create liability
+/// per violation, so every disclosure and every crisis hand-off is logged.
+enum SafetyEventKind {
+  AI_DISCLOSURE
+  BREAK_REMINDER
+  CRISIS_RESOURCE_SHOWN
+  INPUT_BLOCKED
+  OUTPUT_BLOCKED
+}
+
 // ============ User / Auth ============
 
 model User {
   id             String    @id @default(cuid())
   email          String?   @unique
-  nickname       String
+  handle         String    @unique
+  displayName    String
   avatarUrl      String?
+  bio            String    @default("")
   birthDate      DateTime?
-  safeFilterOff  Boolean   @default(false)
+  /// Only settable to true once birthDate proves 18+. Enforced server-side.
+  matureOptIn    Boolean   @default(false)
   preferenceTags String[]
-  isCreatorBadge Boolean   @default(false)
+  isCreator      Boolean   @default(false)
   role           String    @default("USER")
+  /// "US" | "CA" — selects the policy documents shown (OOC ships en-US / en-CA).
+  region         String    @default("US")
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  accounts   AuthAccount[]
-  personas   Persona[]
-  situations Situation[]
-  stories    Story[]
-  likes      Like[]
-  reports    Report[]
+  // --- plan & quota (teardown §6) ---
+  plan              Plan      @default(FREE)
+  planRenewsAt      DateTime?
+  /// Cinematic-tier generations consumed in the current quota window.
+  cinematicUsed     Int       @default(0)
+  cinematicWindowAt DateTime  @default(now())
+  /// Top-up credits. Never expire, never forfeited on account deletion.
+  creditBalance     Int       @default(0)
+
+  accounts     AuthAccount[]
+  personas     Persona[]
+  stories      Story[]
+  routes       Route[]
+  likes        Like[]
+  reports      Report[]
+  tagBlocks    TagBlock[]
+  endingsFound EndingReached[]
+  safetyEvents SafetyEvent[]
 }
 
 model AuthAccount {
@@ -84,6 +165,7 @@ model AuthAccount {
   @@unique([provider, providerAccountId])
 }
 
+/// The reader's own character. "You" in the second-person narration.
 model Persona {
   id        String  @id @default(cuid())
   userId    String
@@ -92,110 +174,270 @@ model Persona {
   profile   String?
   isDefault Boolean @default(false)
   user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  stories   Story[]
+  routes    Route[]
 }
 
-// ============ Situation ============
+// ============ Story (the authored work) ============
 
-model Situation {
-  id            String          @id @default(cuid())
+model Story {
+  id            String       @id @default(cuid())
+  /// Stable, human-readable URL segment. Public story pages are server-rendered
+  /// and indexable — name search is the demand engine in this market.
+  slug          String       @unique
   authorId      String
   title         String
-  catchphrase   String          @default("")
-  worldSetting  String          @default("")
+  logline       String       @default("")
+  worldSetting  String       @default("")
   coverImageUrl String?
-  contentLevel  ContentLevel    @default(ALL_AGES)
-  status        SituationStatus @default(DRAFT)
+  contentLevel  ContentLevel @default(ALL_AGES)
+  status        StoryStatus  @default(DRAFT)
   aiDraftInput  String?
   publishedAt   DateTime?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
   likeCount   Int @default(0)
-  storyCount  Int @default(0)
-  readerCount Int @default(0)
+  routeCount  Int @default(0)
+  playerCount Int @default(0)
+  endingCount Int @default(0)
 
   author     User             @relation(fields: [authorId], references: [id])
   characters Character[]
-  intros     IntroVariant[]
-  tags       SituationTag[]
-  stories    Story[]
+  intros     Intro[]
+  keywords   KeywordEntry[]
+  tags       StoryTag[]
+  routes     Route[]
   likes      Like[]
   flags      ModerationFlag[]
+  endings    EndingReached[]
+  earnings   CreatorEarning[]
 
   @@index([status, contentLevel, publishedAt])
   @@index([authorId])
 }
 
 model Character {
-  id              String    @id @default(cuid())
-  situationId     String
+  id              String  @id @default(cuid())
+  storyId         String
   name            String
   profileImageUrl String?
-  personality     String    @default("")
-  speechStyle     String    @default("")
-  relationship    String    @default("")
-  exampleDialogs  Json      @default("[]")
-  sortOrder       Int       @default(0)
-  situation       Situation @relation(fields: [situationId], references: [id], onDelete: Cascade)
+  personality     String  @default("")
+  speechStyle     String  @default("")
+  relationship    String  @default("")
+  exampleDialogs  Json    @default("[]")
+  sortOrder       Int     @default(0)
+  story           Story   @relation(fields: [storyId], references: [id], onDelete: Cascade)
 }
 
-model IntroVariant {
-  id           String    @id @default(cuid())
-  situationId  String
+/// A start setting. One world, several doors into it.
+model Intro {
+  id           String      @id @default(cuid())
+  storyId      String
   label        String
-  introText    String    @default("")
-  firstMessage String    @default("")
-  sortOrder    Int       @default(0)
-  situation    Situation @relation(fields: [situationId], references: [id], onDelete: Cascade)
-  stories      Story[]
+  introText    String      @default("")
+  firstMessage String      @default("")
+  /// Shown to the player, never sent to the model (OOC calls this the Play Guide).
+  playGuide    String      @default("")
+  sortOrder    Int         @default(0)
+  story        Story       @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  routes       Route[]
+  stats        StatDef[]
+  endings      EndingDef[]
 }
+
+// ============ Stats (SCR-021 / AIF-003) ============
+
+model StatDef {
+  id           String @id @default(cuid())
+  introId      String
+  key          String
+  name         String
+  icon         String @default("")
+  unit         String @default("")
+  initialValue Int    @default(0)
+  minValue     Int    @default(0)
+  maxValue     Int    @default(100)
+  /// Natural-language rule telling the model when and how far this moves.
+  changeRule   String @default("")
+  sortOrder    Int    @default(0)
+
+  intro  Intro        @relation(fields: [introId], references: [id], onDelete: Cascade)
+  levels StatLevel[]
+  values StatValue[]
+  deltas StatDelta[]
+  rules  EndingRule[]
+
+  @@unique([introId, key])
+}
+
+/// A named band on a stat. Crossing into it changes how the character speaks.
+model StatLevel {
+  id         String     @id @default(cuid())
+  statDefId  String
+  name       String
+  comparator Comparator @default(GTE)
+  threshold  Int
+  prompt     String     @default("")
+  sortOrder  Int        @default(0)
+  statDef    StatDef    @relation(fields: [statDefId], references: [id], onDelete: Cascade)
+}
+
+model StatValue {
+  routeId   String
+  statDefId String
+  value     Int
+  route     Route   @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  statDef   StatDef @relation(fields: [statDefId], references: [id], onDelete: Cascade)
+
+  @@id([routeId, statDefId])
+}
+
+/// Why a number moved. Shown to the player one line at a time — a stat that
+/// changes for a visible reason becomes a goal the player plays toward.
+model StatDelta {
+  id        String       @id @default(cuid())
+  messageId String
+  statDefId String
+  delta     Int
+  reason    String       @default("")
+  message   RouteMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  statDef   StatDef      @relation(fields: [statDefId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+}
+
+// ============ Endings (SCR-022 / AIF-004) ============
+
+model EndingDef {
+  id        String       @id @default(cuid())
+  introId   String
+  name      String
+  rarity    EndingRarity @default(N)
+  minTurns  Int          @default(10)
+  prompt    String       @default("")
+  epilogue  String       @default("")
+  /// Teaser shown while the ending is still locked.
+  hint      String       @default("")
+  sortOrder Int          @default(0)
+
+  intro   Intro           @relation(fields: [introId], references: [id], onDelete: Cascade)
+  rules   EndingRule[]
+  reached EndingReached[]
+}
+
+model EndingRule {
+  id          String     @id @default(cuid())
+  endingDefId String
+  statDefId   String
+  comparator  Comparator @default(GTE)
+  value       Int
+  sortOrder   Int        @default(0)
+  endingDef   EndingDef  @relation(fields: [endingDefId], references: [id], onDelete: Cascade)
+  statDef     StatDef    @relation(fields: [statDefId], references: [id], onDelete: Cascade)
+}
+
+model EndingReached {
+  id           String   @id @default(cuid())
+  userId       String
+  storyId      String
+  endingDefId  String
+  routeId      String
+  turnCount    Int      @default(0)
+  statSnapshot Json     @default("{}")
+  reachedAt    DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  story     Story     @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  endingDef EndingDef @relation(fields: [endingDefId], references: [id], onDelete: Cascade)
+  route     Route     @relation(fields: [routeId], references: [id], onDelete: Cascade)
+
+  @@index([userId, storyId])
+}
+
+// ============ Keyword Book (SCR-011) ============
+
+/// OOC caps active keyword notes at 3. We do not cap them; selection is the
+/// model's job, not the reader's.
+model KeywordEntry {
+  id        String   @id @default(cuid())
+  storyId   String
+  /// Any of these appearing in recent text pulls `body` into context.
+  keywords  String[]
+  body      String
+  /// null = applies to every intro of this story.
+  introId   String?
+  sortOrder Int      @default(0)
+  story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+}
+
+// ============ Tags ============
 
 model Tag {
-  id         String         @id @default(cuid())
-  name       String         @unique
-  category   String
-  isR15      Boolean        @default(false)
-  situations SituationTag[]
+  id       String     @id @default(cuid())
+  name     String     @unique
+  /// "trope" | "genre" | "relationship" | "warning"  — AO3-shaped vocabulary.
+  category String
+  isMature Boolean    @default(false)
+  stories  StoryTag[]
+  blocks   TagBlock[]
 }
 
-model SituationTag {
-  situationId String
-  tagId       String
-  situation   Situation @relation(fields: [situationId], references: [id], onDelete: Cascade)
-  tag         Tag       @relation(fields: [tagId], references: [id], onDelete: Cascade)
+model StoryTag {
+  storyId String
+  tagId   String
+  story   Story  @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  tag     Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
-  @@id([situationId, tagId])
+  @@id([storyId, tagId])
 }
 
-// ============ Story ============
+/// "Stop showing me this." Avoidance shapes discovery as much as preference.
+model TagBlock {
+  userId String
+  tagId  String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
-model Story {
-  id                  String      @id @default(cuid())
-  userId              String
-  situationId         String
-  introVariantId      String
-  personaId           String?
-  status              StoryStatus @default(ACTIVE)
-  lastRecap           String?
-  lastRecapAtIdx      Int         @default(0)
-  branchedFromStoryId String?
-  lastMessageAt       DateTime    @default(now())
-  createdAt           DateTime    @default(now())
+  @@id([userId, tagId])
+}
 
-  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  situation    Situation      @relation(fields: [situationId], references: [id])
-  introVariant IntroVariant   @relation(fields: [introVariantId], references: [id])
-  persona      Persona?       @relation(fields: [personaId], references: [id])
-  messages     StoryMessage[]
-  memory       StoryMemory?
+// ============ Route (one playthrough) ============
+
+model Route {
+  id                String      @id @default(cuid())
+  userId            String
+  storyId           String
+  introId           String
+  personaId         String?
+  status            RouteStatus @default(ACTIVE)
+  lastRecap         String?
+  lastRecapAtIdx    Int         @default(0)
+  /// Route Map (SCR-008): a fork carries its parent's history up to forkedAtIdx.
+  forkedFromRouteId String?
+  forkedAtIdx       Int?
+  /// Compliance clocks (NY GBL Art. 47 §1701: disclosure every three hours).
+  sessionStartedAt  DateTime    @default(now())
+  lastDisclosureAt  DateTime    @default(now())
+  lastMessageAt     DateTime    @default(now())
+  createdAt         DateTime    @default(now())
+
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  story    Story           @relation(fields: [storyId], references: [id])
+  intro    Intro           @relation(fields: [introId], references: [id])
+  persona  Persona?        @relation(fields: [personaId], references: [id])
+  messages RouteMessage[]
+  memory   RouteMemory?
+  canon    CanonFact[]
+  stats    StatValue[]
+  endings  EndingReached[]
 
   @@index([userId, lastMessageAt])
+  @@index([storyId])
 }
 
-model StoryMessage {
+model RouteMessage {
   id             String      @id @default(cuid())
-  storyId        String
+  routeId        String
   idx            Int
   role           MessageRole
   content        String
@@ -203,31 +445,73 @@ model StoryMessage {
   selectedChoice String?
   isDeleted      Boolean     @default(false)
   modelUsed      String?
+  tier           ModelTier   @default(STANDARD)
   createdAt      DateTime    @default(now())
 
-  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  route  Route       @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  deltas StatDelta[]
 
-  @@unique([storyId, idx])
+  @@unique([routeId, idx])
 }
 
-model StoryMemory {
-  storyId      String @id
+/// Layer 2 of memory: lossy rolling summary, for narrative flow.
+/// Layer 1 is CanonFact, which is lossless and never compressed.
+model RouteMemory {
+  routeId      String @id
   summary      String @default("")
   summaryAtIdx Int    @default(0)
   userNote     String @default("")
-  story        Story  @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  route        Route  @relation(fields: [routeId], references: [id], onDelete: Cascade)
+}
+
+// ============ Canon ledger — the differentiator (SCR-024 / AIF-001) ============
+
+/// One settled fact about this route. Append-only from the model's side,
+/// fully editable from the reader's. Editing is never metered.
+model CanonFact {
+  id         String        @id @default(cuid())
+  routeId    String
+  category   CanonCategory
+  /// Who or what the fact is about. Used for grouping and conflict detection.
+  subject    String
+  statement  String
+  sourceTurn Int           @default(0)
+  /// Pinned facts are always injected, ahead of any relevance selection.
+  pinned     Boolean       @default(false)
+  isActive   Boolean       @default(true)
+  source     CanonSource   @default(AI_EXTRACTED)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  route Route @relation(fields: [routeId], references: [id], onDelete: Cascade)
+
+  @@index([routeId, isActive])
+  @@index([routeId, subject])
 }
 
 // ============ Social ============
 
 model Like {
-  userId      String
-  situationId String
-  createdAt   DateTime  @default(now())
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  situation   Situation @relation(fields: [situationId], references: [id], onDelete: Cascade)
+  userId    String
+  storyId   String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
 
-  @@id([userId, situationId])
+  @@id([userId, storyId])
+}
+
+/// Creator revenue share. Accrues from the first turn of the first story —
+/// there is no follower gate, and the platform takes a licence, not a copyright.
+model CreatorEarning {
+  id          String   @id @default(cuid())
+  storyId     String
+  periodStart DateTime
+  turns       Int      @default(0)
+  amountCents Int      @default(0)
+  story       Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  @@unique([storyId, periodStart])
 }
 
 // ============ Trust & Safety ============
@@ -245,13 +529,27 @@ model Report {
 }
 
 model ModerationFlag {
-  id          String           @id @default(cuid())
-  situationId String?
-  targetType  String
-  targetId    String
-  kind        ModerationKind
-  detail      String
-  status      ModerationStatus @default(FLAGGED)
-  createdAt   DateTime         @default(now())
-  situation   Situation?       @relation(fields: [situationId], references: [id], onDelete: Cascade)
+  id         String           @id @default(cuid())
+  storyId    String?
+  targetType String
+  targetId   String
+  kind       ModerationKind
+  detail     String
+  status     ModerationStatus @default(FLAGGED)
+  createdAt  DateTime         @default(now())
+  story      Story?           @relation(fields: [storyId], references: [id], onDelete: Cascade)
+}
+
+/// Evidence trail for NY GBL Art. 47 and CA SB 243. Both statutes are
+/// enforced per violation, so "we showed the disclosure" has to be provable.
+model SafetyEvent {
+  id        String          @id @default(cuid())
+  userId    String
+  routeId   String?
+  kind      SafetyEventKind
+  detail    String          @default("")
+  createdAt DateTime        @default(now())
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }

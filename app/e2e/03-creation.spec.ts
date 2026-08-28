@@ -52,7 +52,7 @@ test.describe("創作フロー", () => {
     await expect(page.getByText("公開しました")).toBeVisible({ timeout: 20_000 });
     await page.getByRole("link", { name: "作品ページを見る" }).click();
     await expect(page).toHaveURL(/\/s\//);
-    await expect(page.getByTestId("situation-title")).toContainText("没落令嬢");
+    await expect(page.getByTestId("story-title")).toContainText("没落令嬢");
 
     // ホーム新着に出る
     await page.goto("/");
@@ -98,26 +98,26 @@ test.describe("創作フロー", () => {
   test("E2E-018: スタジオの統計表示", async ({ page }) => {
     // 作者が作品を公開
     await loginAs(page, "author-e2e018@test.com", "統計作者");
-    const created = await page.request.post("/api/situations/draft", {
+    const created = await page.request.post("/api/stories/draft", {
       data: { fantasy: "統計テスト用の物語。彼はいつも数字の話ばかりする。" },
     });
     expect(created.ok()).toBeTruthy();
-    const situation = await created.json();
-    const pub = await page.request.post(`/api/situations/${situation.id}/publish`, {
+    const story = await created.json();
+    const pub = await page.request.post(`/api/stories/${story.id}/publish`, {
       data: { visibility: "PUBLISHED" },
     });
     expect(pub.ok()).toBeTruthy();
 
-    // 読者3人がStory開始、うち2人がいいね
+    // 読者3人がRoute開始、うち2人がいいね
     for (let i = 1; i <= 3; i++) {
       await loginAs(page, `stats-reader${i}@test.com`);
-      const intro = situation.intros[0];
-      const st = await page.request.post("/api/stories", {
-        data: { situationId: situation.id, introVariantId: intro.id },
+      const intro = story.intros[0];
+      const st = await page.request.post("/api/routes", {
+        data: { storyId: story.id, introId: intro.id },
       });
       expect(st.ok()).toBeTruthy();
       if (i <= 2) {
-        const like = await page.request.post(`/api/situations/${situation.id}/like`);
+        const like = await page.request.post(`/api/stories/${story.id}/like`);
         expect(like.ok()).toBeTruthy();
       }
     }

@@ -5,48 +5,48 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { brand } from "@/lib/theme";
 
-// SCR-017: ログイン/登録
+// SCR-017: Sign in
 function LoginInner() {
   const router = useRouter();
   const params = useSearchParams();
   const returnTo = params.get("returnTo") ?? "/";
-  const isGuestMigration = returnTo.includes("/story/guest");
+  const isGuestMigration = returnTo.includes("/play/guest");
   const [emailMode, setEmailMode] = useState(false);
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
 
-  const oauthEnabled = false; // [build-notes] OAuthはP1(env設定時に有効化)
+  const oauthEnabled = false; // [build-notes] P1 — enabled once the OAuth env is set.
 
   const finishLogin = async () => {
-    // ゲストStory引き継ぎ(E2E-002)
-    const guestRaw = localStorage.getItem("bukucha_guest_story");
+    // Carry the signed-out route across so nothing the reader played is lost.
+    const guestRaw = localStorage.getItem("hc_guest_route");
     let target = returnTo;
     if (guestRaw) {
       try {
         const g = JSON.parse(guestRaw);
-        const r = await fetch("/api/stories/migrate-guest", {
+        const r = await fetch("/api/routes/migrate-guest", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
             guestStory: {
-              situationId: g.situationId,
-              introVariantId: g.introVariantId,
+              storyId: g.storyId,
+              introId: g.introId,
               messages: g.messages,
             },
           }),
         });
         if (r.ok) {
-          const story = await r.json();
-          localStorage.removeItem("bukucha_guest_story");
-          target = `/story/${story.id}`;
+          const route = await r.json();
+          localStorage.removeItem("hc_guest_route");
+          target = `/play/${route.id}`;
         }
       } catch {
         /* ignore */
       }
     }
-    // 嗜好タグを保存
-    const pref = localStorage.getItem("bukucha_pref_tags");
+    // Persist the tropes chosen during onboarding.
+    const pref = localStorage.getItem("hc_pref_tags");
     if (pref) {
       try {
         await fetch("/api/me", {
@@ -83,48 +83,50 @@ function LoginInner() {
         {brand.name}
       </h1>
       <p className="mt-3 text-center text-sm" style={{ color: "var(--c-textMuted)" }}>
-        {isGuestMigration ? "ここまでの物語を保存して、続きを読もう" : "物語のつづきを、保存しよう"}
+        {isGuestMigration
+          ? "Save the route you just played and keep going."
+          : "Keep your routes, your canon, and your endings."}
       </p>
 
       <div className="mt-8 space-y-3">
-        <button className="btn-ghost w-full" disabled={!oauthEnabled} title={oauthEnabled ? "" : "準備中"}>
-           Googleでつづける
+        <button className="btn-ghost w-full" disabled={!oauthEnabled} title={oauthEnabled ? "" : "Coming soon"}>
+          Continue with Google
         </button>
-        <button className="btn-ghost w-full" disabled={!oauthEnabled} title={oauthEnabled ? "" : "準備中"}>
-           Appleでつづける
+        <button className="btn-ghost w-full" disabled={!oauthEnabled} title={oauthEnabled ? "" : "Coming soon"}>
+          Continue with Apple
         </button>
 
         {!emailMode ? (
           <button className="btn-primary w-full" onClick={() => setEmailMode(true)}>
-            メールでつづける
+            Continue with email
           </button>
         ) : (
           <div className="space-y-2">
             <input
               className="input"
               type="email"
-              placeholder="メールアドレス"
+              placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
-            {error && <p className="text-xs" style={{ color: "var(--c-danger)" }}>ログインに失敗しました</p>}
+            {error && <p className="text-xs" style={{ color: "var(--c-danger)" }}>That did not work. Check the address and try again.</p>}
             <button className="btn-primary w-full" onClick={submitEmail} disabled={loading || !email}>
-              {loading ? "…" : "ログイン"}
+              {loading ? "…" : "Continue"}
             </button>
           </div>
         )}
       </div>
 
       <p className="mt-6 text-center text-[11px]" style={{ color: "var(--c-textMuted)" }}>
-        登録すると
+        By continuing you agree to our{" "}
         <Link href="/legal/terms" className="underline">
-          利用規約
-        </Link>
-        と
+          Terms
+        </Link>{" "}
+        and{" "}
         <Link href="/legal/privacy" className="underline">
-          プライバシーポリシー
+          Privacy Policy
         </Link>
-        に同意したことになります
+        .
       </p>
     </main>
   );

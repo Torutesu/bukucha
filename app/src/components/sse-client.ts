@@ -1,12 +1,18 @@
 "use client";
 
-/** fetch POSTでSSEを受けるクライアント(03-api.md: token/choices/done/blocked/error) */
+/** SSE over fetch POST. Event contract: spec 03-api.md. */
 export interface SseHandlers {
   onToken?: (t: string) => void;
   onDone?: (data: {
     message?: { idx: number; content: string; choices: { id: string; text: string }[] | null };
   }) => void;
   onBlocked?: (message: string) => void;
+  onStats?: (d: { key: string; name: string; icon: string; delta: number; reason: string }[]) => void;
+  onEnding?: (d: { id: string; name: string; rarity: string; epilogue: string }) => void;
+  onRadar?: (d: { id: string; rarity: string; hint: string; progress: number }[]) => void;
+  onTier?: (d: { tier: string; downgraded: boolean; resetsAt: string }) => void;
+  onIntermission?: (d: { reason: string }) => void;
+  onCrisis?: (d: { headline: string; body: string; lines: { name: string; contact: string; href: string }[] }) => void;
   onError?: (code: string, message: string) => void;
 }
 
@@ -33,7 +39,7 @@ export async function postSse(
       const j = await res.json().catch(() => null);
       handlers.onError?.(
         j?.error?.code ?? String(res.status),
-        j?.error?.message ?? "エラーが発生しました"
+        j?.error?.message ?? "Something went wrong."
       );
       return;
     }
@@ -60,18 +66,25 @@ export async function postSse(
         if (event === "token" && typeof data === "string") handlers.onToken?.(data);
         else if (event === "done") handlers.onDone?.(data as Parameters<NonNullable<SseHandlers["onDone"]>>[0]);
         else if (event === "blocked")
-          handlers.onBlocked?.((data as { message?: string })?.message ?? "生成できませんでした");
+          handlers.onBlocked?.((data as { message?: string })?.message ?? "That turn could not be written.");
+        else if (event === "stats") handlers.onStats?.(data as Parameters<NonNullable<SseHandlers["onStats"]>>[0]);
+        else if (event === "ending") handlers.onEnding?.(data as Parameters<NonNullable<SseHandlers["onEnding"]>>[0]);
+        else if (event === "radar") handlers.onRadar?.(data as Parameters<NonNullable<SseHandlers["onRadar"]>>[0]);
+        else if (event === "tier") handlers.onTier?.(data as Parameters<NonNullable<SseHandlers["onTier"]>>[0]);
+        else if (event === "intermission") handlers.onIntermission?.(data as { reason: string });
+        else if (event === "crisis")
+          handlers.onCrisis?.(data as Parameters<NonNullable<SseHandlers["onCrisis"]>>[0]);
         else if (event === "error") {
           const d = data as { code?: string; message?: string };
-          handlers.onError?.(d?.code ?? "error", d?.message ?? "エラーが発生しました");
+          handlers.onError?.(d?.code ?? "error", d?.message ?? "Something went wrong.");
         }
       }
     }
   } catch (e) {
     if ((e as Error).name === "AbortError") {
-      handlers.onError?.("timeout", "時間がかかりすぎています");
+      handlers.onError?.("timeout", "This is taking longer than it should.");
     } else {
-      handlers.onError?.("network", "通信に失敗しました");
+      handlers.onError?.("network", "Could not reach the server.");
     }
   } finally {
     clearTimeout(timer);

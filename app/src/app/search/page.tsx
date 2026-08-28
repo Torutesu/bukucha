@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Cover, type CardData } from "@/components/SituationCard";
+import { Cover, type CardData } from "@/components/StoryCard";
 
 interface Tag {
   id: string;
@@ -203,22 +203,22 @@ function SearchInner() {
             {results && results.length > 0 && (
               <div className="grid grid-cols-2 gap-x-3 gap-y-5">
                 {results.map((s) => (
-                  <Link key={s.id} href={`/s/${s.id}`} data-testid="search-result" className="block">
+                  <Link key={s.id} href={`/story/${s.id}`} data-testid="search-result" className="block">
                     <Cover s={s} />
                     <p className="mt-1 line-clamp-2 text-[13px] font-semibold leading-tight">
-                      {s.contentLevel === "R15" && (
+                      {s.contentLevel === "TEEN" && (
                         <span
                           data-testid="r15-badge"
                           className="mr-1 rounded px-1 text-[10px] font-bold text-white"
                           style={{ background: "var(--c-danger)" }}
                         >
-                          R15
+                          TEEN
                         </span>
                       )}
                       {s.title}
                     </p>
                     <p className="text-[11px]" style={{ color: "var(--c-textMuted)" }}>
-                      📖 {s.readerCount.toLocaleString()} ♥ {s.likeCount.toLocaleString()}
+                      📖 {s.playerCount.toLocaleString()} ♥ {s.likeCount.toLocaleString()}
                     </p>
                   </Link>
                 ))}

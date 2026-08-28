@@ -1,3 +1,4 @@
+import { handleFrom } from "@/lib/slug";
 import { db } from "@/lib/db";
 import { errorResponse, HttpError, setSessionCookie } from "@/lib/auth";
 
@@ -15,7 +16,7 @@ export async function POST(req: Request) {
     const email = String(body.email ?? "").trim().toLowerCase();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))
       throw new HttpError(422, "invalid_email", "メールアドレスの形式が不正です");
-    const nickname = String(body.nickname ?? email.split("@")[0]).slice(0, 20);
+    const displayName = String(body.displayName ?? email.split("@")[0]).slice(0, 20);
     const preferenceTags: string[] = Array.isArray(body.preferenceTags)
       ? body.preferenceTags.slice(0, 12).map(String)
       : [];
@@ -23,10 +24,10 @@ export async function POST(req: Request) {
     const user = await db.user.upsert({
       where: { email },
       update: preferenceTags.length ? { preferenceTags } : {},
-      create: { email, nickname, preferenceTags },
+      create: { email, handle: handleFrom(email), displayName, preferenceTags },
     });
     await setSessionCookie(user.id);
-    return Response.json({ id: user.id, nickname: user.nickname });
+    return Response.json({ id: user.id, displayName: user.displayName });
   } catch (e) {
     return errorResponse(e);
   }

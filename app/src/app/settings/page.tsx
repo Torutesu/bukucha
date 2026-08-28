@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 interface Me {
   birthDate: string | null;
-  safeFilterOff: boolean;
+  matureOptIn: boolean;
   isAdult: boolean;
   email: string | null;
 }
@@ -56,12 +56,12 @@ export default function SettingsPage() {
 
   const toggleFilter = async () => {
     if (!me) return;
-    if (me.safeFilterOff) {
+    if (me.matureOptIn) {
       // ONに戻す(確認なし)
       await fetch("/api/me", {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ safeFilterOff: false }),
+        body: JSON.stringify({ matureOptIn: false }),
       });
       load();
     } else {
@@ -73,7 +73,7 @@ export default function SettingsPage() {
     await fetch("/api/me", {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ safeFilterOff: true }),
+      body: JSON.stringify({ matureOptIn: true }),
     });
     setFilterModal(false);
     setFilterAck(false);
@@ -155,11 +155,11 @@ export default function SettingsPage() {
                 disabled={!canToggle}
                 onClick={toggleFilter}
                 className="relative h-7 w-12 rounded-full transition disabled:opacity-40"
-                style={{ background: me.safeFilterOff ? "var(--c-primary)" : "var(--c-border)" }}
+                style={{ background: me.matureOptIn ? "var(--c-primary)" : "var(--c-border)" }}
               >
                 <span
                   className="absolute top-0.5 h-6 w-6 rounded-full bg-white transition-all"
-                  style={{ left: me.safeFilterOff ? "22px" : "2px" }}
+                  style={{ left: me.matureOptIn ? "22px" : "2px" }}
                 />
               </button>
             </div>

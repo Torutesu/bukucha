@@ -7,7 +7,7 @@ export async function GET(req: Request) {
     const user = await getSessionUser();
     const url = new URL(req.url);
     const category = url.searchParams.get("category") ?? undefined;
-    const showR15 = visibleLevels(user).includes("R15");
+    const showR15 = visibleLevels(user).includes("TEEN");
     const tags = await db.tag.findMany({
       where: { ...(category ? { category } : {}), ...(showR15 ? {} : { isR15: false }) },
       orderBy: { name: "asc" },

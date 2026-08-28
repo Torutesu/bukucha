@@ -9,7 +9,7 @@ interface Work {
   title: string;
   status: string;
   likeCount: number;
-  readerCount: number;
+  playerCount: number;
   publishedAt: string | null;
 }
 interface Summary {
@@ -26,7 +26,7 @@ export default function StudioPage() {
   const [worksData, setWorksData] = useState<{ tab: string; items: Work[] } | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [openStats, setOpenStats] = useState<string | null>(null);
-  const [stats, setStats] = useState<Record<string, { date: string; storyCount: number }[]>>({});
+  const [stats, setStats] = useState<Record<string, { date: string; routeCount: number }[]>>({});
 
   useEffect(() => {
     fetch("/api/studio/summary").then(async (r) => {
@@ -41,7 +41,7 @@ export default function StudioPage() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const r = await fetch(`/api/studio/situations?status=${tab}`);
+      const r = await fetch(`/api/studio/stories?status=${tab}`);
       const j = r.ok ? await r.json() : { items: [] };
       if (!cancelled) setWorksData({ tab, items: j.items });
     })();
@@ -59,7 +59,7 @@ export default function StudioPage() {
     }
     setOpenStats(id);
     if (!stats[id]) {
-      const r = await fetch(`/api/studio/situations/${id}/stats`);
+      const r = await fetch(`/api/studio/stories/${id}/stats`);
       if (r.ok) {
         const j = await r.json();
         setStats((s) => ({ ...s, [id]: j.daily }));
@@ -67,7 +67,7 @@ export default function StudioPage() {
     }
   };
 
-  const maxCount = (id: string) => Math.max(1, ...(stats[id]?.map((d) => d.storyCount) ?? [1]));
+  const maxCount = (id: string) => Math.max(1, ...(stats[id]?.map((d) => d.routeCount) ?? [1]));
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -130,16 +130,16 @@ export default function StudioPage() {
         )}
         {works?.map((w) => (
           <div key={w.id} data-testid="work-card" className="card p-3">
-            <Link href={w.status === "PUBLISHED" ? `/s/${w.id}` : "#"} className="block">
+            <Link href={w.status === "PUBLISHED" ? `/story/${w.id}` : "#"} className="block">
               <p className="text-sm font-semibold">{w.title || "(無題)"}</p>
             </Link>
             <p className="mt-1 flex gap-3 text-[11px]" style={{ color: "var(--c-textMuted)" }}>
-              <span data-testid="stat-readers">📖 {w.readerCount.toLocaleString()}</span>
+              <span data-testid="stat-readers">📖 {w.playerCount.toLocaleString()}</span>
               <span data-testid="stat-likes">♥ {w.likeCount.toLocaleString()}</span>
               {w.publishedAt && <span>📅 {new Date(w.publishedAt).toLocaleDateString("ja-JP")}</span>}
             </p>
             <div className="mt-2 flex gap-2">
-              <Link href={`/create?situationId=${w.id}`} className="btn-ghost px-3 py-1.5 text-xs">
+              <Link href={`/create?storyId=${w.id}`} className="btn-ghost px-3 py-1.5 text-xs">
                 編集
               </Link>
               <button className="btn-ghost px-3 py-1.5 text-xs" onClick={() => loadStats(w.id)}>
@@ -152,9 +152,9 @@ export default function StudioPage() {
                   <div
                     key={d.date}
                     className="flex-1 rounded-t"
-                    title={`${d.date}: ${d.storyCount}`}
+                    title={`${d.date}: ${d.routeCount}`}
                     style={{
-                      height: `${(d.storyCount / maxCount(w.id)) * 100}%`,
+                      height: `${(d.routeCount / maxCount(w.id)) * 100}%`,
                       minHeight: "2px",
                       background: "var(--c-primary)",
                     }}

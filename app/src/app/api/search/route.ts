@@ -1,5 +1,5 @@
 import { getSessionUser, errorResponse } from "@/lib/auth";
-import { search } from "@/server/situations";
+import { search } from "@/server/stories";
 
 export async function GET(req: Request) {
   try {

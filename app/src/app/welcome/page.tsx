@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { SituationCard, type CardData } from "@/components/SituationCard";
+import { StoryCard, type CardData } from "@/components/StoryCard";
 import { brand } from "@/lib/theme";
 
 interface Tag {
@@ -10,7 +10,8 @@ interface Tag {
   name: string;
 }
 
-// SCR-001: オンボーディング(体験先行)
+// SCR-001: Onboarding. Taste first, sign-up later — the benchmark asks for
+// an account before it shows you anything, and that is a conversion tax.
 export default function WelcomePage() {
   const router = useRouter();
   const [tags, setTags] = useState<Tag[] | null>(null);
@@ -21,15 +22,15 @@ export default function WelcomePage() {
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    fetch("/api/tags?category=desire")
+    fetch("/api/tags?category=trope")
       .then((r) => r.json())
       .then(setTags)
       .catch(() => setError(true));
   }, []);
 
   const markVisited = () => {
-    localStorage.setItem("bukucha_visited", "1");
-    localStorage.setItem("bukucha_pref_tags", JSON.stringify(selected));
+    localStorage.setItem("hc_visited", "1");
+    localStorage.setItem("hc_pref_tags", JSON.stringify(selected));
   };
 
   const toStep2 = async () => {
@@ -56,18 +57,18 @@ export default function WelcomePage() {
 
       {error && (
         <div className="mt-10 text-center text-sm">
-          読み込みに失敗しました
+          We could not load your tropes.
           <button className="btn-ghost mt-3 block w-full" onClick={() => location.reload()}>
-            再試行
+            Try again
           </button>
         </div>
       )}
 
       {!error && step === 0 && (
         <>
-          <h2 className="mt-10 text-lg font-bold">好きなシチュは?</h2>
+          <h2 className="mt-10 text-lg font-bold">What are you here for?</h2>
           <p className="text-xs" style={{ color: "var(--c-textMuted)" }}>
-            いくつでも選べます
+            Pick as many as you like. You can change this later.
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             {!tags &&
@@ -95,7 +96,7 @@ export default function WelcomePage() {
             disabled={selected.length === 0}
             onClick={toStep2}
           >
-            つぎへ
+            Show me something
           </button>
         </>
       )}
@@ -103,7 +104,7 @@ export default function WelcomePage() {
       {!error && step === 1 && (
         <>
           <h2 className="mt-10 text-lg font-bold">
-            {fallback ? "人気の物語" : "あなたにおすすめの物語"}
+            {fallback ? "What people are playing" : "Start with one of these"}
           </h2>
           <div className="mt-4 grid grid-cols-3 gap-3">
             {!cards &&
@@ -111,7 +112,7 @@ export default function WelcomePage() {
                 <div key={i} className="card aspect-[3/4] animate-pulse" />
               ))}
             {cards?.map((s) => (
-              <SituationCard key={s.id} s={s} testid="recommend-card" />
+              <StoryCard key={s.id} s={s} testid="recommend-card" />
             ))}
           </div>
           <button
@@ -121,7 +122,7 @@ export default function WelcomePage() {
               router.push("/");
             }}
           >
-            あとで選ぶ
+            Browse everything instead
           </button>
         </>
       )}

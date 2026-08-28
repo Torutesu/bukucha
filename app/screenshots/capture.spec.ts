@@ -38,9 +38,9 @@ test("capture screens", async ({ page }) => {
   await shot("05-search-results");
 
   // 4. 作品詳細
-  await page.goto(`/s/${E2E_SITUATION}`);
+  await page.goto(`/story/${E2E_SITUATION}`);
   await page.waitForTimeout(1200);
-  await shot("06-situation-detail");
+  await shot("06-story-detail");
 
   // 5. ノベルリーダー
   await page.getByRole("button", { name: "この物語をはじめる" }).click();
@@ -73,7 +73,7 @@ test("capture screens", async ({ page }) => {
   await page.waitForTimeout(700);
   await shot("13-create-characters");
 
-  await page.goto("/create?situationId=" + (await page.url().split("situationId=")[1] ?? ""), {
+  await page.goto("/create?storyId=" + (await page.url().split("storyId=")[1] ?? ""), {
     waitUntil: "domcontentloaded",
   }).catch(() => {});
 
@@ -96,9 +96,9 @@ test("capture screens", async ({ page }) => {
   await page.goto("/settings");
   await page.getByRole("button", { name: "ダーク" }).click();
   await page.waitForTimeout(400);
-  await page.goto("/bookshelf");
+  await page.goto("/library");
   await page.waitForTimeout(1500);
-  await page.getByTestId("story-card").first().getByRole("link", { name: "つづきを読む" }).click();
+  await page.getByTestId("route-card").first().getByRole("link", { name: "つづきを読む" }).click();
   await page.waitForTimeout(1500);
   await shot("17-reader-dark");
 

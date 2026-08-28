@@ -26,10 +26,10 @@ export default function CharacterEditPage({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const backToWizard = () => router.push(`/create?situationId=${sid}&step=2`);
+  const backToWizard = () => router.push(`/create?storyId=${sid}&step=2`);
 
   useEffect(() => {
-    fetch(`/api/situations/${sid}`)
+    fetch(`/api/stories/${sid}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (!d) {
@@ -63,7 +63,7 @@ export default function CharacterEditPage({
 
   const save = async () => {
     setSaving(true);
-    const r = await fetch(`/api/situations/${sid}/characters/${cid}`, {
+    const r = await fetch(`/api/stories/${sid}/characters/${cid}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -81,7 +81,7 @@ export default function CharacterEditPage({
   };
 
   const genSamples = async () => {
-    const r = await fetch(`/api/situations/${sid}/characters/${cid}/sample-dialogs`, {
+    const r = await fetch(`/api/stories/${sid}/characters/${cid}/sample-dialogs`, {
       method: "POST",
     });
     if (r.ok) {
@@ -204,7 +204,7 @@ export default function CharacterEditPage({
             style={{ color: "var(--c-danger)" }}
             onClick={async () => {
               if (!confirm("このキャラを削除しますか?")) return;
-              await fetch(`/api/situations/${sid}/characters/${cid}`, { method: "DELETE" });
+              await fetch(`/api/stories/${sid}/characters/${cid}`, { method: "DELETE" });
               backToWizard();
             }}
           >

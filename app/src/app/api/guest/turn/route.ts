@@ -1,6 +1,6 @@
 import { errorResponse } from "@/lib/auth";
 import { assertGuestQuota } from "@/lib/ratelimit";
-import { guestTurn } from "@/server/stories";
+import { guestTurn } from "@/server/routes";
 import { sseResponse } from "@/server/sse";
 
 export async function POST(req: Request) {
@@ -10,8 +10,8 @@ export async function POST(req: Request) {
     const b = await req.json();
     return sseResponse(() =>
       guestTurn(
-        String(b.situationId),
-        String(b.introVariantId),
+        String(b.storyId),
+        String(b.introId),
         Array.isArray(b.history) ? b.history : [],
         String(b.content ?? "")
       )

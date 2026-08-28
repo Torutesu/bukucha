@@ -1,18 +1,26 @@
 import type { LlmChunk, LlmMessage, LlmOptions, LlmProfileKind, LlmProvider } from "./types";
 
 /**
- * OpenAI互換API(chat/completions)プロバイダ。
- * 超低価格モデル前提(decisions.md #3)。ベースURL/モデルIDは環境変数で切替:
- *   LLM_BASE_URL, LLM_API_KEY, LLM_MODEL_LIGHT, LLM_MODEL_MID
- * 派生(R18)ではここのルーティングでNSFW許容プロバイダに切替える(05-ai-features 横断事項)。
+ * OpenAI-compatible (chat/completions) provider.
+ *
+ * Free readers get unlimited STANDARD turns, so the standard model's per-turn
+ * cost is the constraint the whole pricing model rests on. Model ids are env
+ * driven so the tier mapping can be retuned without a deploy of this file:
+ *   LLM_BASE_URL, LLM_API_KEY, LLM_MODEL_STANDARD, LLM_MODEL_CINEMATIC
  */
 
-const MODEL_BY_PROFILE: Record<LlmProfileKind, () => string> = {
-  chat: () => process.env.LLM_MODEL_LIGHT ?? "gpt-4o-mini",
-  draft: () => process.env.LLM_MODEL_MID ?? process.env.LLM_MODEL_LIGHT ?? "gpt-4o-mini",
-  summary: () => process.env.LLM_MODEL_LIGHT ?? "gpt-4o-mini",
-  recap: () => process.env.LLM_MODEL_LIGHT ?? "gpt-4o-mini",
-  judge: () => process.env.LLM_MODEL_LIGHT ?? "gpt-4o-mini",
+const STANDARD = () => process.env.LLM_MODEL_STANDARD ?? "gpt-4o-mini";
+const CINEMATIC = () => process.env.LLM_MODEL_CINEMATIC ?? STANDARD();
+
+const MODEL_BY_PROFILE: Record<LlmProfileKind, (tier?: string) => string> = {
+  chat: (tier) => (tier === "CINEMATIC" ? CINEMATIC() : STANDARD()),
+  // Bookkeeping profiles are never charged to the reader, so they stay on the
+  // cheapest model regardless of plan.
+  state: () => STANDARD(),
+  draft: () => CINEMATIC(),
+  summary: () => STANDARD(),
+  recap: () => STANDARD(),
+  judge: () => STANDARD(),
 };
 
 export class OpenAICompatProvider implements LlmProvider {
@@ -29,18 +37,18 @@ export class OpenAICompatProvider implements LlmProvider {
     if (options?.instruction) {
       msgs.push({
         role: "system",
-        content: `直前の応答を次の方向で書き直してください: ${options.instruction}`,
+        content: `Rewrite the previous turn in this direction: ${options.instruction}`,
       });
     }
     if (options?.wantChoices) {
       msgs.push({
         role: "system",
         content:
-          '応答本文の後に必ず改行し、最終行に選択肢を JSON で出力: CHOICES:[{"id":"a","text":"..."},{"id":"b","text":"..."}] 対照的な2方向。',
+          'After the prose, on its own final line, output two contrasting next moves as JSON: CHOICES:[{"id":"a","text":"..."},{"id":"b","text":"..."}]. Each is something the reader could do, under 12 words, written in second person.',
       });
     }
     return {
-      model: MODEL_BY_PROFILE[profile](),
+      model: MODEL_BY_PROFILE[profile](options?.tier),
       messages: msgs,
       temperature: profile === "chat" ? 0.9 : profile === "judge" ? 0 : 0.7,
       stream,
@@ -85,13 +93,13 @@ export class OpenAICompatProvider implements LlmProvider {
           const delta: string = json.choices?.[0]?.delta?.content ?? "";
           if (delta) {
             full += delta;
-            // CHOICES行はUIに流さない
+            // Never stream the CHOICES line into the prose.
             if (!full.includes("CHOICES:")) {
               yield { type: "token", token: delta };
             }
           }
         } catch {
-          /* keep-alive等は無視 */
+          /* keep-alive frames and partial chunks */
         }
       }
     }
@@ -103,7 +111,8 @@ export class OpenAICompatProvider implements LlmProvider {
       try {
         choices = JSON.parse(m[1]);
       } catch {
-        choices = undefined; // AIF-005 fallback: 選択肢なしで劣化なし
+        // Fallback: the turn still reads fine without branch buttons.
+        choices = undefined;
       }
     }
     yield { type: "done", content, choices };

@@ -20,12 +20,12 @@ interface Intro {
   introText: string;
   firstMessage: string;
 }
-interface Situation {
+interface Story {
   id: string;
   title: string;
-  catchphrase: string;
+  logline: string;
   worldSetting: string;
-  contentLevel: "ALL_AGES" | "R15";
+  contentLevel: "ALL_AGES" | "TEEN";
   characters: Character[];
   intros: Intro[];
   tags: { tag: { id: string; name: string } }[];
@@ -37,7 +37,7 @@ function CreateInner() {
   const router = useRouter();
   const params = useSearchParams();
   const [step, setStep] = useState(0);
-  const [situation, setSituation] = useState<Situation | null>(null);
+  const [story, setStory] = useState<Story | null>(null);
   const [fantasy, setFantasy] = useState(params.get("fantasy") ?? "");
   const [drafting, setDrafting] = useState(false);
   const [draftError, setDraftError] = useState(false);
@@ -76,19 +76,19 @@ function CreateInner() {
 
   // 既存下書きの再開
   useEffect(() => {
-    const sid = params.get("situationId");
+    const sid = params.get("storyId");
     if (sid) {
-      fetch(`/api/situations/${sid}`)
+      fetch(`/api/stories/${sid}`)
         .then((r) => (r.ok ? r.json() : null))
         .then((d) => {
           if (d) {
-            setSituation(normalize(d));
+            setStory(normalize(d));
             const q = Number(params.get("step"));
             setStep(Number.isFinite(q) && q >= 1 && q <= 5 ? q : 1);
           }
         });
     }
-    if (params.get("blank") || params.get("situationId")) return;
+    if (params.get("blank") || params.get("storyId")) return;
     // fetch("/api/me") で未ログインなら弾く
     fetch("/api/me").then((r) => {
       if (r.status === 401) router.replace(`/login?returnTo=${encodeURIComponent("/create")}`);
@@ -96,7 +96,7 @@ function CreateInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function normalize(d: Situation): Situation {
+  function normalize(d: Story): Story {
     return {
       ...d,
       characters: d.characters.map((c) => ({
@@ -107,16 +107,16 @@ function CreateInner() {
   }
 
   const patch = useCallback(
-    async (data: Partial<Situation> & { tagIds?: string[] }) => {
-      if (!situation) return;
-      setSituation({ ...situation, ...data } as Situation);
-      await track(fetch(`/api/situations/${situation.id}`, {
+    async (data: Partial<Story> & { tagIds?: string[] }) => {
+      if (!story) return;
+      setStory({ ...story, ...data } as Story);
+      await track(fetch(`/api/stories/${story.id}`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(data),
       }));
     },
-    [situation]
+    [story]
   );
 
   const runDraft = async () => {
@@ -124,13 +124,13 @@ function CreateInner() {
     setDrafting(true);
     setDraftError(false);
     try {
-      const r = await fetch("/api/situations/draft", {
+      const r = await fetch("/api/stories/draft", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ fantasy }),
       });
       if (!r.ok) throw new Error();
-      setSituation(normalize(await r.json()));
+      setStory(normalize(await r.json()));
       setStep(1);
     } catch {
       setDraftError(true);
@@ -140,22 +140,22 @@ function CreateInner() {
   };
 
   const startBlank = async () => {
-    const r = await fetch("/api/situations", { method: "POST" });
+    const r = await fetch("/api/stories", { method: "POST" });
     if (r.ok) {
-      setSituation(normalize(await r.json()));
+      setStory(normalize(await r.json()));
       setStep(1);
     }
   };
 
   const runTest = async () => {
-    if (!situation || testGenerating || !testInput.trim()) return;
+    if (!story || testGenerating || !testInput.trim()) return;
     const content = testInput;
     setTestMessages((m) => [...m, { role: "USER", content }]);
     setTestInput("");
     setTestGenerating(true);
     setTestStream("");
     await postSse(
-      `/api/situations/${situation.id}/test-turn`,
+      `/api/stories/${story.id}/test-turn`,
       { history: testMessages.slice(-6), content },
       {
         onToken: (t) => setTestStream((s) => s + t),
@@ -168,12 +168,12 @@ function CreateInner() {
   };
 
   const publish = async (visibility: "PUBLISHED" | "PRIVATE") => {
-    if (!situation) return;
+    if (!story) return;
     await flushSaves();
     setPublishing(true);
     setPublishResult(null);
     setPublishError(null);
-    const r = await fetch(`/api/situations/${situation.id}/publish`, {
+    const r = await fetch(`/api/stories/${story.id}/publish`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ visibility }),
@@ -188,7 +188,7 @@ function CreateInner() {
   };
 
   // ---- Step0: 妄想入力 ----
-  if (step === 0 && !situation) {
+  if (step === 0 && !story) {
     return (
       <main className="flex min-h-dvh flex-col px-5 py-8">
         <StepBar step={0} />
@@ -233,7 +233,7 @@ function CreateInner() {
     );
   }
 
-  if (!situation) return <main className="p-8 text-center text-sm">読み込み中…</main>;
+  if (!story) return <main className="p-8 text-center text-sm">読み込み中…</main>;
 
   return (
     <main className="flex min-h-dvh flex-col px-5 py-6">
@@ -244,28 +244,28 @@ function CreateInner() {
         <div className="mt-6 space-y-4">
           <FieldWithAi
             label="タイトル"
-            value={situation.title}
+            value={story.title}
             maxLength={60}
             onSave={(v) => patch({ title: v })}
-            situationId={situation.id}
+            storyId={story.id}
             field="title"
             onAiResult={(v) => patch({ title: v })}
           />
           <FieldWithAi
             label="ひとこと紹介"
-            value={situation.catchphrase}
+            value={story.logline}
             maxLength={60}
-            onSave={(v) => patch({ catchphrase: v })}
-            situationId={situation.id}
-            field="catchphrase"
-            onAiResult={(v) => patch({ catchphrase: v })}
+            onSave={(v) => patch({ logline: v })}
+            storyId={story.id}
+            field="logline"
+            onAiResult={(v) => patch({ logline: v })}
           />
           <FieldWithAi
             label="世界観"
-            value={situation.worldSetting}
+            value={story.worldSetting}
             textarea
             onSave={(v) => patch({ worldSetting: v })}
-            situationId={situation.id}
+            storyId={story.id}
             field="worldSetting"
             onAiResult={(v) => patch({ worldSetting: v })}
           />
@@ -277,12 +277,12 @@ function CreateInner() {
       {step === 2 && (
         <div className="mt-6 space-y-3">
           <p className="text-sm font-bold">登場人物</p>
-          {situation.characters
+          {story.characters
             .sort((a, b) => a.sortOrder - b.sortOrder)
             .map((c) => (
               <Link
                 key={c.id}
-                href={`/create/${situation.id}/characters/${c.id}`}
+                href={`/create/${story.id}/characters/${c.id}`}
                 data-testid="character-item"
                 className="card flex w-full items-center justify-between p-3 text-left"
               >
@@ -297,18 +297,18 @@ function CreateInner() {
                 <span>›</span>
               </Link>
             ))}
-          {situation.characters.length < 3 && (
+          {story.characters.length < 3 && (
             <button
               className="btn-ghost w-full text-sm"
               onClick={async () => {
-                const r = await fetch(`/api/situations/${situation.id}/characters`, {
+                const r = await fetch(`/api/stories/${story.id}/characters`, {
                   method: "POST",
                   headers: { "content-type": "application/json" },
                   body: JSON.stringify({ name: "新しいキャラ" }),
                 });
                 if (r.ok) {
                   const c = await r.json();
-                  setSituation({ ...situation, characters: [...situation.characters, { ...c, exampleDialogs: [] }] });
+                  setStory({ ...story, characters: [...story.characters, { ...c, exampleDialogs: [] }] });
                 }
               }}
             >
@@ -323,7 +323,7 @@ function CreateInner() {
       {step === 3 && (
         <div className="mt-6 space-y-4">
           <p className="text-sm font-bold">はじまりの場面(最大3)</p>
-          {situation.intros.map((iv, idx) => (
+          {story.intros.map((iv, idx) => (
             <div key={iv.id} className="card space-y-2 p-3">
               <div>
                 <label className="label" htmlFor={`intro-label-${iv.id}`}>
@@ -334,12 +334,12 @@ function CreateInner() {
                   className="input"
                   value={iv.label}
                   onChange={(e) => {
-                    const intros = [...situation.intros];
+                    const intros = [...story.intros];
                     intros[idx] = { ...iv, label: e.target.value };
-                    setSituation({ ...situation, intros });
+                    setStory({ ...story, intros });
                   }}
                   onBlur={(e) =>
-                    track(fetch(`/api/situations/${situation.id}/intros/${iv.id}`, {
+                    track(fetch(`/api/stories/${story.id}/intros/${iv.id}`, {
                       method: "PATCH",
                       headers: { "content-type": "application/json" },
                       body: JSON.stringify({ label: e.target.value }),
@@ -356,12 +356,12 @@ function CreateInner() {
                   className="input h-20"
                   value={iv.introText}
                   onChange={(e) => {
-                    const intros = [...situation.intros];
+                    const intros = [...story.intros];
                     intros[idx] = { ...iv, introText: e.target.value };
-                    setSituation({ ...situation, intros });
+                    setStory({ ...story, intros });
                   }}
                   onBlur={(e) =>
-                    track(fetch(`/api/situations/${situation.id}/intros/${iv.id}`, {
+                    track(fetch(`/api/stories/${story.id}/intros/${iv.id}`, {
                       method: "PATCH",
                       headers: { "content-type": "application/json" },
                       body: JSON.stringify({ introText: e.target.value }),
@@ -378,12 +378,12 @@ function CreateInner() {
                   className="input h-20"
                   value={iv.firstMessage}
                   onChange={(e) => {
-                    const intros = [...situation.intros];
+                    const intros = [...story.intros];
                     intros[idx] = { ...iv, firstMessage: e.target.value };
-                    setSituation({ ...situation, intros });
+                    setStory({ ...story, intros });
                   }}
                   onBlur={(e) =>
-                    track(fetch(`/api/situations/${situation.id}/intros/${iv.id}`, {
+                    track(fetch(`/api/stories/${story.id}/intros/${iv.id}`, {
                       method: "PATCH",
                       headers: { "content-type": "application/json" },
                       body: JSON.stringify({ firstMessage: e.target.value }),
@@ -393,16 +393,16 @@ function CreateInner() {
               </div>
             </div>
           ))}
-          {situation.intros.length < 3 && (
+          {story.intros.length < 3 && (
             <button
               className="btn-ghost w-full text-sm"
               onClick={async () => {
-                const r = await fetch(`/api/situations/${situation.id}/intros`, {
+                const r = await fetch(`/api/stories/${story.id}/intros`, {
                   method: "POST",
                   headers: { "content-type": "application/json" },
                   body: JSON.stringify({ label: "新しいはじまり" }),
                 });
-                if (r.ok) setSituation({ ...situation, intros: [...situation.intros, await r.json()] });
+                if (r.ok) setStory({ ...story, intros: [...story.intros, await r.json()] });
               }}
             >
               ＋ はじまりを追加
@@ -418,7 +418,7 @@ function CreateInner() {
           <p className="text-sm font-bold">この口調でOK?(お試し・保存されません)</p>
           <div className="card novel my-3 flex-1 space-y-3 overflow-y-auto p-3" style={{ minHeight: "40vh" }}>
             <p className="text-xs" style={{ color: "var(--c-textMuted)" }}>
-              {situation.intros[0]?.introText}
+              {story.intros[0]?.introText}
             </p>
             {testMessages.map((m, i) =>
               m.role === "USER" ? (
@@ -461,7 +461,7 @@ function CreateInner() {
             <p className="label">タグ(最大6)</p>
             <div data-testid="tag-select" className="flex flex-wrap gap-2">
               {allTags.map((t) => {
-                const on = situation.tags.some((st) => st.tag.id === t.id);
+                const on = story.tags.some((st) => st.tag.id === t.id);
                 return (
                   <button
                     key={t.id}
@@ -469,10 +469,10 @@ function CreateInner() {
                     data-on={on}
                     onClick={() => {
                       const next = on
-                        ? situation.tags.filter((st) => st.tag.id !== t.id)
-                        : [...situation.tags, { tag: t }];
+                        ? story.tags.filter((st) => st.tag.id !== t.id)
+                        : [...story.tags, { tag: t }];
                       if (next.length > 6) return;
-                      setSituation({ ...situation, tags: next });
+                      setStory({ ...story, tags: next });
                       patch({ tagIds: next.map((n) => n.tag.id) });
                     }}
                   >
@@ -490,7 +490,7 @@ function CreateInner() {
                   type="radio"
                   name="level"
                   aria-label="全年齢"
-                  checked={situation.contentLevel === "ALL_AGES"}
+                  checked={story.contentLevel === "ALL_AGES"}
                   onChange={() => patch({ contentLevel: "ALL_AGES" })}
                 />
                 全年齢
@@ -499,16 +499,16 @@ function CreateInner() {
                 <input
                   type="radio"
                   name="level"
-                  aria-label="R15"
-                  checked={situation.contentLevel === "R15"}
-                  onChange={() => patch({ contentLevel: "R15" })}
+                  aria-label="TEEN"
+                  checked={story.contentLevel === "TEEN"}
+                  onChange={() => patch({ contentLevel: "TEEN" })}
                 />
-                R15(センシティブ)
+                TEEN(センシティブ)
               </label>
             </div>
-            {situation.contentLevel === "R15" && (
+            {story.contentLevel === "TEEN" && (
               <p className="mt-1 text-[11px]" style={{ color: "var(--c-textMuted)" }}>
-                ※R15作品は年齢確認済みの読者にのみ表示されます
+                ※TEEN作品は年齢確認済みの読者にのみ表示されます
               </p>
             )}
           </div>
@@ -540,11 +540,11 @@ function CreateInner() {
           {publishResult && "status" in publishResult && publishResult.status === "PUBLISHED" ? (
             <div className="card p-5 text-center">
               <p className="text-lg font-bold">🎉 公開しました</p>
-              <Link href={`/s/${situation.id}`} className="btn-primary mt-3 block">
+              <Link href={`/story/${story.id}`} className="btn-primary mt-3 block">
                 作品ページを見る
               </Link>
               <a
-                href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`「${situation.title}」を書きました`)}`}
+                href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`「${story.title}」を書きました`)}`}
                 target="_blank"
                 className="mt-2 block text-xs underline"
                 style={{ color: "var(--c-textMuted)" }}
@@ -612,7 +612,7 @@ function FieldWithAi({
   maxLength,
   onSave,
   onAiResult,
-  situationId,
+  storyId,
   field,
 }: {
   label: string;
@@ -621,7 +621,7 @@ function FieldWithAi({
   maxLength?: number;
   onSave: (v: string) => void;
   onAiResult: (v: string) => void;
-  situationId: string;
+  storyId: string;
   field: string;
 }) {
   const [local, setLocal] = useState(value);
@@ -635,7 +635,7 @@ function FieldWithAi({
   }
   const runAi = async () => {
     setLoading(true);
-    const r = await fetch(`/api/situations/${situationId}/rewrite-field`, {
+    const r = await fetch(`/api/stories/${storyId}/rewrite-field`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ field }),

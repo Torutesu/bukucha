@@ -6,7 +6,7 @@ export async function POST(req: Request) {
     const user = await requireUser();
     const b = await req.json();
     const targetType = String(b.targetType ?? "");
-    if (!["situation", "message"].includes(targetType))
+    if (!["story", "message"].includes(targetType))
       throw new HttpError(422, "invalid_target");
     const report = await db.report.create({
       data: {

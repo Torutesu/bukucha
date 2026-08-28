@@ -3,16 +3,16 @@ import { loginAs, E2E_R15_SITUATION } from "./helpers";
 
 test.describe("安全・ソーシャル", () => {
   test("E2E-015: 安心フィルターと年齢確認", async ({ page }) => {
-    // birthDate未設定 → R15は一切見えない
+    // birthDate未設定 → TEENは一切見えない
     await loginAs(page, "safety-e2e015@test.com");
     await page.goto("/");
     await expect(page.getByTestId("safe-filter-banner")).toBeVisible();
-    await expect(page.getByText("R15テスト作品")).toHaveCount(0);
+    await expect(page.getByText("TEENテスト作品")).toHaveCount(0);
 
-    await page.goto("/search?q=R15テスト作品");
+    await page.goto("/search?q=TEENテスト作品");
     await expect(page.getByTestId("search-empty")).toBeVisible();
 
-    await page.goto(`/s/${E2E_R15_SITUATION}`);
+    await page.goto(`/story/${E2E_R15_SITUATION}`);
     await expect(page.getByText("この物語は表示できません")).toBeVisible();
 
     // 年齢確認(20歳)→フィルターOFF
@@ -26,13 +26,13 @@ test.describe("安全・ソーシャル", () => {
     await modal.getByRole("checkbox", { name: /18歳以上です/ }).check();
     await modal.getByRole("button", { name: "OFFにする" }).click();
 
-    // R15が🔞バッジ付きで出現
-    await page.goto("/search?q=R15テスト作品");
-    const result = page.getByTestId("search-result").filter({ hasText: "R15テスト作品" });
+    // TEENが🔞バッジ付きで出現
+    await page.goto("/search?q=TEENテスト作品");
+    const result = page.getByTestId("search-result").filter({ hasText: "TEENテスト作品" });
     await expect(result).toBeVisible();
     await expect(result.getByTestId("r15-badge")).toBeVisible();
-    await page.goto(`/s/${E2E_R15_SITUATION}`);
-    await expect(page.getByTestId("situation-title")).toContainText("R15テスト作品");
+    await page.goto(`/story/${E2E_R15_SITUATION}`);
+    await expect(page.getByTestId("story-title")).toContainText("TEENテスト作品");
 
     // 16歳ユーザーはトグル無効
     await loginAs(page, "minor-e2e015@test.com");
@@ -48,7 +48,7 @@ test.describe("安全・ソーシャル", () => {
   test("E2E-019: いいね", async ({ page }) => {
     await loginAs(page, "like-e2e019@test.com");
     await page.goto("/");
-    await page.getByTestId("situation-card").first().click();
+    await page.getByTestId("story-card").first().click();
     const like = page.getByTestId("like-button");
     const before = Number(await like.getAttribute("data-count"));
 
@@ -57,7 +57,7 @@ test.describe("安全・ソーシャル", () => {
     await expect(like).toHaveAttribute("data-liked", "true");
 
     await page.goto("/me");
-    await expect(page.getByTestId("liked-row").getByTestId("situation-card")).toHaveCount(1);
+    await expect(page.getByTestId("liked-row").getByTestId("story-card")).toHaveCount(1);
 
     await page.goBack();
     await page.getByTestId("like-button").click();

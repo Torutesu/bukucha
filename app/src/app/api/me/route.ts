@@ -17,28 +17,28 @@ export async function PATCH(req: Request) {
     const user = await requireUser();
     const b = await req.json();
     const data: Record<string, unknown> = {};
-    if (typeof b.nickname === "string" && b.nickname.trim())
-      data.nickname = b.nickname.trim().slice(0, 20);
+    if (typeof b.displayName === "string" && b.displayName.trim())
+      data.displayName = b.displayName.trim().slice(0, 20);
     if (typeof b.avatarUrl === "string" || b.avatarUrl === null) data.avatarUrl = b.avatarUrl;
     if (Array.isArray(b.preferenceTags))
       data.preferenceTags = b.preferenceTags.slice(0, 12).map(String);
 
     if (b.birthDate !== undefined) {
-      // 一度設定したら変更不可(SCR-018)
-      if (user.birthDate) throw new HttpError(422, "birthdate_locked", "生年月日は変更できません");
+      // Set once. Letting it change would defeat the age gate (SCR-018).
+      if (user.birthDate) throw new HttpError(422, "birthdate_locked", "Your date of birth cannot be changed.");
       const d = new Date(String(b.birthDate));
       if (isNaN(d.getTime()) || d > new Date())
-        throw new HttpError(422, "invalid_birthdate", "生年月日が不正です");
+        throw new HttpError(422, "invalid_birthdate", "That date does not look right.");
       data.birthDate = d;
     }
 
-    if (b.safeFilterOff !== undefined) {
+    if (b.matureOptIn !== undefined) {
       const nextBirth = (data.birthDate as Date | undefined) ?? user.birthDate;
-      if (b.safeFilterOff === true && !isAdult({ birthDate: nextBirth ?? null })) {
-        // 不変条件#1: サーバー側で強制
-        throw new HttpError(403, "age_restricted", "18歳になったら解除できます");
+      if (b.matureOptIn === true && !isAdult({ birthDate: nextBirth ?? null })) {
+        // Invariant #1, enforced server-side and never trusted from the client.
+        throw new HttpError(403, "age_restricted", "Mature stories unlock at 18.");
       }
-      data.safeFilterOff = Boolean(b.safeFilterOff);
+      data.matureOptIn = Boolean(b.matureOptIn);
     }
 
     const updated = await db.user.update({ where: { id: user.id }, data });
@@ -51,12 +51,13 @@ export async function PATCH(req: Request) {
 export async function DELETE() {
   try {
     const user = await requireUser();
-    // 退会: 作品はSUSPENDED、ユーザーは匿名化 [ASSUMED SCR-018]
+    // Deletion unpublishes their work and anonymises the account. Unlike the
+    // benchmark, a leftover credit balance is not forfeited on the way out.
     await db.$transaction([
-      db.situation.updateMany({ where: { authorId: user.id }, data: { status: "SUSPENDED" } }),
+      db.story.updateMany({ where: { authorId: user.id }, data: { status: "SUSPENDED" } }),
       db.user.update({
         where: { id: user.id },
-        data: { email: null, nickname: "退会したユーザー", avatarUrl: null },
+        data: { email: null, displayName: "Deleted reader", avatarUrl: null },
       }),
     ]);
     await clearSessionCookie();

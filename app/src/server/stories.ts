@@ -1,378 +1,497 @@
 import { db } from "@/lib/db";
 import { HttpError } from "@/lib/auth";
+import { ruleCheck, visibleLevels } from "@/lib/policy";
 import { llm } from "@/lib/llm";
-import {
-  buildChatMessages,
-  buildRecapMessages,
-  buildSummaryMessages,
-} from "@/lib/prompt";
-import { expressionProfile, visibleLevels } from "@/lib/policy";
-import type { SseEvent } from "./sse";
-import type { User } from "@prisma/client";
+import { buildDraftMessages } from "@/lib/prompt";
+import { storySlug } from "@/lib/slug";
+import { brand } from "../../brand.config";
+import { FIRST_CHECK_TURN } from "./endings";
+import type { Comparator, ContentLevel, EndingRarity, Prisma, User } from "@prisma/client";
 
-const RECENT_TURNS = 40; // 直近20往復
+/** Card projection — spec 03-api.md, StoryCard. */
+export const cardSelect = {
+  id: true,
+  title: true,
+  logline: true,
+  coverImageUrl: true,
+  contentLevel: true,
+  likeCount: true,
+  playerCount: true,
+  routeCount: true,
+  publishedAt: true,
+  slug: true,
+  endingCount: true,
+  tags: { select: { tag: { select: { id: true, name: true } } }, take: 3 },
+} satisfies Prisma.StorySelect;
 
-export async function createStory(
-  user: User,
-  situationId: string,
-  introVariantId: string,
-  personaId?: string
-) {
-  const situation = await db.situation.findUnique({
-    where: { id: situationId },
-    include: { intros: true },
+export function publishedWhere(user: User | null): Prisma.StoryWhereInput {
+  return {
+    status: "PUBLISHED",
+    contentLevel: { in: visibleLevels(user) },
+  };
+}
+
+export async function homeSections(user: User | null) {
+  const where = publishedWhere(user);
+  const prefTags = user?.preferenceTags ?? [];
+  const [forYou, popular, newest] = await Promise.all([
+    prefTags.length
+      ? db.story.findMany({
+          where: { ...where, tags: { some: { tag: { name: { in: prefTags } } } } },
+          select: cardSelect,
+          orderBy: [{ routeCount: "desc" }],
+          take: 10,
+        })
+      : db.story.findMany({
+          where,
+          select: cardSelect,
+          orderBy: [{ likeCount: "desc" }],
+          take: 10,
+        }),
+    db.story.findMany({
+      where,
+      select: cardSelect,
+      orderBy: [{ routeCount: "desc" }],
+      take: 10,
+    }),
+    db.story.findMany({
+      where,
+      select: cardSelect,
+      orderBy: [{ publishedAt: "desc" }],
+      take: 10,
+    }),
+  ]);
+  return [
+    { key: "forYou", title: "For you", stories: forYou },
+    { key: "popular", title: "Being played right now", stories: popular },
+    { key: "new", title: "New this week", stories: newest },
+  ];
+}
+
+export async function recommend(user: User | null, tagNames: string[]) {
+  const where = publishedWhere(user);
+  const matched = await db.story.findMany({
+    where: tagNames.length
+      ? { ...where, tags: { some: { tag: { name: { in: tagNames } } } } }
+      : where,
+    select: cardSelect,
+    orderBy: [{ routeCount: "desc" }],
+    take: 3,
   });
-  if (!situation) throw new HttpError(404, "not_found");
-  const isOwner = situation.authorId === user.id;
-  if (!isOwner) {
-    if (situation.status !== "PUBLISHED") throw new HttpError(404, "not_found");
-    if (!visibleLevels(user).includes(situation.contentLevel))
-      throw new HttpError(404, "not_visible", "この物語は表示できません");
-  }
-  const intro = situation.intros.find((i) => i.id === introVariantId);
-  if (!intro) throw new HttpError(422, "invalid_intro");
+  if (matched.length >= 3) return { items: matched, fallback: false };
+  const popular = await db.story.findMany({
+    where,
+    select: cardSelect,
+    orderBy: [{ routeCount: "desc" }],
+    take: 3,
+  });
+  return { items: popular, fallback: true };
+}
 
-  const persona =
-    personaId ??
-    (await db.persona.findFirst({ where: { userId: user.id, isDefault: true } }))?.id;
-
-  const firstRead = !(await db.story.findFirst({
-    where: { userId: user.id, situationId },
-  }));
-
-  const story = await db.$transaction(async (tx) => {
-    const st = await tx.story.create({
-      data: {
-        userId: user.id,
-        situationId,
-        introVariantId,
-        personaId: persona ?? null,
-        memory: { create: {} },
-        messages: {
-          create: [
-            { idx: 0, role: "SYSTEM", content: intro.introText },
-            { idx: 1, role: "AI", content: intro.firstMessage },
+export async function search(
+  user: User | null,
+  q: string,
+  tagNames: string[],
+  sort: "popular" | "new",
+  cursor?: string
+) {
+  const where: Prisma.StoryWhereInput = {
+    ...publishedWhere(user),
+    ...(q
+      ? {
+          OR: [
+            { title: { contains: q } },
+            { logline: { contains: q } },
+            { worldSetting: { contains: q } },
           ],
-        },
-      },
-    });
-    await tx.situation.update({
-      where: { id: situationId },
-      data: {
-        storyCount: { increment: 1 },
-        ...(firstRead ? { readerCount: { increment: 1 } } : {}),
-      },
-    });
-    return st;
+        }
+      : {}),
+    ...(tagNames.length
+      ? { AND: tagNames.map((name) => ({ tags: { some: { tag: { name } } } })) }
+      : {}),
+  };
+  const take = 20;
+  const items = await db.story.findMany({
+    where,
+    select: cardSelect,
+    orderBy: sort === "new" ? [{ publishedAt: "desc" }, { id: "desc" }] : [{ routeCount: "desc" }, { id: "desc" }],
+    take: take + 1,
+    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
   });
-  return getStory(user, story.id);
-}
-
-export async function getStory(user: User, id: string) {
-  const story = await db.story.findUnique({
-    where: { id },
-    include: {
-      situation: { include: { characters: { orderBy: { sortOrder: "asc" } } } },
-      introVariant: true,
-      persona: true,
-      memory: true,
-      messages: { where: { isDeleted: false }, orderBy: { idx: "asc" } },
-    },
-  });
-  if (!story || story.userId !== user.id) throw new HttpError(404, "not_found");
-  return story;
-}
-
-export async function listStories(
-  user: User,
-  status: "ACTIVE" | "ARCHIVED",
-  situationId?: string
-) {
-  return db.story.findMany({
-    where: { userId: user.id, status, ...(situationId ? { situationId } : {}) },
-    include: {
-      situation: { select: { id: true, title: true, coverImageUrl: true } },
-      messages: {
-        where: { isDeleted: false },
-        orderBy: { idx: "desc" },
-        take: 1,
-        select: { idx: true, content: true },
-      },
-    },
-    orderBy: { lastMessageAt: "desc" },
-  });
+  const nextCursor = items.length > take ? items[take].id : null;
+  return { items: items.slice(0, take), nextCursor };
 }
 
 /**
- * AIF-001+005+007: 1往復の生成(SSE)。
- * rerollIdx指定時は該当AI応答を差し替え(AIF-001 リロール)。
+ * Story detail by slug or id.
+ *
+ * This is the page search engines see. In this market readers search for a
+ * title or a character, not for an app (research/na-market.md §1), so the page
+ * is server-rendered and readable without an account — which is exactly what
+ * the benchmark's single-page app gives up.
  */
-export async function* storyTurn(
-  user: User,
-  storyId: string,
-  input: { content: string; selectedChoiceId?: string; instruction?: string; rerollIdx?: number }
-): AsyncGenerator<SseEvent> {
-  const story = await getStory(user, storyId);
-  const live = story.messages;
+export async function storyDetail(user: User | null, idOrSlug: string) {
+  const s = await db.story.findFirst({
+    where: { OR: [{ id: idOrSlug }, { slug: idOrSlug }] },
+    include: {
+      characters: { orderBy: { sortOrder: "asc" } },
+      intros: {
+        orderBy: { sortOrder: "asc" },
+        include: {
+          stats: { orderBy: { sortOrder: "asc" }, select: { id: true, name: true, icon: true } },
+          endings: { orderBy: { sortOrder: "asc" }, select: { id: true, rarity: true, hint: true } },
+        },
+      },
+      tags: { include: { tag: true } },
+      author: { select: { id: true, handle: true, displayName: true } },
+    },
+  });
+  if (!s) throw new HttpError(404, "not_found", "This story isn't available.");
+  const isOwner = user?.id === s.authorId;
+  if (!isOwner) {
+    if (s.status === "SUSPENDED")
+      throw new HttpError(404, "suspended", "This story is not currently published.");
+    if (s.status !== "PUBLISHED")
+      throw new HttpError(404, "not_found", "This story isn't available.");
+    if (!visibleLevels(user).includes(s.contentLevel))
+      throw new HttpError(404, "not_visible", "This story isn't available.");
+  }
+  const likedByMe = user
+    ? !!(await db.like.findUnique({
+        where: { userId_storyId: { userId: user.id, storyId: s.id } },
+      }))
+    : false;
+  const endingsFound = user
+    ? await db.endingReached.findMany({
+        where: { userId: user.id, storyId: s.id },
+        select: { endingDefId: true },
+        distinct: ["endingDefId"],
+      })
+    : [];
+  return { ...s, likedByMe, endingsFound: endingsFound.map((e) => e.endingDefId) };
+}
 
-  let userInput = input.content;
-  let historyEnd = live.length;
-  let rerollTarget: number | null = null;
+export async function toggleLike(user: User, storyId: string, on: boolean) {
+  const key = { userId_storyId: { userId: user.id, storyId } };
+  const existing = await db.like.findUnique({ where: key });
+  if (on && !existing) {
+    await db.$transaction([
+      db.like.create({ data: { userId: user.id, storyId } }),
+      db.story.update({
+        where: { id: storyId },
+        data: { likeCount: { increment: 1 } },
+      }),
+    ]);
+  } else if (!on && existing) {
+    await db.$transaction([
+      db.like.delete({ where: key }),
+      db.story.update({
+        where: { id: storyId },
+        data: { likeCount: { decrement: 1 } },
+      }),
+    ]);
+  }
+  const s = await db.story.findUniqueOrThrow({
+    where: { id: storyId },
+    select: { likeCount: true },
+  });
+  return { likeCount: s.likeCount };
+}
 
-  if (input.rerollIdx !== undefined) {
-    const target = live.find((m) => m.idx === input.rerollIdx && m.role === "AI");
-    if (!target) throw new HttpError(422, "invalid_reroll");
-    rerollTarget = target.idx;
-    historyEnd = live.findIndex((m) => m.idx === target.idx);
-    const prevUser = [...live.slice(0, historyEnd)].reverse().find((m) => m.role === "USER");
-    userInput = prevUser?.content ?? "";
+// ============ Authoring (SCR-009 / SCR-010 / SCR-011) ============
+
+export async function requireOwnedStory(user: User, id: string) {
+  const s = await db.story.findUnique({
+    where: { id },
+    include: {
+      characters: { orderBy: { sortOrder: "asc" } },
+      intros: {
+        orderBy: { sortOrder: "asc" },
+        include: {
+          stats: { orderBy: { sortOrder: "asc" }, include: { levels: { orderBy: { threshold: "asc" } } } },
+          endings: { orderBy: { sortOrder: "asc" }, include: { rules: true } },
+        },
+      },
+      keywords: { orderBy: { sortOrder: "asc" } },
+      tags: { include: { tag: true } },
+    },
+  });
+  if (!s) throw new HttpError(404, "not_found");
+  if (s.authorId !== user.id) throw new HttpError(403, "forbidden");
+  return s;
+}
+
+/** Blank start: one character and one intro so the builder is never empty. */
+export async function createBlankStory(user: User) {
+  return db.story.create({
+    data: {
+      authorId: user.id,
+      slug: storySlug("untitled"),
+      title: "",
+      characters: {
+        create: {
+          name: "Unnamed",
+          personality: "",
+          speechStyle: "",
+          relationship: "",
+          exampleDialogs: [],
+          sortOrder: 0,
+        },
+      },
+      intros: { create: { label: "Opening", introText: "", firstMessage: "", sortOrder: 0 } },
+    },
+    include: { characters: true, intros: true, tags: { include: { tag: true } } },
+  });
+}
+
+interface DraftShape {
+  title?: string;
+  logline?: string;
+  worldSetting?: string;
+  characters?: {
+    name?: string;
+    personality?: string;
+    speechStyle?: string;
+    relationship?: string;
+    exampleDialogs?: { user?: string; char?: string }[];
+  }[];
+  intros?: { label?: string; introText?: string; firstMessage?: string; playGuide?: string }[];
+  stats?: {
+    key?: string;
+    name?: string;
+    icon?: string;
+    initialValue?: number;
+    minValue?: number;
+    maxValue?: number;
+    changeRule?: string;
+    levels?: { name?: string; threshold?: number; prompt?: string }[];
+  }[];
+  endings?: {
+    name?: string;
+    rarity?: string;
+    minTurns?: number;
+    prompt?: string;
+    epilogue?: string;
+    hint?: string;
+    rules?: { statKey?: string; comparator?: string; value?: number }[];
+  }[];
+  keywords?: { keywords?: string[]; body?: string }[];
+  suggestedTags?: string[];
+}
+
+const RARITIES: EndingRarity[] = ["N", "R", "SR", "SSR"];
+
+/**
+ * AIF-005: one line of premise becomes a whole playable story — world, cast,
+ * two intros, stats with named levels, four endings and a keyword book.
+ *
+ * The benchmark spreads the same work over an eight-step wizard with a separate
+ * AI-assist button per field. Generating the whole thing first and letting the
+ * author edit is what makes finishing likely.
+ */
+export async function createDraftFromPremise(user: User, premise: string) {
+  if (premise.trim().length < 10 || premise.length > 400)
+    throw new HttpError(422, "invalid_premise", "Give us 10 to 400 characters to work with.");
+
+  let draft: DraftShape;
+  const parse = (raw: string) => JSON.parse(raw.replace(/^```json?\s*|```\s*$/g, "")) as DraftShape;
+  try {
+    draft = parse(await llm().complete("draft", buildDraftMessages(premise), { json: true }));
+  } catch {
+    // One retry, then let the error surface — a half-built story is worse than none.
+    draft = parse(await llm().complete("draft", buildDraftMessages(premise), { json: true }));
   }
 
-  const recent = live
-    .slice(Math.max(0, historyEnd - RECENT_TURNS), historyEnd)
-    .filter((m) => m.role !== "SYSTEM");
+  const tags = await db.tag.findMany({ where: { name: { in: draft.suggestedTags ?? [] } } });
+  const title = (draft.title ?? "").slice(0, 80);
 
-  const expression = expressionProfile(story.situation.contentLevel, user);
-  const messages = buildChatMessages({
-    situation: story.situation,
-    intro: story.introVariant,
-    memory: story.memory,
-    persona: story.persona,
-    recentMessages: recent,
-    expression,
-    userInput,
+  const story = await db.story.create({
+    data: {
+      authorId: user.id,
+      slug: storySlug(title || premise),
+      title,
+      logline: (draft.logline ?? "").slice(0, 140),
+      worldSetting: (draft.worldSetting ?? "").slice(0, 4000),
+      aiDraftInput: premise,
+      characters: {
+        create: (draft.characters ?? []).slice(0, 3).map((c, i) => ({
+          name: (c.name ?? "Unnamed").slice(0, 40),
+          personality: c.personality ?? "",
+          speechStyle: c.speechStyle ?? "",
+          relationship: c.relationship ?? "",
+          exampleDialogs: (c.exampleDialogs ?? []).slice(0, 5) as Prisma.InputJsonValue,
+          sortOrder: i,
+        })),
+      },
+      keywords: {
+        create: (draft.keywords ?? [])
+          .filter((k) => k.body)
+          .slice(0, 8)
+          .map((k, i) => ({
+            keywords: (k.keywords ?? []).slice(0, 8).map((w) => String(w).slice(0, 40)),
+            body: k.body!.slice(0, 600),
+            sortOrder: i,
+          })),
+      },
+      tags: { create: tags.map((t) => ({ tagId: t.id })) },
+    },
   });
 
-  // AIF-005: 選択肢はユーザーの2ターンに1回(この往復を含めて偶数ターン目に提示)
-  const userTurnsIncludingThis = live.filter((m) => m.role === "USER").length + 1;
-  const wantChoices = rerollTarget === null && userTurnsIncludingThis % 2 === 0;
-
-  const timeoutMs = Number(process.env.GENERATION_TIMEOUT_MS ?? 20_000);
-  const abort = new AbortController();
-  const timer = setTimeout(() => abort.abort(), timeoutMs);
-
-  let full = "";
-  let choices: { id: string; text: string }[] | null = null;
-  let debug: Record<string, unknown> | undefined;
-
-  try {
-    const gen = llm().stream("chat", messages, {
-      wantChoices,
-      instruction: input.instruction,
-      signal: abort.signal,
-    });
-    for await (const chunk of gen) {
-      if (chunk.type === "token" && chunk.token) {
-        full += chunk.token;
-        yield { event: "token", data: chunk.token };
-      } else if (chunk.type === "blocked") {
-        // AIF-007: 確定させず入力を捨てる
-        yield {
-          event: "blocked",
-          data: {
-            message:
-              "この展開は表現ガイドラインに触れるため書けませんでした。別の展開を試してください",
-          },
-        };
-        await db.moderationFlag.create({
-          data: {
-            targetType: "message",
-            targetId: storyId,
-            kind: "CONTENT_OVER_LINE",
-            detail: `blocked input on story ${storyId}`,
-          },
-        });
-        return;
-      } else if (chunk.type === "done") {
-        full = chunk.content ?? full;
-        choices = chunk.choices ?? null;
-        debug = chunk.debug;
-      }
-    }
-  } finally {
-    clearTimeout(timer);
-  }
-
-  // 永続化
-  const saved = await db.$transaction(async (tx) => {
-    if (rerollTarget !== null) {
-      const msg = await tx.storyMessage.update({
-        where: { storyId_idx: { storyId, idx: rerollTarget } },
-        data: { content: full, choices: choices ?? undefined, modelUsed: process.env.LLM_PROVIDER ?? "openai" },
-      });
-      return msg;
-    }
-    const lastIdx = live.length ? live[live.length - 1].idx : -1;
-    // 論理削除済みidxとの衝突を避ける
-    const maxIdx = await tx.storyMessage.aggregate({
-      where: { storyId },
-      _max: { idx: true },
-    });
-    const base = Math.max(lastIdx, maxIdx._max.idx ?? -1);
-    if (userInput.trim() || input.selectedChoiceId) {
-      await tx.storyMessage.create({
-        data: {
-          storyId,
-          idx: base + 1,
-          role: "USER",
-          content: userInput,
-          selectedChoice: input.selectedChoiceId ?? null,
-        },
-      });
-    }
-    const ai = await tx.storyMessage.create({
+  // Intros carry the stats and endings, so they are built one at a time and the
+  // ending rules are wired up by stat key afterwards.
+  for (const [i, iv] of (draft.intros ?? []).slice(0, 3).entries()) {
+    const intro = await db.intro.create({
       data: {
-        storyId,
-        idx: base + (userInput.trim() || input.selectedChoiceId ? 2 : 1),
-        role: "AI",
-        content: full,
-        choices: choices ?? undefined,
-        modelUsed: process.env.LLM_PROVIDER ?? "openai",
+        storyId: story.id,
+        label: (iv.label ?? "Opening").slice(0, 60),
+        introText: (iv.introText ?? "").slice(0, 2000),
+        firstMessage: (iv.firstMessage ?? "").slice(0, 2000),
+        playGuide: (iv.playGuide ?? "").slice(0, 300),
+        sortOrder: i,
       },
     });
-    await tx.story.update({ where: { id: storyId }, data: { lastMessageAt: new Date() } });
-    return ai;
-  });
 
-  yield {
-    event: "done",
-    data: {
-      message: { idx: saved.idx, content: full, choices },
-      ...(process.env.LLM_PROVIDER === "mock" ? { debug } : {}),
-    },
-  };
-
-  // AIF-003: 10往復ごとに要約更新(非同期・失敗許容)
-  const totalUser = live.filter((m) => m.role === "USER").length + 1;
-  if (totalUser % 10 === 0) {
-    updateSummary(storyId).catch(() => {});
-  }
-}
-
-/** AIF-003 */
-export async function updateSummary(storyId: string) {
-  const story = await db.story.findUnique({
-    where: { id: storyId },
-    include: {
-      memory: true,
-      messages: { where: { isDeleted: false }, orderBy: { idx: "asc" } },
-    },
-  });
-  if (!story) return;
-  const from = story.memory?.summaryAtIdx ?? 0;
-  const fresh = story.messages.filter((m) => m.idx > from && m.role !== "SYSTEM");
-  if (!fresh.length) return;
-  const summary = await llm().complete(
-    "summary",
-    buildSummaryMessages(story.memory?.summary ?? "", fresh)
-  );
-  const lastIdx = story.messages[story.messages.length - 1]?.idx ?? 0;
-  await db.storyMemory.upsert({
-    where: { storyId },
-    update: { summary: summary.slice(0, 2000), summaryAtIdx: lastIdx },
-    create: { storyId, summary: summary.slice(0, 2000), summaryAtIdx: lastIdx },
-  });
-}
-
-/** AIF-004 */
-export async function refreshRecap(user: User, storyId: string) {
-  const story = await getStory(user, storyId);
-  const lastIdx = story.messages[story.messages.length - 1]?.idx ?? 0;
-  try {
-    const recap = await llm().complete(
-      "recap",
-      buildRecapMessages(story.memory?.summary ?? "", story.messages.slice(-6))
-    );
-    await db.story.update({
-      where: { id: storyId },
-      data: { lastRecap: recap.slice(0, 200), lastRecapAtIdx: lastIdx },
-    });
-    return { lastRecap: recap.slice(0, 200) };
-  } catch {
-    // fallback: 最終メッセージ冒頭
-    const fallback = story.messages[story.messages.length - 1]?.content.slice(0, 80) ?? "";
-    await db.story.update({
-      where: { id: storyId },
-      data: { lastRecap: fallback, lastRecapAtIdx: lastIdx },
-    });
-    return { lastRecap: fallback };
-  }
-}
-
-export async function rewindStory(user: User, storyId: string, toIdx: number) {
-  await getStory(user, storyId); // 権限確認
-  const result = await db.storyMessage.updateMany({
-    where: { storyId, idx: { gt: toIdx } },
-    data: { isDeleted: true },
-  });
-  return { deletedCount: result.count };
-}
-
-export async function migrateGuestStory(
-  user: User,
-  guest: {
-    situationId: string;
-    introVariantId: string;
-    messages: { role: "USER" | "AI"; content: string }[];
-  }
-) {
-  const story = await createStory(user, guest.situationId, guest.introVariantId);
-  const startIdx = story.messages.length ? story.messages[story.messages.length - 1].idx + 1 : 0;
-  await db.storyMessage.createMany({
-    data: guest.messages.slice(0, 20).map((m, i) => ({
-      storyId: story.id,
-      idx: startIdx + i,
-      role: m.role,
-      content: m.content.slice(0, 4000),
-    })),
-  });
-  return db.story.findUniqueOrThrow({ where: { id: story.id } });
-}
-
-/** ゲスト体験(SCR-005/006, /api/guest/turn)。非永続 */
-export async function* guestTurn(
-  situationId: string,
-  introVariantId: string,
-  history: { role: "USER" | "AI"; content: string }[],
-  content: string
-): AsyncGenerator<SseEvent> {
-  if (history.length > 6) throw new HttpError(409, "guest_limit", "登録して続きを読んでください");
-  const situation = await db.situation.findUnique({
-    where: { id: situationId },
-    include: { characters: { orderBy: { sortOrder: "asc" } }, intros: true },
-  });
-  if (!situation || situation.status !== "PUBLISHED" || situation.contentLevel !== "ALL_AGES")
-    throw new HttpError(404, "not_found");
-  const intro = situation.intros.find((i) => i.id === introVariantId);
-  if (!intro) throw new HttpError(422, "invalid_intro");
-
-  const messages = buildChatMessages({
-    situation,
-    intro,
-    memory: null,
-    persona: null,
-    recentMessages: history.map((m) => ({ role: m.role, content: m.content })),
-    expression: "ALL_AGES",
-    userInput: content,
-  });
-
-  let full = "";
-  for await (const chunk of llm().stream("chat", messages, {})) {
-    if (chunk.type === "token" && chunk.token) {
-      full += chunk.token;
-      yield { event: "token", data: chunk.token };
-    } else if (chunk.type === "blocked") {
-      yield {
-        event: "blocked",
+    const statIdByKey = new Map<string, string>();
+    for (const [j, st] of (draft.stats ?? []).slice(0, 7).entries()) {
+      const key = (st.key ?? `stat${j}`).toLowerCase().replace(/[^a-z0-9_]/g, "_").slice(0, 24);
+      if (!key || statIdByKey.has(key)) continue;
+      const min = Number.isFinite(st.minValue) ? st.minValue! : 0;
+      const max = Number.isFinite(st.maxValue) ? st.maxValue! : 100;
+      const created = await db.statDef.create({
         data: {
-          message:
-            "この展開は表現ガイドラインに触れるため書けませんでした。別の展開を試してください",
+          introId: intro.id,
+          key,
+          name: (st.name ?? key).slice(0, 40),
+          icon: (st.icon ?? "").slice(0, 4),
+          initialValue: Math.max(min, Math.min(max, st.initialValue ?? min)),
+          minValue: min,
+          maxValue: max,
+          changeRule: (st.changeRule ?? "").slice(0, 600),
+          sortOrder: j,
+          levels: {
+            create: (st.levels ?? []).slice(0, 4).map((l, k) => ({
+              name: (l.name ?? "").slice(0, 40),
+              threshold: Number.isFinite(l.threshold) ? l.threshold! : 0,
+              prompt: (l.prompt ?? "").slice(0, 300),
+              sortOrder: k,
+            })),
+          },
         },
-      };
-      return;
-    } else if (chunk.type === "done") {
-      full = chunk.content ?? full;
+      });
+      statIdByKey.set(key, created.id);
+    }
+
+    for (const [j, en] of (draft.endings ?? []).slice(0, 9).entries()) {
+      const rarity = RARITIES.includes(en.rarity as EndingRarity)
+        ? (en.rarity as EndingRarity)
+        : "N";
+      const rules = (en.rules ?? [])
+        .slice(0, 7)
+        .map((r) => ({
+          statDefId: statIdByKey.get((r.statKey ?? "").toLowerCase()),
+          comparator: (r.comparator === "LT" ? "LT" : "GTE") as Comparator,
+          value: Number.isFinite(r.value) ? r.value! : 0,
+        }))
+        .filter((r): r is { statDefId: string; comparator: Comparator; value: number } =>
+          Boolean(r.statDefId)
+        );
+      await db.endingDef.create({
+        data: {
+          introId: intro.id,
+          name: (en.name ?? "An ending").slice(0, 80),
+          rarity,
+          minTurns: Math.max(FIRST_CHECK_TURN, en.minTurns ?? FIRST_CHECK_TURN),
+          prompt: (en.prompt ?? "").slice(0, 600),
+          epilogue: (en.epilogue ?? "").slice(0, 2000),
+          hint: (en.hint ?? "").slice(0, 200),
+          sortOrder: j,
+          rules: { create: rules.map((r, k) => ({ ...r, sortOrder: k })) },
+        },
+      });
     }
   }
-  yield { event: "done", data: { message: { idx: history.length + 1, content: full, choices: null } } };
+
+  return requireOwnedStory(user, story.id);
+}
+
+/** AIF-009: publish-time check. Fails closed. */
+export async function publishStory(
+  user: User,
+  id: string,
+  visibility: "PUBLISHED" | "UNLISTED" | "PRIVATE"
+) {
+  const s = await requireOwnedStory(user, id);
+  if (visibility !== "PUBLISHED") {
+    await db.story.update({ where: { id }, data: { status: visibility } });
+    return { status: visibility };
+  }
+
+  if (!s.title.trim()) throw new HttpError(422, "title_required", "Your story needs a title.");
+  if (!s.intros.length || !s.intros[0].firstMessage.trim())
+    throw new HttpError(422, "intro_required", "Write the opening scene before you publish.");
+
+  const fullText = [
+    s.title,
+    s.logline,
+    s.worldSetting,
+    ...s.characters.flatMap((c) => [c.name, c.personality, c.speechStyle, c.relationship]),
+    ...s.intros.flatMap((i) => [i.label, i.introText, i.firstMessage]),
+  ].join("\n");
+
+  const { ipDetected, banned } = ruleCheck(fullText);
+  const blocked: { kind: string; detail: string }[] = [];
+  for (const name of ipDetected) {
+    blocked.push({
+      kind: "IP_DETECTED",
+      detail: `This looks like it uses an existing work or character ("${name}"). ${brand.name} publishes original work only — rename it and try again.`,
+    });
+  }
+  for (const label of banned) {
+    blocked.push({ kind: "BANNED_EXPRESSION", detail: `This crosses our content policy (${label}).` });
+  }
+
+  let judged: ContentLevel | "OVER" = "ALL_AGES";
+  try {
+    const raw = await llm().complete("judge", [
+      {
+        role: "system",
+        content:
+          'Rate this story text and output JSON only: {"ok":bool,"level":"ALL_AGES"|"TEEN"|"OVER"}. TEEN = charged, suggestive, sensual writing. OVER = explicit sexual acts or explicit anatomy.',
+      },
+      { role: "user", content: fullText.slice(0, 8000) },
+    ]);
+    const j = JSON.parse(raw.replace(/^```json?\s*|```\s*$/g, ""));
+    judged = j.level === "TEEN" ? "TEEN" : j.level === "OVER" ? "OVER" : "ALL_AGES";
+  } catch {
+    throw new HttpError(503, "moderation_unavailable", "We couldn't finish the check. Try again in a minute.");
+  }
+  if (judged === "OVER") {
+    blocked.push({
+      kind: "CONTENT_OVER_LINE",
+      detail: "This goes past what we can publish (explicit sexual content).",
+    });
+  }
+
+  if (blocked.length) {
+    await db.moderationFlag.createMany({
+      data: blocked.map((b) => ({
+        storyId: id,
+        targetType: "story",
+        targetId: id,
+        kind: b.kind as "IP_DETECTED" | "CONTENT_OVER_LINE" | "BANNED_EXPRESSION",
+        detail: b.detail,
+      })),
+    });
+    return { blocked };
+  }
+
+  // If the judge rates it higher than the author declared, the judge wins.
+  const finalLevel: ContentLevel =
+    judged === "TEEN" && s.contentLevel === "ALL_AGES" ? "TEEN" : s.contentLevel;
+
+  await db.story.update({
+    where: { id },
+    data: { status: "PUBLISHED", contentLevel: finalLevel, publishedAt: s.publishedAt ?? new Date() },
+  });
+  return { status: "PUBLISHED" as const };
 }

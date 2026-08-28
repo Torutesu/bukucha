@@ -4,12 +4,13 @@ import { db } from "./db";
 import type { User } from "@prisma/client";
 
 /**
- * 最小の署名Cookieセッション。
- * [build-notes] Auth.js(Google/Apple OAuth)はP1で導入。MVPはメールログイン(開発モードでは
- * magic link送信を省略して即ログイン)のみ。SCR-017のOAuthボタンはenv未設定時disabled。
+ * Minimal signed-cookie session.
+ * [build-notes] Auth.js with Google and Apple lands in P1 — the benchmark ships
+ * exactly those two providers. Email sign-in is what the MVP exercises; the
+ * OAuth buttons on SCR-017 stay disabled until the env is configured.
  */
 
-const COOKIE = "bukucha_session";
+const COOKIE = "hc_session";
 const MAX_AGE = 60 * 60 * 24 * 30;
 
 function secret(): string {
@@ -76,7 +77,7 @@ export class HttpError extends Error {
 
 export async function requireUser(): Promise<User> {
   const user = await getSessionUser();
-  if (!user) throw new HttpError(401, "unauthorized", "ログインが必要です");
+  if (!user) throw new HttpError(401, "unauthorized", "Sign in to continue.");
   return user;
 }
 
@@ -89,7 +90,7 @@ export function errorResponse(e: unknown): Response {
   }
   console.error(e);
   return Response.json(
-    { error: { code: "internal", message: "エラーが発生しました" } },
+    { error: { code: "internal", message: "Something went wrong on our end." } },
     { status: 500 }
   );
 }

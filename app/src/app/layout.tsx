@@ -3,9 +3,8 @@ import "./globals.css";
 import { buildThemeCss, brand } from "@/lib/theme";
 
 export const metadata: Metadata = {
-  title: `${brand.name} - ${brand.tagline}`,
-  description:
-    "妄想がそのまま物語になる、女性向けノベルAIチャット。シチュエーションを選んで、あなただけのラノベを読もう。",
+  title: `${brand.name} — ${brand.tagline}`,
+  description: brand.promise,
 };
 
 export const viewport: Viewport = {
@@ -16,12 +15,12 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="ja" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <head>
         <style dangerouslySetInnerHTML={{ __html: buildThemeCss() }} />
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{var t=localStorage.getItem('bukucha_theme');if(t&&t!=='system')document.documentElement.setAttribute('data-theme',t);}catch(e){}`,
+            __html: `try{var t=localStorage.getItem('hc_theme');if(t&&t!=='system')document.documentElement.setAttribute('data-theme',t);}catch(e){}`,
           }}
         />
       </head>

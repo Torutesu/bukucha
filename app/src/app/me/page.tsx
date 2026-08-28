@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BottomTab } from "@/components/BottomTab";
-import { SituationCard, type CardData } from "@/components/SituationCard";
+import { StoryCard, type CardData } from "@/components/StoryCard";
 
 interface Persona {
   id: string;
@@ -15,7 +15,7 @@ interface Persona {
 }
 interface Me {
   id: string;
-  nickname: string;
+  displayName: string;
   personas: Persona[];
 }
 
@@ -36,7 +36,7 @@ export default function MyPage() {
     }
     const data = await r.json();
     setMe(data);
-    setNick(data.nickname);
+    setNick(data.displayName);
     const lr = await fetch("/api/me/likes");
     if (lr.ok) setLikes((await lr.json()).items);
   };
@@ -80,7 +80,7 @@ export default function MyPage() {
             className="flex h-14 w-14 items-center justify-center rounded-full text-xl"
             style={{ background: "var(--c-primarySoft)", color: "var(--c-primary)" }}
           >
-            {me.nickname.charAt(0)}
+            {me.displayName.charAt(0)}
           </div>
           {editNick ? (
             <div className="flex flex-1 gap-2">
@@ -91,7 +91,7 @@ export default function MyPage() {
                   await fetch("/api/me", {
                     method: "PATCH",
                     headers: { "content-type": "application/json" },
-                    body: JSON.stringify({ nickname: nick }),
+                    body: JSON.stringify({ displayName: nick }),
                   });
                   setEditNick(false);
                   load();
@@ -102,7 +102,7 @@ export default function MyPage() {
             </div>
           ) : (
             <>
-              <p className="flex-1 text-lg font-bold">{me.nickname}</p>
+              <p className="flex-1 text-lg font-bold">{me.displayName}</p>
               <button className="text-xs underline" style={{ color: "var(--c-textMuted)" }} onClick={() => setEditNick(true)}>
                 編集
               </button>
@@ -146,7 +146,7 @@ export default function MyPage() {
             </div>
             <div data-testid="liked-row" className="hide-scrollbar flex gap-3 overflow-x-auto">
               {likes.map((s) => (
-                <SituationCard key={s.id} s={s} />
+                <StoryCard key={s.id} s={s} />
               ))}
             </div>
           </section>

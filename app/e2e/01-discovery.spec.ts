@@ -18,7 +18,7 @@ test.describe("発見フロー", () => {
     await cards.first().click();
 
     await expect(page).toHaveURL(/\/s\//);
-    await expect(page.getByTestId("situation-title")).toBeVisible();
+    await expect(page.getByTestId("story-title")).toBeVisible();
     await expect(page.getByText("世界観")).toBeVisible();
     await expect(page.getByText("登場人物")).toBeVisible();
     await expect(page.getByTestId("intro-preview")).toBeVisible();
@@ -31,7 +31,7 @@ test.describe("発見フロー", () => {
     await expect(page.getByTestId("section-popular")).toBeVisible();
     await expect(page.getByTestId("section-new")).toBeVisible();
 
-    const card = page.getByTestId("situation-card").first();
+    const card = page.getByTestId("story-card").first();
     await expect(card).toBeVisible();
     await expect(card.getByTestId("card-cover")).toBeVisible();
     await expect(card.getByTestId("card-title")).toBeVisible();
@@ -88,8 +88,8 @@ test.describe("発見フロー", () => {
     );
     expect(hasHScroll).toBeFalsy();
 
-    // Story画面も同様
-    await page.goto(`/s/${E2E_SITUATION}`);
+    // Route画面も同様
+    await page.goto(`/story/${E2E_SITUATION}`);
     const box2 = await page.getByTestId("app-shell").boundingBox();
     expect(box2!.width).toBeLessThanOrEqual(482);
 

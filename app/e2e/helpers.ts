@@ -1,9 +1,9 @@
 import { Page, expect } from "@playwright/test";
 
 /** APIログイン(AUTH_DEV_MODE)。UIログインの検証はE2E-002が担う */
-export async function loginAs(page: Page, email: string, nickname?: string) {
+export async function loginAs(page: Page, email: string, displayName?: string) {
   const res = await page.request.post("/api/auth/login", {
-    data: { email, nickname: nickname ?? email.split("@")[0] },
+    data: { email, displayName: displayName ?? email.split("@")[0] },
   });
   expect(res.ok()).toBeTruthy();
 }
@@ -14,7 +14,7 @@ export async function setAdultAndFilterOff(page: Page, birthYear = 2000) {
     data: { birthDate: `${birthYear}-01-01` },
   });
   expect(res.ok()).toBeTruthy();
-  const res2 = await page.request.patch("/api/me", { data: { safeFilterOff: true } });
+  const res2 = await page.request.patch("/api/me", { data: { matureOptIn: true } });
   expect(res2.ok()).toBeTruthy();
 }
 

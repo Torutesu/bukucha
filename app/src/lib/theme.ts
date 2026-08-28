@@ -1,6 +1,6 @@
 import { brand, type Brand } from "../../brand.config";
 
-/** brand.config → CSS変数。全画面はこの変数経由でのみ色・フォントを参照する */
+/** brand.config -> CSS custom properties. Screens read only these. */
 function varsOf(colors: Record<string, string>): string {
   return Object.entries(colors)
     .map(([k, v]) => `--c-${k}: ${v};`)
@@ -17,6 +17,11 @@ ${varsOf(b.colors.light)}
 --radius-chip: ${b.radius.chip};
 --radius-input: ${b.radius.input};
 --shell-max: ${b.layout.maxWidth};
+--reader-wide: ${b.layout.readerWide};
+--sidebar-w: ${b.layout.sidebar};
+${Object.entries(b.rarity)
+  .map(([k, v]) => `--rarity-${k}: ${v.color};`)
+  .join("\n")}
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
