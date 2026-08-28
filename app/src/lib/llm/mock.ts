@@ -38,11 +38,16 @@ function prose(messages: LlmMessage[], options?: LlmOptions): string {
   const sys = systemText(messages);
   const user = lastUserText(messages);
   const called = sys.match(/called:\s*([^\n]+)/)?.[1]?.trim() || "you";
+  // Strip the reader's *action* markup before quoting them back; a character
+  // would not read the asterisks aloud.
+  const spoken = user.replace(/\*[^*]*\*/g, "").replace(/\s+/g, " ").trim();
   const parts: string[] = [];
   if (options?.instruction) parts.push(`Steering: ${options.instruction}.`);
   parts.push("Rain gathers on the window, one line and then another, and he turns to face you.");
-  if (user && !user.startsWith("(")) {
-    parts.push(`"${called} — did you just say ${user.slice(0, 32)}?"`);
+  if (spoken && !spoken.startsWith("(")) {
+    parts.push(`"${called} — did you just say ${spoken.slice(0, 32)}?"`);
+  } else if (user && !user.startsWith("(")) {
+    parts.push(`"${called}." He does not look away.`);
   } else {
     parts.push(`"${called}. Go on. I am listening."`);
   }
@@ -115,11 +120,13 @@ export class MockLlmProvider implements LlmProvider {
           subject: named,
           statement: `You told him your name is ${named}.`,
         });
-      } else if (said && !said.startsWith("(")) {
+      } else if (/\bi (am|have|will|promised|forgot|remember)\b/i.test(said)) {
+        // Only durable-sounding statements. The real extractor is asked for the
+        // same discipline, and a ledger full of chatter is worse than an empty one.
         canon.push({
           category: "EVENT",
           subject: "you",
-          statement: `You said: ${said.slice(0, 120)}`,
+          statement: said.replace(/\*/g, "").replace(/\s+/g, " ").trim().slice(0, 160),
         });
       }
       const statKeys = [...systemText(messages).matchAll(/key "([a-z_]+)"/g)].map((m) => m[1]);

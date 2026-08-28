@@ -16,7 +16,7 @@ test("capture screens", async ({ page }) => {
   await page.goto("/welcome");
   await page.getByRole("button", { name: "slow burn", exact: true }).click();
   await page.getByRole("button", { name: "enemies to lovers", exact: true }).click();
-  await page.getByRole("button", { name: "court intrigue", exact: true }).click();
+  await page.getByRole("button", { name: "found family", exact: true }).click();
   await shot("01-onboarding");
 
   await page.getByRole("button", { name: "Show me something" }).click();

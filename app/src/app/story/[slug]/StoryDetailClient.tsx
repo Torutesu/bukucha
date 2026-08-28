@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Cover } from "@/components/StoryCard";
@@ -67,11 +67,14 @@ export function StoryDetailClient({
   const [reportOpen, setReportOpen] = useState(false);
   const [reported, setReported] = useState(false);
   const [worldExpanded, setWorldExpanded] = useState(false);
-  const [ready, setReady] = useState(false);
-
-  // This page is server-rendered, so its controls exist before React has
-  // attached to them. Keep them disabled until they actually work.
-  useEffect(() => setReady(true), []);
+  // This page is server-rendered, so its controls exist in the HTML before React
+  // has attached to them. `false` on the server, `true` once hydrated, which is
+  // exactly what useSyncExternalStore's two snapshots are for.
+  const ready = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
 
   const intro = detail.intros.find((i) => i.id === introId) ?? detail.intros[0];
 

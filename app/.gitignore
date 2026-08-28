@@ -5,5 +5,8 @@ node_modules
 playwright-report
 test-results
 
-# 生スクリーンショット(共有用の圧縮版は shots_web/ に置く)
+# Raw screenshots. The compressed webp set lives in shots_web/.
 shots/
+
+# Generated walkthrough (rebuild with build-share-page.py)
+shots_web/walkthrough.html
