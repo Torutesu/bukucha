@@ -58,6 +58,31 @@ enum ModelTier {
   CINEMATIC
 }
 
+/// Where a story came from. Supply at launch is seeded rather than organic, so
+/// this is a first-class field, not a tag: it drives the Originals shelf, the
+/// licence record, and the hard rule that an imported card is never published.
+enum StorySource {
+  /// Written in our builder by its author.
+  ORIGINAL
+  /// Operator-produced. Carries the Originals badge and its own shelf.
+  EDITORIAL
+  /// A licensed adaptation of a work that already existed elsewhere.
+  ADAPTED
+  /// Brought in from a character card. Playable privately, never publishable.
+  IMPORTED
+}
+
+enum LicenseKind {
+  /// The default: the author's own work, licensed to us non-exclusively.
+  CREATOR_UGC
+  /// We commissioned it. The author still keeps the copyright.
+  PLATFORM_ORIGINAL
+  /// A time-boxed option on an existing work.
+  ADAPTATION_OPTION
+  /// A card someone brought with them. No licence, no publication.
+  PERSONAL_IMPORT
+}
+
 /// Categories of the Canon ledger (SCR-024 / AIF-001).
 enum CanonCategory {
   PERSON
@@ -192,6 +217,9 @@ model Story {
   contentLevel  ContentLevel @default(ALL_AGES)
   status        StoryStatus  @default(DRAFT)
   aiDraftInput  String?
+  source        StorySource  @default(ORIGINAL)
+  /// Set by editorial to surface a story on the Originals shelf.
+  featuredAt    DateTime?
   publishedAt   DateTime?
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
@@ -211,9 +239,40 @@ model Story {
   flags      ModerationFlag[]
   endings    EndingReached[]
   earnings   CreatorEarning[]
+  license    StoryLicense?
 
   @@index([status, contentLevel, publishedAt])
   @@index([authorId])
+  @@index([source, featuredAt])
+}
+
+/// Who owns the underlying work, and on what terms.
+///
+/// Every competitor in this category takes either exclusivity or the copyright
+/// outright — Choice of Games takes an exclusive perpetual licence, Webnovel
+/// takes the copyright and 90% of derivative revenue, OOC Original buys the
+/// copyright for $300 plus 2%. Recording `exclusive` explicitly, and defaulting
+/// it to false, is how that promise stays checkable rather than rhetorical.
+model StoryLicense {
+  storyId         String      @id
+  kind            LicenseKind @default(CREATOR_UGC)
+  /// Legal name of whoever owns the underlying work.
+  rightsHolder    String      @default("")
+  /// Title and location of the source work, for an adaptation.
+  sourceTitle     String?
+  sourceUrl       String?
+  /// Option window. Null for an open-ended creator licence.
+  termStartsAt    DateTime?
+  termEndsAt      DateTime?
+  /// The licensor's share, in basis points. 2500 = 25%.
+  revenueShareBps Int         @default(0)
+  /// We do not take exclusivity. Stored so it can be audited, not assumed.
+  exclusive       Boolean     @default(false)
+  notes           String      @default("")
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
 }
 
 model Character {

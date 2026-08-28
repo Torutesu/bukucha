@@ -39,6 +39,14 @@ function CreateInner() {
   const [step, setStep] = useState(0);
   const [story, setStory] = useState<Story | null>(null);
   const [premise, setPremise] = useState(params.get("premise") ?? "");
+  // Supply at launch is seeded, not organic, so the builder has three doors:
+  // write one line, adapt prose that already exists, or bring a card over.
+  const [lane, setLane] = useState<"premise" | "adapt" | "import">("premise");
+  const [prose, setProse] = useState("");
+  const [sourceTitle, setSourceTitle] = useState("");
+  const [rightsHolder, setRightsHolder] = useState("");
+  const [licensed, setLicensed] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
   const [drafting, setDrafting] = useState(false);
   const [draftError, setDraftError] = useState(false);
   const [allTags, setAllTags] = useState<{ id: string; name: string }[]>([]);
@@ -187,11 +195,161 @@ function CreateInner() {
     setPublishing(false);
   };
 
+  const runAdapt = async () => {
+    setDrafting(true);
+    setDraftError(false);
+    try {
+      const r = await fetch("/api/stories/adapt", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ prose, sourceTitle, rightsHolder, licensed }),
+      });
+      if (!r.ok) throw new Error();
+      setStory(normalize(await r.json()));
+      setStep(1);
+    } catch {
+      setDraftError(true);
+    }
+    setDrafting(false);
+  };
+
+  const runImport = async (file: File) => {
+    setDrafting(true);
+    setDraftError(false);
+    setImportError(null);
+    try {
+      const body = new FormData();
+      body.append("file", file);
+      const r = await fetch("/api/stories/import-card", { method: "POST", body });
+      const j = await r.json();
+      if (!r.ok) {
+        setImportError(j?.error?.message ?? "We could not read that card.");
+      } else {
+        setStory(normalize(j));
+        setStep(1);
+      }
+    } catch {
+      setDraftError(true);
+    }
+    setDrafting(false);
+  };
+
   // ---- Step 0: the premise ----
   if (step === 0 && !story) {
     return (
       <main className="flex min-h-dvh flex-col px-5 py-8">
         <StepBar step={0} />
+
+        <div data-testid="lane-picker" className="mt-6 flex gap-2">
+          {(
+            [
+              ["premise", "From one line"],
+              ["adapt", "From something written"],
+              ["import", "From a card"],
+            ] as const
+          ).map(([k, label]) => (
+            <button key={k} className="chip" data-on={lane === k} onClick={() => setLane(k)}>
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {lane === "adapt" && (
+          <div className="mt-5">
+            <label htmlFor="prose" className="block text-lg font-bold">
+              Paste what already exists.
+            </label>
+            <p className="mt-1 text-xs" style={{ color: "var(--c-textMuted)" }}>
+              A chapter is enough. We find the structure that is already in it — the cast, two
+              scenes worth stepping into, the numbers the story actually turns on, and four
+              endings. Names and voice stay exactly as written.
+            </p>
+            <textarea
+              id="prose"
+              data-testid="prose-input"
+              className="input mt-3 h-48"
+              placeholder="Paste a chapter of prose…"
+              value={prose}
+              onChange={(e) => setProse(e.target.value)}
+            />
+            <label className="mt-3 flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={licensed}
+                onChange={(e) => setLicensed(e.target.checked)}
+              />
+              This is someone else&rsquo;s work, licensed to us
+            </label>
+            {licensed && (
+              <div className="mt-2 space-y-2">
+                <input
+                  className="input"
+                  aria-label="Source title"
+                  placeholder="Source title"
+                  value={sourceTitle}
+                  onChange={(e) => setSourceTitle(e.target.value)}
+                />
+                <input
+                  className="input"
+                  aria-label="Rights holder"
+                  placeholder="Rights holder (legal name)"
+                  value={rightsHolder}
+                  onChange={(e) => setRightsHolder(e.target.value)}
+                />
+                <p className="text-[11px]" style={{ color: "var(--c-textMuted)" }}>
+                  Non-exclusive. The rights holder keeps their copyright and can publish the
+                  original anywhere else, at any time.
+                </p>
+              </div>
+            )}
+            <button
+              className="btn-primary mt-4 w-full disabled:opacity-40"
+              disabled={prose.trim().length < 400 || drafting || (licensed && !rightsHolder.trim())}
+              onClick={runAdapt}
+            >
+              Make it playable
+            </button>
+          </div>
+        )}
+
+        {lane === "import" && (
+          <div className="mt-5">
+            <p className="text-lg font-bold">Bring your card over.</p>
+            <p className="mt-1 text-xs" style={{ color: "var(--c-textMuted)" }}>
+              A character card PNG from SillyTavern, Chub or anywhere else that writes the V2 or
+              V3 format. Its lorebook becomes your keyword book.
+            </p>
+            <div
+              className="card mt-3 p-4 text-xs"
+              style={{ borderColor: "var(--c-primary)", color: "var(--c-textMuted)" }}
+            >
+              <span className="font-semibold" style={{ color: "var(--c-text)" }}>
+                Imported cards stay private.
+              </span>{" "}
+              Only you can see or play them. We publish original work only, and we are not going
+              to pretend otherwise by hosting other people&rsquo;s characters.
+            </div>
+            <input
+              type="file"
+              accept="image/png"
+              aria-label="Character card PNG"
+              data-testid="card-file"
+              className="input mt-3"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) runImport(f);
+              }}
+            />
+            {importError && (
+              <p data-testid="import-error" className="mt-2 text-xs" style={{ color: "var(--c-danger)" }}>
+                {importError}
+              </p>
+            )}
+          </div>
+        )}
+
+        {lane === "premise" && (
+        <>
         <label htmlFor="premise" className="mt-6 block text-lg font-bold">
           One line. That is all we need.
         </label>
@@ -230,6 +388,8 @@ function CreateInner() {
         <button className="mt-3 text-center text-xs underline" style={{ color: "var(--c-textMuted)" }} onClick={startBlank}>
           Start blank
         </button>
+        </>
+        )}
       </main>
     );
   }

@@ -13,6 +13,7 @@ export interface CardData {
   likeCount: number;
   playerCount: number;
   endingCount?: number;
+  source?: "ORIGINAL" | "EDITORIAL" | "ADAPTED" | "IMPORTED";
   tags: { tag: { id: string; name: string } }[];
 }
 
@@ -60,6 +61,15 @@ export function StoryCard({ s, testid = "story-card" }: { s: CardData; testid?: 
       <Cover s={s} />
       <div className="mt-1.5 space-y-0.5">
         <p data-testid="card-title" className="line-clamp-2 text-[13px] font-semibold leading-tight">
+          {(s.source === "EDITORIAL" || s.source === "ADAPTED") && (
+            <span
+              data-testid="originals-badge"
+              className="mr-1 rounded px-1 text-[10px] font-bold"
+              style={{ background: "var(--c-accentSoft)", color: "var(--c-accent)" }}
+            >
+              ORIGINAL
+            </span>
+          )}
           {s.contentLevel === "TEEN" && (
             <span
               data-testid="teen-badge"

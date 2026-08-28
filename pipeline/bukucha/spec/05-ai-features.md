@@ -135,3 +135,37 @@
 | AIF-012 | 分岐点の自動検出(Route Map) | SCR-008 とセット |
 | AIF-013 | 公開前のAI自動試遊 | 「面白いか」の検証。人手レビューの代替 |
 | AIF-014 | タグとコンテンツワーニングの自動付与 | タグブロックとセットで初めて効く |
+
+---
+
+## AIF-015: Prose → playable story(追加 / 2026-08-28)
+
+- trigger: SCR-026「From something written」/ 運営の量産パイプライン
+- input_context: 既存の散文(最大24,000字)+ 原題・著者名
+- model_tier: CINEMATIC(AIF-005 と同じ。作成の質は下流すべてを決める)
+- output: AIF-005 と**同一のスキーマ**(intros / stats+levels / endings / keywords / tags)
+- 制約(AIF-005 との差):
+  - **原文の固有名詞・声・トーンを変えない。改名しない**
+  - worldSetting は「似た話」ではなく **この本文**を要約する
+  - intro 2件は**本文に実在する場面**。あってほしい場面ではない
+  - stat は**その物語が実際に賭けているもの**を追う。恋愛の話でなければ affinity を作らない
+  - 本文が短すぎて構造が取れない場合も**有効な JSON を返す**。捏造は最小限に留める
+- fallback: AIF-005 と同じ(1回リトライ → 白紙導線)
+- e2e_ref: [E2E-033]
+
+**なぜ要るか**: ローンチ在庫を「一文から」だけで積むのは非現実的。
+散文は既に世の中に大量にあり(Royal Road 5万本)、足りないのは**構造**だけ。
+この変換器が、運営の量産と翻案ライセンスの両方を同じ1本のコードで支える。
+
+## 非AI: Character Card V2/V3 の取り込み
+
+`app/src/server/import-card.ts`。**LLM を通さない決定的なパース。**
+
+- PNG の `tEXt` チャンクから `ccv3`(優先)/ `chara` を読み、base64 → JSON
+- V2/V3 とも `data` 直下にペイロード。古いカードはフラット
+- `{{user}}` → "you" / `{{char}}` → キャラ名 に脱テンプレート
+- `mes_example` の `<START>` 区切りを `exampleDialogs` に
+- `character_book.entries` → **`KeywordEntry`**(こちらに同時3件のような上限はない)
+- 結果は必ず `source=IMPORTED` / `status=PRIVATE` / `license.kind=PERSONAL_IMPORT`
+- **公開は `publishStory` がサーバー側で拒否する**(403 `import_is_private`)
+- e2e_ref: [E2E-031, E2E-032]

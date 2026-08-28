@@ -38,6 +38,25 @@ drawn from the same vocabulary the audience already speaks.
 | **発見** | SPA。作品ページが検索エンジンに存在しない | **SSR + OGP + JSON-LD**。未ログイン・JS無効で読める |
 | **規制** | App Store **13+** のまま Adult 層を持つ | ストアは 13+ に固定。**AI開示・休憩・危機介入を最初から実装**(NY法/CA法) |
 
+## ローンチ在庫をどう作るか
+
+**「北米の作り手が小さい」は事実ではない** — Character.AI 単体でユーザー製ボット1,800万体。
+小さいのは *我々の* 供給であり、理由は①コールドスタートと②**自社の二次創作禁止方針**である
+([`research/na-supply.md`](pipeline/bukucha/research/na-supply.md))。
+市場が小さいなら永久に自前制作だが、実際は大きい。UGCへの移行は順番の問題にすぎない。
+
+3レーンで在庫を作る:
+
+| レーン | 役割 | 根拠 |
+|---|---|---|
+| **自社オリジナル** | 旗艦・トーン定義 | 専用の棚とバッジ(OOC の "Original Exclusive Hall" 相当) |
+| **既存散文の翻案** | **カタログ本体** | Royal Road だけで5万本、ジャンル一致、作家が囲われていない。AIF-015 が散文→遊べる作品の変換器 |
+| **カード取り込み** | **移住ツール** | Character Card V2/V3 は開いた標準。**ただし取り込んだ作品は永久に非公開**(サーバー側で強制) |
+
+翻案は **非独占・著作権は権利者のもの**。この業界は Choice of Games=独占永久、
+Webnovel=著作権取得+派生ロイヤリティ10%、OOC Original=$300で恒久譲渡 と、
+**全部が独占か買い切り**。そこが交渉材料になる。
+
 ## リポジトリ構成
 
 ```
@@ -57,6 +76,7 @@ pipeline/bukucha/            Clone Factory の成果物
 ├── research/
 │   ├── ooc.md               ★ OOC 一次データ(APIルート全列挙 / Builder 機構 / 価格 / レビュー統計)
 │   ├── na-market.md         ★ 北米の需要・競合・規制(NY GBL 47 / CA SB 243 / Apple)
+│   ├── na-supply.md         ★ 供給側(作り手プールの実サイズ / 3レーン / 各社の契約条件)
 │   ├── kyarapu.md           OOC の日本版。同一エンジンなので引き続き有効
 │   └── (zeta / dmm / nsfw-female-market)  日本市場の資料として保存
 └── variants/                日本市場向けの派生計画(凍結)
@@ -84,7 +104,7 @@ npm run test:e2e         # Playwright / LLM はモック / 27件
 
 ## 状態
 
-MVP 実装済み。**19画面 / E2E 27件全通過 / build・型・lint クリーン。**
+MVP 実装済み。**20画面 / E2E 32件全通過(連続2回) / build・型・lint クリーン。**
 
 未実装: 決済の接続、OAuth、クリエイター送金、Route Map の UI、通知、シーン画像、ネイティブ申請。
 **そして最大の宿題は「1ターンあたり LLM 原価の実測」** — `Free = Standard 無制限` はこれなしに外部公約できない。

@@ -204,3 +204,47 @@
 
 `../teardown.md` §9 の Out に対応。SCR-004(ランキング)/ SCR-008(Route Map)/ SCR-013(作者ページ)/
 SCR-016(Rewards)/ SCR-019(通知)/ SCR-023(スラッシュコマンド)/ 決済実装 は P1 のため E2E も持たない。
+
+---
+
+## Supply lanes(追加 / 2026-08-28)
+
+### E2E-031: 取り込んだカードは遊べて、非公開で、公開できない
+- screens: [SCR-026]
+- steps: V2カードのPNGを取り込む → `source=IMPORTED` / `status=PRIVATE` /
+  `{{user}}`等が脱テンプレートされている / lorebook が KeywordEntry になっている /
+  `PUBLISHED` と `UNLISTED` の両方が **403 `import_is_private`** /
+  それでも**ルートは開始できる**(本人は遊べる)
+- なぜ P0: 「オリジナルのみ」を維持したまま移住ツールを持つ、という判断が**コードで守られているか**の検証
+- priority: **P0**
+
+### E2E-032: 壊れたPNGは「どこから持ってくるか」を書いて断る
+- steps: カードの入っていないPNG → 422、メッセージに SillyTavern / Chub が出る
+- priority: P1
+
+### E2E-033: 散文が遊べる作品になり、権利者が記録される
+- screens: [SCR-026]
+- steps: 散文 + `licensed:true` + rightsHolder → `source=ADAPTED` /
+  intros≥2 / stats≥2 / endings≥4(**オリジナルと同じ構造の水準**)/
+  `license.kind=ADAPTATION_OPTION` / `rightsHolder` 一致 /
+  **`exclusive === false`** / `revenueShareBps > 0`
+- なぜ P0: 「独占は取らない」が宣伝文句ではなくデータであることの検証
+- priority: **P0**
+
+### E2E-034: 権利者名のない翻案は受け付けない
+- steps: `licensed:true` かつ rightsHolder なし → 422 `rights_holder_required`
+- priority: **P0**
+
+### E2E-035: Originals の棚が先頭に立ち、バッジが付く
+- screens: [SCR-002, SCR-005]
+- steps: ホーム先頭が `section-originals` / カードに `originals-badge` /
+  作品ページに「HEADCANON Original」
+- priority: P1
+
+## 集計(更新)
+
+| priority | 件数 |
+|---|---|
+| **P0** | 26 |
+| P1 | 6 |
+| 合計 | **32**(全通過・連続2回グリーン) |

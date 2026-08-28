@@ -259,6 +259,50 @@ From one line of premise, build a complete, playable story. Output JSON only:
   ];
 }
 
+/**
+ * AIF-015: turn an existing piece of prose into a playable story.
+ *
+ * The same output shape as the premise draft, but grounded in a source text
+ * rather than invented. This is the converter that makes the adaptation lane
+ * work at all: a web novel is prose, and what we need is prose plus structure.
+ */
+export function buildAdaptationMessages(
+  prose: string,
+  meta: { sourceTitle?: string; author?: string }
+): LlmMessage[] {
+  const base = buildDraftMessages("");
+  const schema = base[0].content;
+  return [
+    {
+      role: "system",
+      content: `${schema}
+
+ADAPTING AN EXISTING WORK
+The user is giving you prose that already exists. You are not inventing a story —
+you are finding the playable structure that is already inside it.
+
+- Keep the author's names, places, voice and tone. Do not rename anything.
+- worldSetting must summarise THIS text, not a story like it.
+- Characters must be the ones in the text, with example dialogue drawn from how
+  they actually speak in it.
+- The two intros must be two real moments in this text a reader could step into —
+  a scene that happens, not a scene you wish happened.
+- Stats must track what this story is actually about. If the tension is a debt,
+  track the debt. Do not default to "affinity" unless the text is about affection.
+- Endings must be reachable from where the intros start.
+- Keyword notes must record the proper nouns this text relies on.
+- If the text is too short or too fragmentary to support this, still produce
+  valid JSON, and keep the invented parts minimal and consistent with the text.`,
+    },
+    {
+      role: "user",
+      content: `${meta.sourceTitle ? `TITLE: ${meta.sourceTitle}\n` : ""}${
+        meta.author ? `AUTHOR: ${meta.author}\n` : ""
+      }\nTEXT:\n${prose.slice(0, 24000)}`,
+    },
+  ];
+}
+
 // ============ Memory layer 2: rolling summary ============
 
 export function buildSummaryMessages(

@@ -19,6 +19,8 @@ export interface Detail {
   routeCount: number;
   likedByMe: boolean;
   endingsFound: string[];
+  source: "ORIGINAL" | "EDITORIAL" | "ADAPTED" | "IMPORTED";
+  license: { rightsHolder: string; sourceTitle: string | null; exclusive: boolean } | null;
   author: { id: string; handle: string; displayName: string };
   characters: {
     id: string;
@@ -212,6 +214,18 @@ export function StoryDetailClient({
           by {detail.author.displayName} · ◍ {detail.playerCount.toLocaleString()} players ·{" "}
           {detail.routeCount.toLocaleString()} routes played
         </p>
+        {(detail.source === "EDITORIAL" || detail.source === "ADAPTED") && (
+          <p
+            data-testid="originals-line"
+            className="mt-2 text-[11px]"
+            style={{ color: "var(--c-accent)" }}
+          >
+            HEADCANON Original
+            {detail.source === "ADAPTED" && detail.license?.sourceTitle
+              ? ` · adapted from "${detail.license.sourceTitle}" by ${detail.license.rightsHolder}, with permission`
+              : ""}
+          </p>
+        )}
         <div className="mt-2 flex flex-wrap gap-1.5">
           {detail.contentLevel === "TEEN" && (
             <span

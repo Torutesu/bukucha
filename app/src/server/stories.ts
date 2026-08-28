@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { HttpError } from "@/lib/auth";
 import { ruleCheck, visibleLevels } from "@/lib/policy";
 import { llm } from "@/lib/llm";
-import { buildDraftMessages } from "@/lib/prompt";
+import { buildAdaptationMessages, buildDraftMessages } from "@/lib/prompt";
 import { storySlug } from "@/lib/slug";
 import { brand } from "../../brand.config";
 import { FIRST_CHECK_TURN } from "./endings";
@@ -21,6 +21,7 @@ export const cardSelect = {
   publishedAt: true,
   slug: true,
   endingCount: true,
+  source: true,
   tags: { select: { tag: { select: { id: true, name: true } } }, take: 3 },
 } satisfies Prisma.StorySelect;
 
@@ -34,7 +35,13 @@ export function publishedWhere(user: User | null): Prisma.StoryWhereInput {
 export async function homeSections(user: User | null) {
   const where = publishedWhere(user);
   const prefTags = user?.preferenceTags ?? [];
-  const [forYou, popular, newest] = await Promise.all([
+  const [originals, forYou, popular, newest] = await Promise.all([
+    db.story.findMany({
+      where: { ...where, source: { in: ["EDITORIAL", "ADAPTED"] }, featuredAt: { not: null } },
+      select: cardSelect,
+      orderBy: [{ featuredAt: "desc" }],
+      take: 10,
+    }),
     prefTags.length
       ? db.story.findMany({
           where: { ...where, tags: { some: { tag: { name: { in: prefTags } } } } },
@@ -62,10 +69,13 @@ export async function homeSections(user: User | null) {
     }),
   ]);
   return [
+    // Supply is seeded, not organic, so the shelf that says "someone built this
+    // on purpose" leads. It is also the answer to an empty-catalogue launch.
+    { key: "originals", title: "HEADCANON Originals", stories: originals },
     { key: "forYou", title: "For you", stories: forYou },
     { key: "popular", title: "Being played right now", stories: popular },
     { key: "new", title: "New this week", stories: newest },
-  ];
+  ].filter((s) => s.stories.length > 0);
 }
 
 export async function recommend(user: User | null, tagNames: string[]) {
@@ -144,6 +154,7 @@ export async function storyDetail(user: User | null, idOrSlug: string) {
       },
       tags: { include: { tag: true } },
       author: { select: { id: true, handle: true, displayName: true } },
+      license: { select: { rightsHolder: true, sourceTitle: true, exclusive: true } },
     },
   });
   if (!s) throw new HttpError(404, "not_found", "This story isn't available.");
@@ -214,6 +225,7 @@ export async function requireOwnedStory(user: User, id: string) {
       },
       keywords: { orderBy: { sortOrder: "asc" } },
       tags: { include: { tag: true } },
+      license: true,
     },
   });
   if (!s) throw new HttpError(404, "not_found");
@@ -292,27 +304,97 @@ const RARITIES: EndingRarity[] = ["N", "R", "SR", "SSR"];
 export async function createDraftFromPremise(user: User, premise: string) {
   if (premise.trim().length < 10 || premise.length > 400)
     throw new HttpError(422, "invalid_premise", "Give us 10 to 400 characters to work with.");
+  const draft = await generate(buildDraftMessages(premise));
+  return persistDraft(user, draft, { seed: premise, source: "ORIGINAL" });
+}
 
-  let draft: DraftShape;
+/**
+ * AIF-015: adapt prose that already exists into a playable story.
+ *
+ * Used two ways, and deliberately the same code for both: editorial producing
+ * launch stock from its own drafts, and a licensed adaptation of an existing
+ * work. The licence record is what separates them, not the pipeline.
+ */
+export async function createDraftFromProse(
+  user: User,
+  prose: string,
+  meta: {
+    sourceTitle?: string;
+    sourceUrl?: string;
+    rightsHolder?: string;
+    author?: string;
+    licensed?: boolean;
+    revenueShareBps?: number;
+    termEndsAt?: string;
+  }
+) {
+  if (prose.trim().length < 400)
+    throw new HttpError(422, "prose_too_short", "Paste at least a few hundred words to adapt.");
+  if (meta.licensed && !meta.rightsHolder?.trim())
+    throw new HttpError(
+      422,
+      "rights_holder_required",
+      "An adaptation needs the name of whoever owns the work."
+    );
+  const draft = await generate(buildAdaptationMessages(prose, meta));
+  return persistDraft(user, draft, {
+    seed: `adapted from: ${meta.sourceTitle ?? "untitled source"}`,
+    source: meta.licensed ? "ADAPTED" : "EDITORIAL",
+    license: meta.licensed
+      ? {
+          kind: "ADAPTATION_OPTION" as const,
+          rightsHolder: meta.rightsHolder!.slice(0, 200),
+          sourceTitle: meta.sourceTitle?.slice(0, 200) ?? null,
+          sourceUrl: meta.sourceUrl?.slice(0, 500) ?? null,
+          // We never take exclusivity. See StoryLicense in the schema.
+          exclusive: false,
+          revenueShareBps: Math.max(0, Math.min(10000, meta.revenueShareBps ?? 2500)),
+          termStartsAt: new Date(),
+          termEndsAt: meta.termEndsAt ? new Date(meta.termEndsAt) : null,
+        }
+      : { kind: "PLATFORM_ORIGINAL" as const, rightsHolder: user.displayName },
+  });
+}
+
+async function generate(messages: Parameters<ReturnType<typeof llm>["complete"]>[1]) {
   const parse = (raw: string) => JSON.parse(raw.replace(/^```json?\s*|```\s*$/g, "")) as DraftShape;
   try {
-    draft = parse(await llm().complete("draft", buildDraftMessages(premise), { json: true }));
+    return parse(await llm().complete("draft", messages, { json: true }));
   } catch {
     // One retry, then let the error surface — a half-built story is worse than none.
-    draft = parse(await llm().complete("draft", buildDraftMessages(premise), { json: true }));
+    return parse(await llm().complete("draft", messages, { json: true }));
   }
+}
 
+interface PersistOptions {
+  seed: string;
+  source: "ORIGINAL" | "EDITORIAL" | "ADAPTED";
+  license?: {
+    kind: "PLATFORM_ORIGINAL" | "ADAPTATION_OPTION";
+    rightsHolder: string;
+    sourceTitle?: string | null;
+    sourceUrl?: string | null;
+    exclusive?: boolean;
+    revenueShareBps?: number;
+    termStartsAt?: Date;
+    termEndsAt?: Date | null;
+  };
+}
+
+async function persistDraft(user: User, draft: DraftShape, opts: PersistOptions) {
   const tags = await db.tag.findMany({ where: { name: { in: draft.suggestedTags ?? [] } } });
   const title = (draft.title ?? "").slice(0, 80);
 
   const story = await db.story.create({
     data: {
       authorId: user.id,
-      slug: storySlug(title || premise),
+      slug: storySlug(title || opts.seed),
       title,
       logline: (draft.logline ?? "").slice(0, 140),
       worldSetting: (draft.worldSetting ?? "").slice(0, 4000),
-      aiDraftInput: premise,
+      aiDraftInput: opts.seed,
+      source: opts.source,
+      ...(opts.license ? { license: { create: opts.license } } : {}),
       characters: {
         create: (draft.characters ?? []).slice(0, 3).map((c, i) => ({
           name: (c.name ?? "Unnamed").slice(0, 40),
@@ -421,6 +503,20 @@ export async function publishStory(
   visibility: "PUBLISHED" | "UNLISTED" | "PRIVATE"
 ) {
   const s = await requireOwnedStory(user, id);
+
+  // We publish original work only. A character card brought in from another
+  // service is almost always someone else's fan work, so it stays private —
+  // playable by the person who imported it and by nobody else. This is the
+  // line the benchmark blurs by banning fan fiction in policy while shipping a
+  // Fan Fiction category (research/ooc.md §7-8).
+  if (s.source === "IMPORTED" && visibility !== "PRIVATE") {
+    throw new HttpError(
+      403,
+      "import_is_private",
+      "Imported cards stay private. Only you can play this one — write an original to publish."
+    );
+  }
+
   if (visibility !== "PUBLISHED") {
     await db.story.update({ where: { id }, data: { status: visibility } });
     return { status: visibility };

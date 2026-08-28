@@ -115,6 +115,7 @@ export async function seed(db: PrismaClient) {
     contentLevel?: "ALL_AGES" | "TEEN";
     characterName?: string;
     publishedAt?: Date;
+    featured?: boolean;
     intros?: {
       id?: string;
       label: string;
@@ -140,7 +141,19 @@ export async function seed(db: PrismaClient) {
         worldSetting: opts.world,
         contentLevel: opts.contentLevel ?? "ALL_AGES",
         status: "PUBLISHED",
+        // Launch stock is operator-produced, so it carries the Originals badge
+        // and a licence record that says, in data, that we took no exclusivity.
+        source: "EDITORIAL",
+        featuredAt: opts.featured ? new Date() : null,
         publishedAt: opts.publishedAt ?? new Date(),
+        license: {
+          create: {
+            kind: "PLATFORM_ORIGINAL",
+            rightsHolder: "HEADCANON Editorial",
+            exclusive: false,
+            revenueShareBps: 0,
+          },
+        },
         likeCount: Math.floor(Math.random() * 200),
         routeCount: Math.floor(Math.random() * 500),
         playerCount: Math.floor(Math.random() * 400),
@@ -195,6 +208,7 @@ export async function seed(db: PrismaClient) {
     tags: ["slow burn", "childhood friends", "academy", "touch starved"],
     characterName: "Minato",
     publishedAt: new Date(Date.now() - 3600_000),
+    featured: true,
     intros: [
       {
         id: "intro_e2e_1",
@@ -363,8 +377,10 @@ export async function seed(db: PrismaClient) {
     characterName: "Reiji",
   });
 
-  for (const g of CATALOG) {
+  for (const [i, g] of CATALOG.entries()) {
     await createStory({
+      // A launch shelf needs to look chosen, not dumped.
+      featured: i < 5,
       title: g.title,
       logline: g.logline,
       world: g.world,
