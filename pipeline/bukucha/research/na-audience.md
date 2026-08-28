@@ -4,6 +4,9 @@
 - 問い: 「日本でいう Zeta 界隈みたいなのが北米にもあるのか。どういう属性の人が多いのか」[USER-REQ]
 - confidence: medium(プラットフォーム公表値・Similarweb・subreddit 統計。自己申告の性別比は幅を持って読むこと)
 
+> 図解版: [`na-audience-atlas.html`](./na-audience-atlas.html)(日英切り替え・単体で開ける)
+> — 界隈の位置図、二系譜の年表、契約条件の比較、供給3レーンの流れ。
+
 ---
 
 ## 0. 結論

@@ -1,0 +1,925 @@
+<title>x Reader Atlas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Zen+Old+Mincho:wght@400;700&family=IBM+Plex+Sans+JP:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+:root{
+  --paper:#eceef1; --surface:#f7f8fa; --raise:#ffffff;
+  --ink:#14161c; --muted:#5b6270; --faint:#8b93a1; --rule:#d3d7dd;
+  --jp:#b4392c; --jp-soft:#f3ded9;
+  --na:#3a5b8c; --na-soft:#dde4ef;
+  --dim:#7d8593;
+  --f-display:"Newsreader","Zen Old Mincho",Georgia,serif;
+  --f-jp:"Zen Old Mincho","Hiragino Mincho ProN",serif;
+  --f-body:"IBM Plex Sans JP","Hiragino Sans",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0f1218; --surface:#161a21; --raise:#1c212a;
+    --ink:#e7eaef; --muted:#99a2b1; --faint:#6f7887; --rule:#272d38;
+    --jp:#e0715e; --jp-soft:#2d1a17;
+    --na:#7ea0d4; --na-soft:#151e2b;
+    --dim:#828b99;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0f1218; --surface:#161a21; --raise:#1c212a;
+  --ink:#e7eaef; --muted:#99a2b1; --faint:#6f7887; --rule:#272d38;
+  --jp:#e0715e; --jp-soft:#2d1a17;
+  --na:#7ea0d4; --na-soft:#151e2b;
+  --dim:#828b99;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:var(--f-body); font-size:16px; line-height:1.75;
+  -webkit-font-smoothing:antialiased;
+}
+#page[data-lang="ja"] .en{display:none}
+#page[data-lang="en"] .ja{display:none}
+.wrap{max-width:1080px;margin:0 auto;padding:0 28px}
+.prose{max-width:66ch}
+
+/* ---- masthead ---- */
+.mast{border-bottom:1px solid var(--rule);background:var(--surface)}
+.mast .wrap{display:flex;align-items:center;justify-content:space-between;gap:20px;padding-top:18px;padding-bottom:18px}
+.eyebrow{
+  font-family:var(--f-mono);font-size:.68rem;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--faint);margin:0;
+}
+.langtoggle{display:flex;border:1px solid var(--rule);border-radius:2px;overflow:hidden;background:var(--raise)}
+.langtoggle button{
+  font-family:var(--f-mono);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;
+  padding:7px 13px;border:0;background:transparent;color:var(--muted);cursor:pointer;
+  transition:background .12s ease,color .12s ease;
+}
+.langtoggle button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.langtoggle button:focus-visible{outline:2px solid var(--jp);outline-offset:-2px}
+
+/* ---- hero ---- */
+.hero{padding:72px 0 56px;border-bottom:1px solid var(--rule)}
+h1{
+  font-family:var(--f-display);font-weight:600;
+  font-size:clamp(2.1rem,5.2vw,3.4rem);line-height:1.18;letter-spacing:-.015em;
+  margin:14px 0 0;text-wrap:balance;max-width:22ch;
+}
+h1 .ja{font-family:var(--f-jp);letter-spacing:.01em}
+.standfirst{margin:22px 0 0;font-size:1.06rem;color:var(--muted);max-width:60ch}
+.standfirst strong{color:var(--ink);font-weight:600}
+
+.statrow{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));
+  gap:1px;background:var(--rule);border:1px solid var(--rule);margin-top:44px;
+}
+.stat{background:var(--surface);padding:18px 20px}
+.stat .n{
+  font-family:var(--f-display);font-size:1.9rem;font-weight:600;line-height:1.1;
+  font-variant-numeric:tabular-nums;display:block;
+}
+.stat .k{font-size:.8rem;color:var(--muted);margin-top:5px;display:block;line-height:1.5}
+.stat.is-jp .n{color:var(--jp)}
+.stat.is-na .n{color:var(--na)}
+
+/* ---- sections ---- */
+section{padding:64px 0;border-bottom:1px solid var(--rule)}
+.sectlabel{
+  font-family:var(--f-mono);font-size:.68rem;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--faint);margin:0 0 10px;
+}
+h2{
+  font-family:var(--f-display);font-weight:600;font-size:clamp(1.5rem,3.2vw,2.05rem);
+  line-height:1.25;margin:0 0 18px;letter-spacing:-.01em;text-wrap:balance;
+}
+h2 .ja{font-family:var(--f-jp)}
+h3{font-size:1rem;font-weight:600;margin:34px 0 8px;letter-spacing:.005em}
+p{margin:0 0 16px}
+section p:last-child{margin-bottom:0}
+a{color:var(--na);text-decoration:underline;text-underline-offset:2px}
+a:focus-visible{outline:2px solid var(--jp);outline-offset:2px}
+
+/* ---- figures ---- */
+figure{margin:36px 0 0}
+figure svg{display:block;width:100%;height:auto;color:var(--ink)}
+figcaption{
+  font-size:.82rem;color:var(--muted);margin-top:14px;
+  padding-top:12px;border-top:1px solid var(--rule);max-width:74ch;
+}
+.svgwrap{overflow-x:auto;background:var(--surface);border:1px solid var(--rule);padding:20px}
+.svgwrap svg{min-width:660px}
+.dg-fill-na{fill:var(--na);opacity:.14}
+.dg-fill-jp{fill:var(--jp);opacity:.14}
+.dg-na{stroke:var(--na)}
+.dg-jp{stroke:var(--jp)}
+.dg-t{fill:var(--ink);font-family:var(--f-body);font-size:12.5px}
+.dg-t-s{fill:var(--muted);font-family:var(--f-body);font-size:11px}
+.dg-t-m{fill:var(--faint);font-family:var(--f-mono);font-size:10.5px;letter-spacing:.1em}
+.dg-t-na{fill:var(--na);font-family:var(--f-body);font-size:12.5px;font-weight:600}
+.dg-t-jp{fill:var(--jp);font-family:var(--f-body);font-size:12.5px;font-weight:600}
+.dg-num{fill:var(--muted);font-family:var(--f-mono);font-size:11px;font-variant-numeric:tabular-nums}
+.dg-axis{stroke:var(--rule);stroke-width:1}
+.dg-line{stroke:var(--dim);stroke-width:1.5;fill:none}
+
+/* ---- scene cards ---- */
+.scenes{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);margin-top:36px}
+.scene{background:var(--surface);padding:22px}
+.scene.mark{background:var(--na-soft)}
+.scene h3{margin:0 0 4px;font-size:1.08rem;font-family:var(--f-display);font-weight:600}
+.scene .tagline{font-size:.8rem;color:var(--muted);margin:0 0 16px;min-height:2.6em;line-height:1.45}
+.scene dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:5px 12px;font-size:.83rem}
+.scene dt{color:var(--faint);font-family:var(--f-mono);font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;padding-top:3px}
+.scene dd{margin:0;font-variant-numeric:tabular-nums}
+.scene dd b{font-weight:600}
+.verdict{margin-top:18px;padding-top:14px;border-top:1px solid var(--rule);font-size:.82rem;line-height:1.6}
+.verdict .lbl{font-family:var(--f-mono);font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);display:block;margin-bottom:4px}
+
+/* ---- tables ---- */
+.tablewrap{overflow-x:auto;margin-top:32px;border:1px solid var(--rule)}
+table{border-collapse:collapse;width:100%;min-width:600px;background:var(--surface);font-size:.87rem}
+th,td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--rule);vertical-align:top}
+thead th{
+  font-family:var(--f-mono);font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--faint);font-weight:400;background:var(--raise);
+}
+tbody tr:last-child td{border-bottom:0}
+td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.us{background:var(--jp-soft)}
+tr.us td{font-weight:500}
+.pill{
+  display:inline-block;font-family:var(--f-mono);font-size:.64rem;letter-spacing:.09em;
+  text-transform:uppercase;padding:2px 7px;border:1px solid currentColor;border-radius:2px;
+}
+.pill.bad{color:var(--jp)}
+.pill.ok{color:var(--na)}
+
+/* ---- callout ---- */
+.callout{
+  margin:38px 0 0;padding:26px 28px;background:var(--surface);
+  border-left:3px solid var(--jp);
+}
+.callout p{margin:0;font-family:var(--f-display);font-size:1.16rem;line-height:1.6}
+.callout p .ja{font-family:var(--f-jp)}
+.callout .attrib{
+  font-family:var(--f-mono);font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--faint);margin-top:14px;display:block;
+}
+
+/* ---- strategy list ---- */
+.moves{list-style:none;padding:0;margin:32px 0 0;display:grid;gap:1px;background:var(--rule);border:1px solid var(--rule)}
+.moves li{background:var(--surface);padding:20px 22px;display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:start}
+.moves .idx{
+  font-family:var(--f-mono);font-size:.72rem;color:var(--jp);padding-top:3px;
+  font-variant-numeric:tabular-nums;
+}
+.moves h3{margin:0 0 5px;font-size:.98rem}
+.moves p{margin:0;font-size:.87rem;color:var(--muted);line-height:1.65}
+
+.twocol{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:28px;margin-top:32px}
+.linebox{background:var(--surface);border:1px solid var(--rule);padding:22px}
+.linebox .when{font-family:var(--f-mono);font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);display:block;margin-bottom:10px}
+.linebox .say{font-family:var(--f-display);font-size:1.08rem;line-height:1.55;margin:0}
+.linebox .say .ja{font-family:var(--f-jp)}
+
+/* ---- footer ---- */
+footer{padding:52px 0 72px;color:var(--muted);font-size:.82rem}
+footer h3{font-size:.85rem;margin:0 0 10px}
+footer ul{margin:0 0 26px;padding-left:1.1em}
+footer li{margin-bottom:5px;line-height:1.6}
+.caveat{border-left:2px solid var(--rule);padding-left:16px;max-width:74ch}
+
+@media (max-width:640px){
+  .wrap{padding:0 20px}
+  .hero{padding:48px 0 40px}
+  section{padding:48px 0}
+  .moves li{grid-template-columns:1fr;gap:8px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{transition:none !important}
+}
+</style>
+
+<div id="page" data-lang="ja">
+
+<header class="mast">
+  <div class="wrap">
+    <p class="eyebrow">
+      <span class="ja">界隈調査 — 2026年8月</span>
+      <span class="en">Field study — August 2026</span>
+    </p>
+    <div class="langtoggle" role="group" aria-label="Language">
+      <button type="button" data-set="ja" aria-pressed="true">日本語</button>
+      <button type="button" data-set="en" aria-pressed="false">English</button>
+    </div>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="wrap">
+    <p class="eyebrow">
+      <span class="ja">問い — 日本のZeta界隈は、北米にもあるのか</span>
+      <span class="en">The question — does Japan's Zeta scene exist in North America?</span>
+    </p>
+    <h1>
+      <span class="ja">ある。日本より大きい。ただし三つに割れている。</span>
+      <span class="en">It exists. It is larger than Japan&rsquo;s. And it is three scenes, not one.</span>
+    </h1>
+    <p class="standfirst">
+      <span class="ja">日本のZeta界隈に最も近いのは Character.AI ではなく <strong>Janitor AI</strong> だった。女性70〜80%、新規ユーザーの65%が18〜24歳、DAU 250万。そして北米には<strong>「x Reader」という名前の夢小説文化が15年前から存在している</strong>。</span>
+      <span class="en">The closest match to Zeta is not Character.AI but <strong>Janitor AI</strong>: 70&ndash;80% women, 65% of new users aged 18&ndash;24, 2.5M daily. And North America has had its own dream-novel culture for fifteen years, under a different name: <strong>x Reader</strong>.</span>
+    </p>
+
+    <div class="statrow">
+      <div class="stat is-na">
+        <span class="n">18M+</span>
+        <span class="k">
+          <span class="ja">Character.AI のユーザー製ボット</span>
+          <span class="en">User-made bots on Character.AI</span>
+        </span>
+      </div>
+      <div class="stat is-na">
+        <span class="n">2.5M</span>
+        <span class="k">
+          <span class="ja">Janitor AI の1日あたり利用者</span>
+          <span class="en">Daily users on Janitor AI</span>
+        </span>
+      </div>
+      <div class="stat is-na">
+        <span class="n">70&ndash;80%</span>
+        <span class="k">
+          <span class="ja">Janitor AI の女性比率</span>
+          <span class="en">Share of Janitor AI users who are women</span>
+        </span>
+      </div>
+      <div class="stat is-jp">
+        <span class="n">2010</span>
+        <span class="k">
+          <span class="ja">Tumblr で x Reader が生まれた年</span>
+          <span class="en">The year x Reader appeared on Tumblr</span>
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 1. THREE SCENES ============ -->
+<section>
+  <div class="wrap">
+    <p class="sectlabel">
+      <span class="ja">構造</span><span class="en">Structure</span>
+    </p>
+    <h2>
+      <span class="ja">一つの界隈ではなく、三つの別々の人種</span>
+      <span class="en">Not one scene. Three different populations.</span>
+    </h2>
+    <div class="prose">
+      <p>
+        <span class="ja">「北米のAIロールプレイ層」を一枚岩として扱うと戦略を間違える。フィルタの厳しさと技術志向の二軸で置くと、三つの塊がはっきり分かれ、それぞれ性別構成も課金余地も違う。</span>
+        <span class="en">Treating &ldquo;the North American AI roleplay audience&rdquo; as one group leads to the wrong strategy. Plot them by filter strictness and technical appetite and three distinct clusters appear, each with a different gender split and a different willingness to pay.</span>
+      </p>
+    </div>
+
+    <figure>
+      <div class="svgwrap">
+        <svg viewBox="0 0 760 470" role="img" aria-label="Positioning map of North American AI roleplay platforms by filter strictness and technical appetite, showing the reachable middle between Character.AI and Janitor AI">
+          <!-- axes -->
+          <line class="dg-axis" x1="100" y1="410" x2="710" y2="410"/>
+          <line class="dg-axis" x1="100" y1="60" x2="100" y2="410"/>
+
+          <text class="dg-t-m" x="100" y="440">
+            <tspan class="ja">フィルタが厳しい</tspan><tspan class="en">HEAVILY FILTERED</tspan>
+          </text>
+          <text class="dg-t-m" x="710" y="440" text-anchor="end">
+            <tspan class="ja">無検閲</tspan><tspan class="en">UNCENSORED</tspan>
+          </text>
+          <text class="dg-t-m" x="92" y="56" text-anchor="end">
+            <tspan class="ja">パワーユーザー</tspan><tspan class="en">POWER USER</tspan>
+          </text>
+          <text class="dg-t-m" x="92" y="408" text-anchor="end">
+            <tspan class="ja">カジュアル</tspan><tspan class="en">CASUAL</tspan>
+          </text>
+
+          <!-- reachable zone -->
+          <rect x="344" y="224" width="160" height="156" rx="3" fill="none"
+                stroke="var(--jp)" stroke-width="1.5" stroke-dasharray="5 4"/>
+          <text class="dg-t-jp" x="424" y="400" text-anchor="middle">
+            <tspan class="ja">取れる面</tspan><tspan class="en">Reachable middle</tspan>
+          </text>
+
+          <!-- platforms -->
+          <circle class="dg-fill-na" cx="212" cy="330" r="52"/>
+          <circle cx="212" cy="330" r="52" fill="none" class="dg-na" stroke-width="1.5"/>
+          <text class="dg-t-na" x="212" y="327" text-anchor="middle">Character.AI</text>
+          <text class="dg-num" x="212" y="345" text-anchor="middle">MAU 20M</text>
+
+          <circle class="dg-fill-na" cx="152" cy="388" r="15"/>
+          <circle cx="152" cy="388" r="15" fill="none" class="dg-na" stroke-width="1.2"/>
+          <text class="dg-t-s" x="152" y="364" text-anchor="middle">Talkie</text>
+
+          <circle class="dg-fill-na" cx="286" cy="392" r="14"/>
+          <circle cx="286" cy="392" r="14" fill="none" class="dg-na" stroke-width="1.2"/>
+          <text class="dg-t-s" x="286" y="368" text-anchor="middle">PolyBuzz</text>
+
+          <circle class="dg-fill-na" cx="298" cy="230" r="24"/>
+          <circle cx="298" cy="230" r="24" fill="none" class="dg-na" stroke-width="1.5"/>
+          <text class="dg-t-na" x="298" y="196" text-anchor="middle">OOC</text>
+
+          <circle class="dg-fill-na" cx="570" cy="322" r="42"/>
+          <circle cx="570" cy="322" r="42" fill="none" class="dg-na" stroke-width="1.5"/>
+          <text class="dg-t-na" x="570" y="319" text-anchor="middle">Janitor AI</text>
+          <text class="dg-num" x="570" y="337" text-anchor="middle">DAU 2.5M</text>
+
+          <circle class="dg-fill-na" cx="662" cy="136" r="26"/>
+          <circle cx="662" cy="136" r="26" fill="none" class="dg-na" stroke-width="1.5"/>
+          <text class="dg-t-na" x="662" y="96" text-anchor="middle">Chub / SillyTavern</text>
+
+          <!-- us -->
+          <polygon points="424,264 438,278 424,292 410,278" fill="var(--jp)"/>
+          <text class="dg-t-jp" x="424" y="312" text-anchor="middle">HEADCANON</text>
+
+          <!-- migration arrow -->
+          <defs>
+            <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--dim)"/>
+            </marker>
+          </defs>
+          <path class="dg-line" d="M 264 292 Q 412 128 528 292" stroke-dasharray="4 4" marker-end="url(#ar)"/>
+          <text class="dg-t-s" x="412" y="146" text-anchor="middle">
+            <tspan class="ja">フィルタに疲れて流出</tspan><tspan class="en">leaving because of the filters</tspan>
+          </text>
+        </svg>
+      </div>
+      <figcaption>
+        <span class="ja">円の面積はおおよその規模。破線の枠は、我々が実際に取りにいける層 &mdash; Janitor の入口は「無検閲であること」そのものなので正面からは取れない。取れるのは <strong>Character.AI のフィルタに疲れて Janitor に流れかけている途中の層</strong>である。</span>
+        <span class="en">Circle area is rough scale. The dashed box is the segment we can actually take: Janitor&rsquo;s front door is being uncensored, which is a door we do not open. What is reachable is <strong>the people already leaving Character.AI&rsquo;s filters, caught mid-migration</strong>.</span>
+      </figcaption>
+    </figure>
+
+    <div class="scenes">
+      <div class="scene">
+        <h3>Character.AI</h3>
+        <p class="tagline">
+          <span class="ja">最大・最若。TikTok で会話のスクショが回る。</span>
+          <span class="en">Largest and youngest. Screenshots circulate on TikTok.</span>
+        </p>
+        <dl>
+          <dt>Reddit</dt><dd><b>2.6M</b> <span class="ja">人</span><span class="en">members</span></dd>
+          <dt><span class="ja">年齢</span><span class="en">Age</span></dt><dd>18&ndash;24 &nbsp;<b>52%</b></dd>
+          <dt><span class="ja">性別</span><span class="en">Gender</span></dt><dd><span class="ja">ほぼ半々</span><span class="en">near 50/50</span></dd>
+          <dt><span class="ja">課金</span><span class="en">Paid</span></dt><dd>$9.99 / mo</dd>
+        </dl>
+        <div class="verdict">
+          <span class="lbl"><span class="ja">我々にとって</span><span class="en">For us</span></span>
+          <span class="ja">離脱意向が可視化される場所。ここからの流出を受け止める。</span>
+          <span class="en">Where the intent to leave is visible. We catch the outflow.</span>
+        </div>
+      </div>
+
+      <div class="scene mark">
+        <h3>Janitor AI</h3>
+        <p class="tagline">
+          <span class="ja">日本のZeta界隈と同じプロファイル。むしろ女性比率が高い。</span>
+          <span class="en">The same profile as Japan&rsquo;s Zeta scene &mdash; with a higher share of women.</span>
+        </p>
+        <dl>
+          <dt>DAU</dt><dd><b>2.5M</b></dd>
+          <dt><span class="ja">年齢</span><span class="en">Age</span></dt><dd><span class="ja">新規の</span>18&ndash;24 &nbsp;<b>65%</b></dd>
+          <dt><span class="ja">性別</span><span class="en">Gender</span></dt><dd><span class="ja">女性</span><span class="en">women</span> <b>70&ndash;80%</b></dd>
+          <dt><span class="ja">入口</span><span class="en">Door</span></dt><dd><span class="ja">無検閲</span><span class="en">uncensored</span></dd>
+        </dl>
+        <div class="verdict">
+          <span class="lbl"><span class="ja">我々にとって</span><span class="en">For us</span></span>
+          <span class="ja">本命だが正面からは取れない。入口が無検閲そのものだから。</span>
+          <span class="en">The prize, but not takeable head-on &mdash; its front door is the thing we will not ship.</span>
+        </div>
+      </div>
+
+      <div class="scene">
+        <h3>Chub / SillyTavern</h3>
+        <p class="tagline">
+          <span class="ja">APIキーとローカルLLMを自分で扱う層。完全に別の人種。</span>
+          <span class="en">People who wrangle API keys and local models. A different population entirely.</span>
+        </p>
+        <dl>
+          <dt><span class="ja">訪問</span><span class="en">Visits</span></dt><dd><b>7M</b> / mo</dd>
+          <dt>Reddit</dt><dd><b>122K</b> <span class="ja">人</span><span class="en">members</span></dd>
+          <dt><span class="ja">性別</span><span class="en">Gender</span></dt><dd><span class="ja">男性</span><span class="en">men</span> <b>81.4%</b></dd>
+          <dt><span class="ja">課金</span><span class="en">Paid</span></dt><dd><span class="ja">自前でモデルを回す</span><span class="en">runs its own models</span></dd>
+        </dl>
+        <div class="verdict">
+          <span class="lbl"><span class="ja">我々にとって</span><span class="en">For us</span></span>
+          <span class="ja">カード取り込みで刺さる。ただし収益源ではなく、口コミと供給源。</span>
+          <span class="en">The card importer speaks to them. Treat as word of mouth and supply, not revenue.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 2. HISTORY ============ -->
+<section>
+  <div class="wrap">
+    <p class="sectlabel">
+      <span class="ja">歴史</span><span class="en">History</span>
+    </p>
+    <h2>
+      <span class="ja">同じ発明に、二つの文化が別々にたどり着いていた</span>
+      <span class="en">Two cultures arrived at the same invention, independently</span>
+    </h2>
+    <div class="prose">
+      <p>
+        <span class="ja"><strong>x Reader</strong>(Reader-insert)とは、二人称で &ldquo;you&rdquo; が主人公になる小説のこと。誰でも入れるように、主人公を意図的に描写しない。&mdash;&mdash; これは<strong>夢小説の定義そのもの</strong>である。Tumblr で2010年頃、One Direction のファンダムから広がった。日本の夢小説と交流した形跡はない。</span>
+        <span class="en"><strong>x Reader</strong>, or reader-insert, is fiction written in the second person where &ldquo;you&rdquo; are the protagonist, and the protagonist is left deliberately undescribed so anyone can wear the role. That is <strong>the definition of 夢小説</strong>. It spread from Tumblr around 2010, out of the One Direction fandom, with no contact with the Japanese tradition.</span>
+      </p>
+    </div>
+
+    <figure>
+      <div class="svgwrap">
+        <svg viewBox="0 0 760 380" role="img" aria-label="Three parallel timelines: the Japanese dream-novel lineage, the North American x Reader lineage, and the regulatory track, converging on the same product form by 2026">
+          <!-- year ticks -->
+          <line class="dg-axis" x1="60" y1="318" x2="722" y2="318"/>
+          <g class="dg-num" text-anchor="middle">
+            <text x="96" y="338"><tspan class="ja">〜2009</tspan><tspan class="en">pre-2009</tspan></text>
+            <text x="212" y="338">2010</text>
+            <text x="328" y="338">2021</text>
+            <text x="444" y="338">2022&ndash;23</text>
+            <text x="560" y="338">2025</text>
+            <text x="676" y="338">2026</text>
+          </g>
+
+          <!-- JP track -->
+          <text class="dg-t-jp" x="60" y="46">
+            <tspan class="ja">日本の系譜</tspan><tspan class="en">Japanese lineage</tspan>
+          </text>
+          <line x1="96" y1="78" x2="676" y2="78" class="dg-jp" stroke-width="1.5"/>
+          <circle cx="96" cy="78" r="4.5" fill="var(--jp)"/>
+          <circle cx="560" cy="78" r="4.5" fill="var(--jp)"/>
+          <circle cx="676" cy="78" r="4.5" fill="var(--jp)"/>
+          <text class="dg-t" x="96" y="66" text-anchor="start">
+            <tspan class="ja">夢小説(個人サイト時代)</tspan><tspan class="en">夢小説, personal-site era</tspan>
+          </text>
+          <text class="dg-t" x="560" y="66" text-anchor="middle">
+            <tspan class="ja">キャラぷ(Wrtn 日本版)</tspan><tspan class="en">Kyarapu (Wrtn Japan)</tspan>
+          </text>
+          <text class="dg-t" x="688" y="102" text-anchor="end">
+            <tspan class="ja">Zeta が日本で急成長</tspan><tspan class="en">Zeta surges in Japan</tspan>
+          </text>
+
+          <!-- NA track -->
+          <text class="dg-t-na" x="60" y="152">
+            <tspan class="ja">北米の系譜</tspan><tspan class="en">North American lineage</tspan>
+          </text>
+          <line x1="212" y1="184" x2="676" y2="184" class="dg-na" stroke-width="1.5"/>
+          <circle cx="212" cy="184" r="4.5" fill="var(--na)"/>
+          <circle cx="328" cy="184" r="4.5" fill="var(--na)"/>
+          <circle cx="444" cy="184" r="4.5" fill="var(--na)"/>
+          <circle cx="676" cy="184" r="4.5" fill="var(--na)"/>
+          <text class="dg-t" x="212" y="172" text-anchor="middle">
+            <tspan class="ja">Tumblr で x Reader</tspan><tspan class="en">x Reader on Tumblr</tspan>
+          </text>
+          <text class="dg-t" x="328" y="208" text-anchor="middle">
+            <tspan class="ja">AO3「Reader」タグ上位</tspan><tspan class="en">AO3 Reader tag surges</tspan>
+          </text>
+          <text class="dg-t" x="444" y="172" text-anchor="middle">
+            <tspan class="ja">Character.AI → Janitor AI</tspan><tspan class="en">Character.AI &rarr; Janitor AI</tspan>
+          </text>
+          <text class="dg-t" x="688" y="208" text-anchor="end">
+            <tspan class="ja">OOC 北米上陸</tspan><tspan class="en">OOC lands in NA</tspan>
+          </text>
+
+          <!-- no contact -->
+          <line x1="140" y1="94" x2="140" y2="168" stroke="var(--faint)" stroke-width="1" stroke-dasharray="3 4"/>
+          <text class="dg-t-m" x="150" y="135" text-anchor="start">
+            <tspan class="ja">交流なし</tspan><tspan class="en">NO CONTACT</tspan>
+          </text>
+
+          <!-- brace joining both to one claim -->
+          <path d="M 700 78 Q 722 78 722 116 L 722 146 Q 722 184 700 184"
+                fill="none" stroke="var(--ink)" stroke-width="1.2"/>
+          <text class="dg-t" x="732" y="126" text-anchor="middle" transform="rotate(90 732 126)">
+            <tspan class="ja">同じ形</tspan><tspan class="en">same form</tspan>
+          </text>
+
+          <!-- regulation track -->
+          <text class="dg-t-m" x="60" y="258">
+            <tspan class="ja">規制</tspan><tspan class="en">REGULATION</tspan>
+          </text>
+          <line x1="596" y1="284" x2="700" y2="284" stroke="var(--dim)" stroke-width="1.5"/>
+          <circle cx="596" cy="284" r="4" fill="var(--dim)"/>
+          <circle cx="648" cy="284" r="4" fill="var(--dim)"/>
+          <circle cx="700" cy="284" r="4" fill="var(--dim)"/>
+          <line x1="700" y1="258" x2="700" y2="278" stroke="var(--faint)" stroke-width="1"/>
+          <text class="dg-t-s" x="596" y="274" text-anchor="middle">NY GBL 47</text>
+          <text class="dg-t-s" x="648" y="302" text-anchor="middle">CA SB 243</text>
+          <text class="dg-t-s" x="728" y="250" text-anchor="end">
+            <tspan class="ja">c.ai 顔スキャン</tspan><tspan class="en">c.ai face scan</tspan>
+          </text>
+        </svg>
+      </div>
+      <figcaption>
+        <span class="ja">目盛りは等間隔で、時間の尺度ではない。日本側の初期は個人サイト時代にさかのぼるため年を特定していない。規制帯は、この15年で最後に加わった制約 &mdash; 2025年11月以降、開示・休憩・危機介入は任意ではなくなった。</span>
+        <span class="en">Ticks are evenly spaced, not to scale. The Japanese lineage predates dateable platforms, so its origin is left unpinned. The regulation track is the newest constraint of the fifteen: since November 2025, disclosure, break reminders and crisis handling stopped being optional.</span>
+      </figcaption>
+    </figure>
+
+    <div class="callout">
+      <p>
+        <span class="ja">「北米に夢小説はない」は誤り。呼び名が違うだけで、15年の歴史がある。</span>
+        <span class="en">&ldquo;There is no 夢小説 in North America&rdquo; is false. It has a different name and fifteen years of history.</span>
+      </p>
+      <span class="attrib">
+        <span class="ja">AO3「Reader」タグは、年間の作品追加数で上位に入る</span>
+        <span class="en">The Reader tag is among AO3&rsquo;s most-added, year on year</span>
+      </span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 3. PLAYERS ============ -->
+<section>
+  <div class="wrap">
+    <p class="sectlabel">
+      <span class="ja">主要プレイヤー</span><span class="en">The board</span>
+    </p>
+    <h2>
+      <span class="ja">誰が居て、どこに読者と書き手が溜まっているか</span>
+      <span class="en">Who is on the board, and where readers and writers pool</span>
+    </h2>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr>
+            <th><span class="ja">プラットフォーム</span><span class="en">Platform</span></th>
+            <th><span class="ja">規模</span><span class="en">Scale</span></th>
+            <th><span class="ja">属性</span><span class="en">Who</span></th>
+            <th><span class="ja">役割</span><span class="en">Role</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Character.AI</td>
+            <td class="num">MAU 20M<br>18M+ bots</td>
+            <td>18&ndash;24 &nbsp;52%</td>
+            <td><span class="ja">離脱の発生源</span><span class="en">Source of the outflow</span></td>
+          </tr>
+          <tr>
+            <td>Janitor AI</td>
+            <td class="num">DAU 2.5M</td>
+            <td><span class="ja">女性</span><span class="en">Women</span> 70&ndash;80%</td>
+            <td><span class="ja">Zeta界隈の対応物</span><span class="en">The Zeta analogue</span></td>
+          </tr>
+          <tr>
+            <td>Chub / SillyTavern</td>
+            <td class="num">7M / mo</td>
+            <td><span class="ja">男性</span><span class="en">Men</span> 81.4%</td>
+            <td><span class="ja">カード供給と口コミ</span><span class="en">Cards and word of mouth</span></td>
+          </tr>
+          <tr>
+            <td>OOC (Wrtn)</td>
+            <td class="num">500K+ installs</td>
+            <td><span class="ja">米 Simulation 売上6位</span><span class="en">#6 grossing, US Simulation</span></td>
+            <td><span class="ja">ベンチマーク</span><span class="en">The benchmark</span></td>
+          </tr>
+          <tr>
+            <td>Wattpad</td>
+            <td class="num">90M</td>
+            <td><span class="ja">読者の70%+が女性</span><span class="en">70%+ women readers</span></td>
+            <td><span class="ja">書き手の在庫</span><span class="en">Writer supply</span></td>
+          </tr>
+          <tr>
+            <td>Royal Road</td>
+            <td class="num">50K+ <span class="ja">作品</span><span class="en">titles</span></td>
+            <td><span class="ja">isekai / LitRPG</span><span class="en">isekai / LitRPG</span></td>
+            <td><span class="ja">翻案の第一候補</span><span class="en">First choice for adaptation</span></td>
+          </tr>
+          <tr>
+            <td>AO3</td>
+            <td class="num">&mdash;</td>
+            <td><span class="ja">22%が書く側</span><span class="en">22% write</span></td>
+            <td><span class="ja">x Reader 文化の本拠</span><span class="en">Home of x Reader</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>
+      <span class="ja">契約条件 &mdash; ここが空いている</span>
+      <span class="en">Licensing terms &mdash; the gap on the board</span>
+    </h3>
+    <div class="prose">
+      <p>
+        <span class="ja">作り手を集めるとき、条件で殴れる。このカテゴリの既存事業者は<strong>全部が独占か買い切り</strong>だからだ。</span>
+        <span class="en">When recruiting writers, terms are a weapon: every incumbent in this category takes either exclusivity or the copyright outright.</span>
+      </p>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr>
+            <th><span class="ja">事業者</span><span class="en">Operator</span></th>
+            <th><span class="ja">作家の取り分</span><span class="en">Writer&rsquo;s cut</span></th>
+            <th><span class="ja">著作権</span><span class="en">Copyright</span></th>
+            <th><span class="ja">独占</span><span class="en">Exclusivity</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Choice of Games</td>
+            <td class="num">25%</td>
+            <td><span class="ja">作家に残る</span><span class="en">Stays with writer</span></td>
+            <td><span class="pill bad"><span class="ja">独占・永久</span><span class="en">perpetual</span></span></td>
+          </tr>
+          <tr>
+            <td>Webnovel</td>
+            <td class="num"><span class="ja">派生の10%</span><span class="en">10% of derivatives</span></td>
+            <td><span class="ja">事業者が取得</span><span class="en">Taken by operator</span></td>
+            <td><span class="pill bad"><span class="ja">全世界・永久</span><span class="en">worldwide</span></span></td>
+          </tr>
+          <tr>
+            <td>OOC Original</td>
+            <td class="num">$300 + 2%</td>
+            <td><span class="ja">恒久譲渡</span><span class="en">Assigned permanently</span></td>
+            <td><span class="pill bad"><span class="ja">買い切り</span><span class="en">buyout</span></span></td>
+          </tr>
+          <tr class="us">
+            <td>HEADCANON</td>
+            <td class="num"><span class="ja">1ターン目から</span><span class="en">From turn one</span></td>
+            <td><span class="ja">権利者のまま</span><span class="en">Stays with rights holder</span></td>
+            <td><span class="pill ok"><span class="ja">非独占</span><span class="en">non-exclusive</span></span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 4. THE SOFT SPOT ============ -->
+<section>
+  <div class="wrap">
+    <p class="sectlabel">
+      <span class="ja">ベンチマークの弱点</span><span class="en">Where the benchmark is soft</span>
+    </p>
+    <h2>
+      <span class="ja">OOC への不満は、金と記憶の二つしかない</span>
+      <span class="en">Every complaint about OOC is money or memory</span>
+    </h2>
+    <div class="prose">
+      <p>
+        <span class="ja">否定レビュー61件の内訳。文章品質・世界観・UIへの不満は<strong>ほぼゼロ</strong>だった。つまり「作れば勝てる」市場ではなく、<strong>同じものを作って、この二点だけ正しく設計すれば勝てる</strong>市場である。</span>
+        <span class="en">A breakdown of 61 negative reviews. Complaints about the writing, the worlds, or the interface are <strong>close to zero</strong>. This is not a market you win by building something; it is a market you win by <strong>building the same thing and getting these two right</strong>.</span>
+      </p>
+    </div>
+
+    <figure>
+      <div class="svgwrap">
+        <svg viewBox="0 0 790 306" role="img" aria-label="Themes in OOC negative reviews, grouped: money complaints total 69 percent across expensive credits, too few free credits and aggressive monetisation; memory loss is a separate 23 percent">
+          <g class="dg-t">
+            <text x="4" y="46"><tspan class="ja">クレジットが高い</tspan><tspan class="en">Expensive credits</tspan></text>
+            <text x="4" y="98"><tspan class="ja">無料枠が少ない</tspan><tspan class="en">Too few free credits</tspan></text>
+            <text x="4" y="150"><tspan class="ja">攻撃的な収益化</tspan><tspan class="en">Aggressive monetisation</tspan></text>
+            <text x="4" y="216"><tspan class="ja">AIが記憶を失う</tspan><tspan class="en">The AI forgets</tspan></text>
+            <text x="4" y="268"><tspan class="ja">機能が壊れている</tspan><tspan class="en">Broken features</tspan></text>
+          </g>
+
+          <!-- money group: 1% = 11px, origin x = 250 -->
+          <rect x="250" y="30" width="396" height="22" fill="var(--jp)" opacity=".85"/>
+          <rect x="250" y="82" width="198" height="22" fill="var(--jp)" opacity=".6"/>
+          <rect x="250" y="134" width="165" height="22" fill="var(--jp)" opacity=".6"/>
+          <!-- memory, a separate theme entirely -->
+          <rect x="250" y="200" width="253" height="22" fill="var(--na)" opacity=".85"/>
+          <!-- everything else -->
+          <rect x="250" y="252" width="132" height="22" fill="var(--dim)" opacity=".4"/>
+
+          <line x1="250" y1="178" x2="646" y2="178" class="dg-axis"/>
+
+          <g class="dg-num">
+            <text x="658" y="46">36%</text>
+            <text x="460" y="98">18%</text>
+            <text x="427" y="150">15%</text>
+            <text x="515" y="216">23%</text>
+            <text x="394" y="268">12%</text>
+          </g>
+
+          <path d="M 700 30 L 716 30 L 716 156 L 700 156" fill="none" stroke="var(--jp)" stroke-width="1.2"/>
+          <text class="dg-t-jp" x="732" y="93" text-anchor="middle" transform="rotate(90 732 93)">
+            <tspan class="ja">金の問題 = 69%</tspan><tspan class="en">money = 69%</tspan>
+          </text>
+
+          <path d="M 700 200 L 716 200 L 716 222 L 700 222" fill="none" stroke="var(--na)" stroke-width="1.2"/>
+          <text class="dg-t-na" x="726" y="216" text-anchor="start">
+            <tspan class="ja">記憶</tspan><tspan class="en">memory</tspan>
+          </text>
+        </svg>
+      </div>
+      <figcaption>
+        <span class="ja">1件のレビューが複数の項目に触れるため、合計は100%にならない。<strong>記憶</strong>が特に重いのは、OOC が App Store の説明文で &ldquo;Deep Memory&rdquo; を売り文句にしているうえ、<strong>忘れた設定を教え直すのにまたクレジットを消費させる</strong>から &mdash; 二重の罰になっている。</span>
+        <span class="en">Reviews can mention more than one theme, so the figures do not sum to 100%. <strong>Memory</strong> cuts deepest because OOC advertises &ldquo;Deep Memory&rdquo; on its App Store page, and because <strong>re-teaching the model what it forgot costs the reader credits again</strong> &mdash; a second punishment for the platform&rsquo;s own failure.</span>
+      </figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ============ 5. STRATEGY ============ -->
+<section>
+  <div class="wrap">
+    <p class="sectlabel">
+      <span class="ja">戦略</span><span class="en">Strategy</span>
+    </p>
+    <h2>
+      <span class="ja">在庫は待たずに三本のレーンで積む</span>
+      <span class="en">Seed the catalogue three ways rather than wait for it</span>
+    </h2>
+    <div class="prose">
+      <p>
+        <span class="ja">作り手が集まるのを待てない。ローンチ時に我々の書き手はゼロで、しかも<strong>二次創作禁止という自社方針が、1,800万体の既存供給の大半を切り落としている</strong>。だから在庫は自分で作る。</span>
+        <span class="en">We cannot wait for creators to arrive. At launch we have none, and <strong>our own originals-only policy cuts us off from most of the 18M cards that already exist</strong>. So the catalogue gets seeded.</span>
+      </p>
+    </div>
+
+    <figure>
+      <div class="svgwrap">
+        <svg viewBox="0 0 760 330" role="img" aria-label="Three supply lanes: editorial drafts and licensed web novels pass through the prose converter into the public catalogue, while imported character cards are parsed deterministically and can only ever be private">
+          <defs>
+            <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--dim)"/>
+            </marker>
+          </defs>
+
+          <!-- sources -->
+          <rect x="14" y="34" width="176" height="56" rx="2" fill="none" stroke="var(--rule)" stroke-width="1.5"/>
+          <text class="dg-t" x="102" y="60" text-anchor="middle"><tspan class="ja">自社の原稿</tspan><tspan class="en">Editorial drafts</tspan></text>
+          <text class="dg-t-s" x="102" y="78" text-anchor="middle"><tspan class="ja">旗艦・トーン定義</tspan><tspan class="en">flagship, sets the tone</tspan></text>
+
+          <rect x="14" y="124" width="176" height="56" rx="2" fill="none" stroke="var(--na)" stroke-width="1.5"/>
+          <text class="dg-t-na" x="102" y="150" text-anchor="middle"><tspan class="ja">既存のWeb小説</tspan><tspan class="en">Existing web novels</tspan></text>
+          <text class="dg-t-s" x="102" y="168" text-anchor="middle">Royal Road &nbsp;50K+</text>
+
+          <rect x="14" y="230" width="176" height="56" rx="2" fill="none" stroke="var(--rule)" stroke-width="1.5"/>
+          <text class="dg-t" x="102" y="256" text-anchor="middle"><tspan class="ja">キャラクターカード</tspan><tspan class="en">Character cards</tspan></text>
+          <text class="dg-t-s" x="102" y="274" text-anchor="middle">V2 / V3 PNG</text>
+
+          <!-- converters -->
+          <rect x="292" y="66" width="168" height="66" rx="2" fill="var(--na-soft)" stroke="var(--na)" stroke-width="1.5"/>
+          <text class="dg-t-na" x="376" y="94" text-anchor="middle"><tspan class="ja">散文 → 構造 変換器</tspan><tspan class="en">Prose &rarr; structure</tspan></text>
+          <text class="dg-t-s" x="376" y="112" text-anchor="middle">AIF-015</text>
+
+          <rect x="292" y="230" width="168" height="56" rx="2" fill="none" stroke="var(--dim)" stroke-width="1.5"/>
+          <text class="dg-t" x="376" y="255" text-anchor="middle"><tspan class="ja">決定的パース</tspan><tspan class="en">Deterministic parse</tspan></text>
+          <text class="dg-t-s" x="376" y="273" text-anchor="middle"><tspan class="ja">LLMを使わない</tspan><tspan class="en">no model involved</tspan></text>
+
+          <!-- arrows in -->
+          <path class="dg-line" d="M 190 62 L 284 88" marker-end="url(#ar2)"/>
+          <path class="dg-line" d="M 190 152 L 284 116" marker-end="url(#ar2)"/>
+          <path class="dg-line" d="M 190 258 L 284 258" marker-end="url(#ar2)"/>
+          <text class="dg-t-s" x="237" y="46" text-anchor="middle"><tspan class="ja">貼る</tspan><tspan class="en">paste</tspan></text>
+          <text class="dg-t-s" x="237" y="182" text-anchor="middle"><tspan class="ja">ライセンス</tspan><tspan class="en">licensed</tspan></text>
+          <text class="dg-t-s" x="237" y="248" text-anchor="middle"><tspan class="ja">読む</tspan><tspan class="en">read</tspan></text>
+
+          <!-- outputs -->
+          <rect x="566" y="66" width="176" height="66" rx="2" fill="var(--jp-soft)" stroke="var(--jp)" stroke-width="1.5"/>
+          <text class="dg-t-jp" x="654" y="94" text-anchor="middle"><tspan class="ja">公開カタログ</tspan><tspan class="en">Public catalogue</tspan></text>
+          <text class="dg-t-s" x="654" y="112" text-anchor="middle"><tspan class="ja">Originals バッジ付き</tspan><tspan class="en">carries the Originals badge</tspan></text>
+
+          <rect x="566" y="230" width="176" height="56" rx="2" fill="none" stroke="var(--dim)" stroke-width="1.5" stroke-dasharray="5 4"/>
+          <text class="dg-t" x="654" y="255" text-anchor="middle"><tspan class="ja">本人だけが遊べる</tspan><tspan class="en">Playable by you alone</tspan></text>
+          <text class="dg-t-s" x="654" y="273" text-anchor="middle"><tspan class="ja">永久に非公開</tspan><tspan class="en">private forever</tspan></text>
+
+          <path class="dg-line" d="M 460 99 L 558 99" marker-end="url(#ar2)"/>
+          <path class="dg-line" d="M 460 258 L 558 258" marker-end="url(#ar2)"/>
+
+          <!-- the wall: the one path an imported story may never take -->
+          <path d="M 654 222 L 654 142" fill="none" stroke="var(--jp)" stroke-width="1.5"
+                stroke-dasharray="5 4" opacity=".55"/>
+          <line x1="638" y1="166" x2="670" y2="198" stroke="var(--jp)" stroke-width="2.5"/>
+          <line x1="670" y1="166" x2="638" y2="198" stroke="var(--jp)" stroke-width="2.5"/>
+          <text class="dg-t-jp" x="626" y="188" text-anchor="end">
+            <tspan class="ja">公開できない (403)</tspan><tspan class="en">cannot publish (403)</tspan>
+          </text>
+        </svg>
+      </div>
+      <figcaption>
+        <span class="ja">二次創作禁止を維持するという判断が、右下の壁として<strong>コードに実装されている</strong> &mdash; 取り込んだ作品を公開しようとするとサーバーが 403 を返す。宣伝文句ではなく、サーバー側の不変条件。</span>
+        <span class="en">The decision to keep originals-only is <strong>implemented as that wall</strong>: the server returns 403 when an imported story is pushed to public. It is a server-side invariant, not a claim in the marketing.</span>
+      </figcaption>
+    </figure>
+
+    <ol class="moves">
+      <li>
+        <span class="idx">01</span>
+        <div>
+          <h3><span class="ja">記憶を、読者のものにする</span><span class="en">Put the memory in the reader&rsquo;s hands</span></h3>
+          <p><span class="ja">確定した事実を台帳に積み、読者が自分で直せるようにする。編集は<strong>どのプランでも永久に無料</strong>。「AIが忘れたせいで金がかかる」というOOC最大の憎悪を、構造で消す。</span>
+             <span class="en">Settled facts go into a ledger the reader can correct, and editing it is <strong>free on every plan, forever</strong>. That structurally removes the thing OOC&rsquo;s users hate most: paying because the model forgot.</span></p>
+        </div>
+      </li>
+      <li>
+        <span class="idx">02</span>
+        <div>
+          <h3><span class="ja">核となる読書体験にメーターを付けない</span><span class="en">Take the meter off the core loop</span></h3>
+          <p><span class="ja">Standard は全プランで無制限。上位モデルの枠が切れても<strong>止めずに落とす</strong>。物語はプランのせいで止まらない、地味になるだけ。</span>
+             <span class="en">Standard turns are unlimited on every plan. When the premium quota runs out the turn <strong>downgrades rather than stops</strong> &mdash; the story never halts because of a plan, it only gets plainer.</span></p>
+        </div>
+      </li>
+      <li>
+        <span class="idx">03</span>
+        <div>
+          <h3><span class="ja">中間層を、移住の途中で受け止める</span><span class="en">Catch the middle mid-migration</span></h3>
+          <p><span class="ja">Janitor は正面から取れない。狙うのは「c.ai のフィルタには疲れたが、無法地帯もしんどい」層。&ldquo;character ai alternative&rdquo; は月12,000件以上検索されている。</span>
+             <span class="en">Janitor cannot be taken head-on. The target is the reader tired of Character.AI&rsquo;s filters but not looking for a free-for-all. &ldquo;Character AI alternative&rdquo; draws 12,000+ US searches a month.</span></p>
+        </div>
+      </li>
+      <li>
+        <span class="idx">04</span>
+        <div>
+          <h3><span class="ja">条件で作り手を口説く</span><span class="en">Recruit writers on terms</span></h3>
+          <p><span class="ja">門を置かず、1ターン目から収益。<strong>非独占で、著作権は権利者のまま</strong>。このカテゴリは全部が独占か買い切りなので、条件そのものが差別化になる。</span>
+             <span class="en">No gate, revenue from the first turn, <strong>non-exclusive, and the copyright stays with its owner</strong>. Every incumbent takes exclusivity or a buyout, so the terms themselves differentiate.</span></p>
+        </div>
+      </li>
+    </ol>
+
+    <h3>
+      <span class="ja">言う順番を間違えない</span>
+      <span class="en">Say them in the right order</span>
+    </h3>
+    <div class="prose">
+      <p>
+        <span class="ja">作り手向けの武器は、読者が居てから効く。供給ゼロの状態でレベニューシェアを前面に出しても、誰にも刺さらない。</span>
+        <span class="en">The creator-economy pitch only works once readers exist. Led with at zero supply, it lands on nobody.</span>
+      </p>
+    </div>
+    <div class="twocol">
+      <div class="linebox">
+        <span class="when"><span class="ja">ローンチ時に言うこと</span><span class="en">What we say at launch</span></span>
+        <p class="say">
+          <span class="ja">よく出来た物語が並んでいて、記憶が壊れず、メーターがない。</span>
+          <span class="en">Stories worth playing, memory that holds, and no meter on the reading.</span>
+        </p>
+      </div>
+      <div class="linebox">
+        <span class="when"><span class="ja">フェーズ2で言うこと</span><span class="en">What we say in phase two</span></span>
+        <p class="say">
+          <span class="ja">そして、ここに書くと著作権を手放さずに稼げる。</span>
+          <span class="en">And writing here pays without costing you your copyright.</span>
+        </p>
+      </div>
+    </div>
+
+    <div class="callout">
+      <p>
+        <span class="ja">未解決 &mdash; HEADCANON は構造的に x Reader マシンそのものなのに、その語彙がプロダクトのどこにも入っていない。</span>
+        <span class="en">Still open &mdash; HEADCANON is structurally an x Reader machine, and that vocabulary appears nowhere in the product.</span>
+      </p>
+      <span class="attrib">
+        <span class="ja">タグ体系40件に reader insert がなく、コピーは interactive anime としか言っていない</span>
+        <span class="en">Not one of the 40 tags says reader insert; the copy only ever says interactive anime</span>
+      </span>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <h3><span class="ja">数字の出どころと、注意</span><span class="en">Where the numbers come from, and what to distrust</span></h3>
+    <div class="caveat">
+      <p>
+        <span class="ja">Character.AI の性別比(ほぼ半々)は Similarweb の <strong>Web計測</strong>で、アプリ主体の実態とはズレる可能性が高い。Janitor AI の「女性70〜80%」は<strong>運営の自己推計</strong>で第三者検証がない。レビュー内訳は150件の三次集計。Royal Road の読者構成は LitRPG 寄りのため Wattpad とは違うはずだが未確認。</span>
+        <span class="en">Character.AI&rsquo;s near-even gender split is <strong>web traffic</strong> from Similarweb and probably misses an app-first reality. Janitor AI&rsquo;s 70&ndash;80% is <strong>the operator&rsquo;s own estimate</strong>, unverified. The review breakdown is a third-party tally of 150 reviews. Royal Road&rsquo;s readership skews LitRPG and almost certainly differs from Wattpad&rsquo;s, but that is unconfirmed.</span>
+      </p>
+    </div>
+    <ul>
+      <li><a href="https://www.implicator.ai/janitor-ai-draws-2-5-million-daily-users-to-adult-roleplay-app/">Janitor AI &mdash; daily users and audience</a></li>
+      <li><a href="https://www.demandsage.com/character-ai-statistics/">Character.AI statistics</a> &middot; <a href="https://gummysearch.com/r/CharacterAI/">r/CharacterAI</a></li>
+      <li><a href="https://www.similarweb.com/website/chub.ai/">Chub.ai audience (Similarweb)</a></li>
+      <li><a href="https://www.fanlore.org/wiki/Reader-Insert">Reader-Insert (Fanlore)</a> &middot; <a href="https://www.wattpad.com/314250922-wattpad-101-your-guide-to-the-world-of-wattpad">Wattpad demographics</a></li>
+      <li><a href="https://www.choiceofgames.com/looking-for-writers/write-a-hosted-game/">Choice of Games terms</a> &middot; <a href="https://writerbeware.blog/2023/01/20/bad-contract-alert-webnovel/">Writer Beware on Webnovel</a></li>
+      <li><a href="https://glotier.com/games/ooc">OOC review breakdown</a> &middot; <a href="https://apps.apple.com/us/app/ooc-the-playable-anime/id6761247061">OOC on the App Store</a></li>
+    </ul>
+  </div>
+</footer>
+
+</div>
+
+<script>
+(function () {
+  var page = document.getElementById("page");
+  var buttons = document.querySelectorAll(".langtoggle button");
+  function apply(lang) {
+    page.setAttribute("data-lang", lang);
+    document.documentElement.lang = lang;
+    buttons.forEach(function (b) {
+      b.setAttribute("aria-pressed", String(b.dataset.set === lang));
+    });
+    try { localStorage.setItem("atlas-lang", lang); } catch (e) {}
+  }
+  buttons.forEach(function (b) {
+    b.addEventListener("click", function () { apply(b.dataset.set); });
+  });
+  var saved = null;
+  try { saved = localStorage.getItem("atlas-lang"); } catch (e) {}
+  apply(saved === "en" || saved === "ja" ? saved : "ja");
+})();
+</script>
