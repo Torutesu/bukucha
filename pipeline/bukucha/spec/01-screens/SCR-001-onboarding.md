@@ -1,49 +1,44 @@
-# SCR-001: オンボーディング
+# SCR-001: Onboarding
 - route: /welcome
 - auth: public
-- purpose: 登録前に嗜好を取得し、最短で「読む体験」へ流す(体験先行 [USER-REQ])
+- purpose: 何が好きかを1画面で受け取り、登録の前に作品まで連れていく。
 
 ## Layout
 ```
-┌──────────────────────┐
-│  Bukucha ロゴ          │
-│  "あなたの妄想が、物語になる" │
-│                      │
-│  Step1: 好きなシチュは?   │
-│  [溺愛][執着][幼なじみ]    │
-│  [身分差][年の差][策略婚]   │  ← 欲望タグチップ(複数選択可、Tag.category=desire上位12件)
-│  [悪役令嬢][異世界][現代]   │
-│                      │
-│  [つぎへ] (1つ以上選択で活性) │
-├──────────────────────┤
-│  Step2: おすすめ3作品      │
-│  ┌─カード─┐┌─カード─┐    │  ← 選択タグにマッチするPUBLISHED作品3件
-│  │表紙/タイトル/一言│      │
-│  └────────┘            │
-│  [これを読む] → SCR-005    │
-│  [あとで選ぶ] → SCR-002    │
-└──────────────────────┘
+        HEADCANON
+   Your headcanon, playable
+ ─────────────────────────────
+ What are you here for?
+ Pick as many as you like.
+ [slow burn][enemies to lovers]
+ [found family][isekai] ...
+ ─────────────────────────────
+      [ Show me something ]
 ```
-- 初回アクセス(cookie無し)のみ表示。2回目以降は SCR-002 へリダイレクト
-- ログイン導線はここには置かない(読む体験の後、SCR-006で登録壁)
+Step1 = トロープ選択、Step2 = おすすめ3件のグリッド。
 
 ## Components
 | Component | Behavior | Data |
 |---|---|---|
-| TagChipGrid | タップでトグル選択。選択状態はlocalStorage+未ログインセッションに保持 | GET /api/tags?category=desire |
-| RecommendCards | 選択タグでマッチ度順3件。タップでSCR-005へ | GET /api/home/recommend?tags=... |
-| SkipLink | 「あとで選ぶ」→ SCR-002 | - |
+| tag chips | 複数選択。選択状態は `data-on` | GET /api/tags?category=trope |
+| primary CTA | 1件以上でのみ活性。localStorage に嗜好と訪問済みを記録 | — |
+| recommend grid | 3件。一致が足りなければ人気で埋め、見出しを変える | GET /api/home/recommend |
+| skip link | 「Browse everything instead」でホームへ | — |
 
 ## States
-- loading: チップ/カードのスケルトン表示
-- empty(マッチ0件): 人気作品3件で代替(セクションタイトルを「人気の物語」に変更)
-- error: 「読み込みに失敗しました」+再試行ボタン
-- success: 上記Layout
+- loading: チップ / カードのスケルトン
+- empty: 一致0件 → 見出しを "What people are playing" にして人気を出す(`fallback:true`)
+- error: 再試行ボタン
+- success: カードから SCR-005 へ
 
 ## Interactions
-- タグ選択→つぎへ → Step2表示。選択タグは登録時に User.preferenceTags へ保存
-- カードタップ → SCR-005
-- あとで選ぶ → SCR-002
+- チップ選択 → CTA活性
+- CTA → Step2(嗜好は localStorage、登録時に PATCH /api/me で移送)
+- カード → SCR-005
+- skip → SCR-002
 
 ## AI Behaviors
-- none(推薦はタグ一致+人気度のルールベース [ASSUMED: MVPでは推薦モデルを持たない])
+none(推薦はタグ一致 + 人気のフォールバック。初回に賢さは要らない)
+
+## ベンチマークとの差
+OOC は登録を先に要求する。ここは**登録前に作品まで、さらに数ターンのプレイまで**行ける([USER-REQ] FLOW-1)。

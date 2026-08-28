@@ -1,33 +1,32 @@
-# SCR-020: 規約・法令ページ
-- route: /legal/terms, /legal/privacy, /legal/tokushoho, /legal/guideline
-- auth: public
-- purpose: 法令対応と表現ガイドラインの明示(pixiv型の後出し規制を避けるため、ガイドラインは初日から公開 [USER-REQ由来])
+# SCR-020: Policy pages
+- route: /legal/[doc] — terms | privacy | content | safety | dmca
+- auth: public(静的生成)
+- purpose: 米国・カナダで営業するための最低限を、読める英語で置く。
+
+## Documents
+| slug | title | 中身 |
+|---|---|---|
+| `terms` | Terms of Service | フィクションであること / 13歳以上 / **著作権は作者に残る非独占ライセンス** / Standard 無制限 / **クレジットは失効しない** |
+| `privacy` | Privacy Policy | 取得項目 / 用途 / **CCPA-CPRA の「販売・共有しない」明示** / PIPEDA / 13歳未満に向けない |
+| `content` | Content Policy | **オリジナルのみ** / All ages と 18+ の線 / どのレーティングでも不可の項目 / 執行と異議申立 |
+| `safety` | AI Safeguards | **AIであることの開示と3時間ごとの再掲** / 未成年は1時間 / 危機時は生成を止めて 988 / 証跡を残すこと |
+| `dmca` | Copyright and DMCA | 通知 / 反対通知 / 反復侵害者の停止 |
 
 ## Layout
-静的文書ページ(共通レイアウト: 中央480px、目次付き)。
-
-- /legal/terms: 利用規約
-- /legal/privacy: プライバシーポリシー
-- /legal/tokushoho: 特定商取引法に基づく表記(課金導入時に必須。MVP時点でも事業者情報を掲載)
-- /legal/guideline: **投稿・表現ガイドライン**
-  - オリジナル作品のみ(二次創作・既存IP・実在人物の禁止) [USER-REQ]
-  - コンテンツレベルの定義(全年齢/R15の線引き。R15=比喩・状況描写まで、直接的な性行為描写・露骨な語は不可 — Zeta同等ライン)
-  - R15でも不可: 未成年を性的に扱う表現、非同意の性表現、その他法令違反(将来のR18解放時のカードブランド制約を先回りして最初から明記 — variants/web-r18-variant.md §3.4)
-  - 違反時の措置(非公開化・アカウント停止)と異議申し立て窓口
-
-## Components
-| Component | Behavior | Data |
-|---|---|---|
-| StaticDoc | Markdownレンダリング+目次 | リポジトリ内md管理(CMS不要) |
+本文 + 末尾に5文書間のナビゲーション。
 
 ## States
-- success のみ(静的)
+存在しない slug → `notFound()`
 
 ## Interactions
-- フッター(全画面共通)と SCR-014/017 からリンク
+SCR-014 / SCR-017 からのリンク。
 
 ## AI Behaviors
-- none
+none
 
-## 備考(build時のコンテンツ)
-- 規約文面はテンプレートを置き、`[要確認]` マーカー付きで事業者情報(社名・住所・連絡先)をプレースホルダにする。**公開前に法務レビュー必須である旨をREADMEに明記**
+## 未確定 [要確認]
+本文中に `[TO CONFIRM]` として明示してある: 準拠法・事業者情報・仲裁条項 / 保存期間・再委託先・越境移転の根拠 /
+ケベック州 Law 25 のフランス語表示 / DMCA 指定代理人の登録。**すべて公開前に法務レビューが必要。**
+
+## 日本版から消えたもの
+特定商取引法・資金決済法の表記は北米では不要。代わりに DMCA と AI Safeguards が入る。

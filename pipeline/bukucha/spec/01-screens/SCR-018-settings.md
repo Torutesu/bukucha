@@ -1,43 +1,45 @@
-# SCR-018: 設定(年齢確認・安心フィルター)
+# SCR-018: Settings
 - route: /settings
 - auth: authenticated
-- purpose: 安全と嗜好の管理。NSFW Phase 1の要(生年月日→フィルター解除)
+- purpose: 年齢・表示・プランを一箇所で。安全の判定はすべてサーバー側で行い、ここは表示のみ。
 
 ## Layout
 ```
-┌──────────────────────┐
-│ [←] 設定               │
-│ ── 表示 ──             │
-│ テーマ (システム/ライト/ダーク) │
-│ ── コンテンツ ──          │
-│ 生年月日 [____年_月_日]     │ ← 未設定なら入力フォーム。設定済みは表示のみ(変更不可)
-│ 安心フィルター [ON ●━ OFF]  │ ← birthDate未設定 or 18歳未満はトグル無効+説明
-│   "OFFにすると、大人向けの     │
-│    センシティブな表現を含む     │
-│    物語が表示されます"        │
-│ ── 通知 ── (P1のためプレース │
-│    ホルダのみ非表示)         │
-│ ── アカウント ──          │
-│ メール/連携アカウント表示       │
-│ 退会 ▸                 │
-└──────────────────────┘
+ ← Settings
+ Plan            → SCR-015 のセクション
+ Appearance      [System][Light][Dark]
+ Content
+   Date of birth [____-__-__] [Confirm]      (一度だけ)
+   Mature stories                    ( ●)
+   Turn this on to see stories with charged,
+   suggestive writing. Explicit content is not
+   published here at all.
+ Account
+   you@example.com
+   Delete account
 ```
 
 ## Components
 | Component | Behavior | Data |
 |---|---|---|
-| ThemeSelect | 即時反映+永続化 | localStorage |
-| BirthDateForm | 一度設定したら変更不可(不正な行き来を防ぐ)。設定時に確認ダイアログ「正しい生年月日を入力してください。あとから変更できません」 | PATCH /api/me |
-| SafeFilterToggle | 18歳以上のみ操作可。OFF操作時に確認モーダル(内容説明+「18歳以上です」チェックボックス)。**判定・強制はサーバー側**(schema不変条件#1,2) | PATCH /api/me |
-| WithdrawFlow | 確認2段→退会(User論理削除+作品はSUSPENDED) [ASSUMED] | DELETE /api/me |
+| theme | localStorage `hc_theme` + `data-theme` | — |
+| date of birth | **確認モーダル経由。設定後は変更不可** | PATCH /api/me |
+| mature toggle | 18歳未満は `disabled`「Unlocks at 18.」。ON には同意モーダル | PATCH /api/me |
+| delete account | 二段確認。作品は非公開化、アカウントは匿名化 | DELETE /api/me |
 
 ## States
-- loading / error / success
-- underage(18歳未満): トグルはグレーアウト+「18歳になったら解除できます」
+- 未成年 / 未確認: トグル無効 + 理由表示
+- サーバーが 403 `age_restricted` を返したらクライアントの状態は変えない
 
 ## Interactions
-- フィルターOFF → 確認モーダル→PATCH→以降のホーム/検索/詳細でR15が出現
-- フィルターON戻し → 即時反映(確認なし)
+- 生年月日確定 → 18歳以上ならトグルが活性
+- Mature ON → 同意 → 一覧・検索・詳細に TEEN が出る
 
 ## AI Behaviors
-- none
+none
+
+## ベンチマークとの差
+OOC は App Store レーティング **13+** のまま Adult Content 層を持っている(`../../research/ooc.md` §8)。
+北米の規制強化局面(`../../research/na-market.md` §3)で構造的リスクを抱えた状態。
+ここは **ストア = 13+ の全年齢体験に固定**し、成人層は将来 Web + 第三者年齢認証に分離する。
+自己申告は「合理的な検出措置」として既に不十分と判断されている(Character.AI の顔スキャン導入がその証左)。

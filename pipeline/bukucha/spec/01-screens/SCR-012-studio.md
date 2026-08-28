@@ -1,43 +1,43 @@
-# SCR-012: マイ作品(スタジオ)
+# SCR-012: Studio
 - route: /studio
 - auth: authenticated
-- purpose: 書き手の承認ループの起点。数字が伸びるのを見る場所 [USER-REQ: 書き手が主役]
+- purpose: 書いた人に、伸びていることを見せる。承認がクリエイター供給の燃料。
 
 ## Layout
 ```
-┌──────────────────────┐
-│ マイ作品        [＋新しく作る]│
-│ ┌─────────────────┐  │
-│ │ 今週: 📖 読者 214 (+38)  │  │ ← 全作品合算の週間サマリ
-│ │      ♥ 89 (+12)       │  │
-│ └─────────────────┘  │
-│ [公開中][下書き][非公開]      │ ← statusタブ
-│ ┌─────────────────┐  │
-│ │[表紙] タイトル           │  │
-│ │ 📖8.4k  ♥1.2k  📅8/2公開 │  │
-│ │ [編集] [統計▾]          │  │ ← 統計▾展開で日別読者数の簡易棒グラフ(14日分)
-│ └─────────────────┘  │
-├──────────────────────┤
-│ [ホーム][本棚][＋作る][マイ]   │
-└──────────────────────┘
+ Studio                       + New story
+ ┌ Players this week   Likes this week ┐
+ │        128  ▲12          31  ▲4     │
+ └─────────────────────────────────────┘
+ [Published][Draft][Link only][Private]
+ ┌ He Is Only Honest When It Rains ────┐
+ │ ◍ 240   ♥ 193   ★ 41 endings found  │
+ │                   Edit    Stats ▾   │
+ │   ▁▂▅▇▆▃▁  (daily players)          │
+ └─────────────────────────────────────┘
 ```
 
 ## Components
 | Component | Behavior | Data |
 |---|---|---|
-| WeeklySummary | 直近7日の読者増・いいね増(前週比) | GET /api/studio/summary |
-| StatusTabs | PUBLISHED / DRAFT / PRIVATE | GET /api/studio/situations?status= |
-| WorkCard | [編集]→SCR-009(該当ID)。カードタップ→SCR-005(公開中のみ)。⋯メニュー: 非公開にする/削除 | Situation |
-| MiniChart | 日別storyCount棒グラフ(14日) | GET /api/studio/situations/:id/stats |
+| weekly summary | 前週比のデルタ付き | GET /api/studio/summary |
+| status tabs | Published / Draft / Link only / Private | GET /api/studio/stories |
+| work card | プレイ数・いいね・**エンディング到達数** | — |
+| mini chart | 日次プレイ数 | .../stats |
 
 ## States
-- loading / error / success
-- empty: 「最初の物語を作ってみましょう」+大きな[＋作る]ボタン+「一文の妄想から、AIが下書きします」の説明
+- empty: 「You have not written anything yet.」+ 「Give us one line and we will build the whole thing」
+- loading / error
 
 ## Interactions
-- ＋新しく作る → SCR-009
-- 編集 → SCR-009(編集モード)。公開中作品の編集保存は即反映 [ASSUMED: 再審査はAIF-006を保存時に再実行]
-- 削除 → 確認(進行中の読者Storyは読み続けられる旨を表示。Situationは論理削除=SUSPENDED扱い) [ASSUMED]
+- Edit → SCR-009 / New story → SCR-009 Step0
 
 ## AI Behaviors
-- none(統計はルールベース集計)
+none
+
+## ベンチマークとの差(最大の攻撃点のひとつ)
+OOC の Certified Creator は **累計1,000人と会話 + 公開10本 + フォロワー500人**を満たして初めて
+**10万インタラクション**のミッションに挑戦でき、通っても OOC Original は **$300 + レベニュー2%と引き換えに
+著作権を恒久譲渡**させる(`../../research/ooc.md` §7)。
+ここでは**門を置かない**。1作目の1ターン目から数字が動き、収益が積まれ、**著作権は作者に残る**(非独占ライセンス)。
+AO3 / Wattpad / Patreon の文化圏から作家を連れてくるには、これ以外の条件はありえない。

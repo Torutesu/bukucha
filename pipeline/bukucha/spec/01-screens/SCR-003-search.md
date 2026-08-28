@@ -1,48 +1,38 @@
-# SCR-003: 検索/タグ
-- route: /search?q=&tags=
+# SCR-003: Search and tags
+- route: /search?q&tags&sort
 - auth: public
-- purpose: 「今日の気分の欲望」から最短で作品に到達する(欲求性ドリブンの中核 [USER-REQ])
+- purpose: 「今日の気分」から最短で作品に着く。ここがこの市場の正面玄関。
 
 ## Layout
 ```
-┌──────────────────────┐
-│ [←] ┌検索バー(オートフォーカス)┐ │
-│ 選択中: [溺愛 ×][身分差 ×]    │ ← 選択タグ(AND検索)
-├──────────────────────┤
-│ (未検索時)              │
-│ ▼ 欲望から探す           │
-│ [溺愛][執着][独占欲][束縛]…  │ ← category=desire 全件
-│ ▼ 関係から探す           │
-│ [幼なじみ][上司][許嫁][敵]…  │ ← category=relationship
-│ ▼ 世界から探す           │
-│ [現代][異世界][後宮][学園]…  │ ← category=genre
-├──────────────────────┤
-│ (検索実行後)             │
-│ 並び替え: [人気][新着]      │
-│ [カード縦リスト]           │ ← SituationCard(SCR-002と共通)を縦2列グリッド
-│ (無限スクロール)           │
-└──────────────────────┘
+ ←  [ Search stories, tropes, creators ]
+ selected: (slow burn ×)(historical ×)
+ By trope / By relationship / By genre / Content warnings
+ [chips ...]
+ Sort: [Most played][Newest]
+ ── results (vertical cards) ──
 ```
 
 ## Components
 | Component | Behavior | Data |
 |---|---|---|
-| SearchInput | 300ms debounceでキーワード検索(タイトル/一言/世界観の部分一致) | GET /api/search |
-| TagGroups | カテゴリ別タグ一覧。タップで選択に追加し即検索 | GET /api/tags |
-| SelectedTags | ×で解除し再検索 | - |
-| SortToggle | popular(storyCount) / new(publishedAt) | クエリパラメータ sort |
-| ResultGrid | 2列グリッド、無限スクロール(cursor) | GET /api/search |
+| query input | debounce 300ms。URL に反映 | GET /api/search |
+| selected tags | ×で解除。**AND 検索** | — |
+| tag groups | AO3型4分類。`isMature` タグは未確認ユーザーに出さない | GET /api/tags |
+| sort toggle | popular / new | — |
+| result card | 縦積み。TEEN は 18+ バッジ | — |
 
 ## States
-- loading: グリッドスケルトン
-- empty: 「見つかりませんでした」+「この妄想、自分で作ってみませんか?」→ SCR-009へのCTA(検索語をaiDraftInputに引き継ぐ)
-- error: メッセージ+再試行
-- success: 結果グリッド
+- loading: スケルトン
+- empty(`search-empty`): 「Nothing matched that.」+ **「Nobody has written this one yet. You could.」→ SCR-009**
+- error: 再試行
 
 ## Interactions
-- カードタップ → SCR-005
-- empty時のCTA → SCR-009(qをプリセット)。未ログインはSCR-017経由
-- URLは共有可能(q/tagsをクエリに保持)
+- 結果 → SCR-005 / 空 → SCR-009(読者→書き手の転換導線)
 
 ## AI Behaviors
-- none(MVP。検索語→タグのAIマッピングはP1)
+none(P1: AIF-014 タグ自動付与)
+
+## ベンチマークとの差
+OOC は `/block/tag` でタグ単位のブロックを持つ。これは MVP スコープ外だが、
+**嫌悪回避は嗜好一致と同じくらい発見体験を決める**ため P1 の最優先(`TagBlock` はスキーマに実装済み)。

@@ -1,14 +1,64 @@
-# 02. Data Schema (Bukucha MVP)
+# 02. Data Schema (HEADCANON)
 
-- version: 1
-- source: ../teardown.md §5 / ../decisions.md / ../nsfw-analysis.md
-- DB: PostgreSQL + Prisma [ASSUMED: 国内向けWebスタックの標準構成。build時に変更可]
-- 方針: シチュエーション(Situation)が第一階級。キャラはその子。1プレイスルー=Story(本棚の1冊)。
-- NSFW: `ContentLevel` 3値を最初から持つ(MVPでは R18 を使わないだけ)。フィルタはサーバー側で制御(`decisions.md` NSFW決定#3)
+- version: 2
+- source: ../teardown.md §5 / ../decisions.md (2026-08-28 pivot) / ../research/ooc.md
+- DB: PostgreSQL + Prisma
+- 実装との関係: **このファイルは `app/prisma/schema.prisma` の写しである**。乖離したらコードが正。
+
+## 命名の変更(v1 → v2)
+
+ベンチマークの語彙に合わせ、北米の読者・作者が使う言葉に統一した:
+
+| v1(日本版) | v2(北米版) | 意味 |
+|---|---|---|
+| `Situation` | **`Story`** | 作者が書いた作品 |
+| `Story` | **`Route`** | 1回のプレイスルー |
+| `IntroVariant` | **`Intro`** | 開始設定(1作品に複数) |
+| `catchphrase` | `logline` | カードの一行 |
+| `nickname` | `displayName` | 表示名 |
+| `safeFilterOff` | `matureOptIn` | 成人向け表示の同意 |
+| `ContentLevel.R15` | `ContentLevel.TEEN` | 北米のレーティング語彙 |
+
+URL も同時に変わった: 作品 = `/story/<slug>`(SSR・インデックス可能)、プレイ = `/play/<routeId>`。
+
+## v2 で追加したモデル
+
+| モデル | 役割 | teardown 由来 |
+|---|---|---|
+| **`CanonFact`** | **記憶台帳。追記型・無制限・ユーザー編集可・課金対象外** | §7-1 / §8 Change |
+| `StatDef` / `StatLevel` / `StatValue` / `StatDelta` | ステータスとレベル帯、変動と**その理由** | §2 Copy / §7-3 |
+| `EndingDef` / `EndingRule` / `EndingReached` | エンディング(N/R/SR/SSR)と到達コレクション | §2 Copy / §7-4 |
+| `KeywordEntry` | キーワードブック。**同時3件の上限を持たない** | §8 Drop |
+| `Subscription` 相当(`User.plan` ほか) | サブスク主・クレジット従の課金 | §6 |
+| `CreatorEarning` | **1ターン目からのレベニューシェア** | §8 Change |
+| `TagBlock` | タグ単位のブロック | §2 Copy |
+| `SafetyEvent` | 開示・休憩・危機介入の**証跡**(NY法/CA法) | §7-10 |
+
+## 不変条件(サーバー側で強制する)
+
+1. `matureOptIn = true` にできるのは `birthDate` が18歳以上の場合のみ。クライアントの申告は信用しない
+2. `visibleLevels(user)` を通さない `contentLevel` の作品は、一覧・検索・詳細・プレイのいずれにも出さない
+3. `ContentLevel.MATURE` は MVP で使用しない。ストアビルドには決して返さない
+4. `CanonFact` の読み書きは**いかなるプランでも課金・計量の対象にしない**
+5. `StatValue` は `StatDef.minValue`〜`maxValue` にクランプする
+6. `EndingDef` の条件判定は決定的(LLM を通さない)。ターン数は最低10、以後5ターンごと
+7. ルールを持たない `EndingDef` は**フォールバック**。ルールを持つ候補が同時に成立したら常に後者が勝つ
+8. `SafetyEvent` は削除しない(法定の証跡)
 
 ## Prisma Schema
 
+実体は `app/prisma/schema.prisma`。以下はその全文。
+
 ```prisma
+// HEADCANON — data schema
+// spec: pipeline/bukucha/spec/02-schema.md  |  teardown: pipeline/bukucha/teardown.md §5
+//
+// Domain language follows the North American benchmark (OOC):
+//   Story = the authored work        (was: Situation)
+//   Route = one playthrough of it    (was: Story)
+//   Intro = a start setting          (was: IntroVariant)
+// A Story is first-class; Characters belong to it. There is no standalone character.
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -20,40 +70,85 @@ datasource db {
 
 // ============ enums ============
 
+/// Store builds ship ALL_AGES + TEEN only. MATURE is reserved for a future
+/// web-only, age-verified tier and is never returned to a store client.
 enum ContentLevel {
-  ALL_AGES // 全年齢
-  R15      // 寸止め(Zeta同等ライン)。安心フィルターOFF(=年齢確認済み)のみ閲覧可
-  R18      // MVPでは未使用。派生(variants/web-r18-variant.md)用に予約
+  ALL_AGES
+  TEEN
+  MATURE
 }
 
-enum SituationStatus {
-  DRAFT     // 下書き(本人のみ)
-  PUBLISHED // 公開
-  PRIVATE   // 非公開(本人のみプレイ可)
-  SUSPENDED // 運営停止(モデレーション)
+enum Plan {
+  FREE
+  READER
+  AUTHOR
 }
 
+/// Mirrors OOC's Public / Link Only / Private, plus draft and moderation states.
 enum StoryStatus {
+  DRAFT
+  PUBLISHED
+  UNLISTED
+  PRIVATE
+  SUSPENDED
+}
+
+enum RouteStatus {
   ACTIVE
-  ARCHIVED // 本棚の「完結」タブ
+  ENDED
+  ARCHIVED
 }
 
 enum MessageRole {
   USER
   AI
-  SYSTEM // イントロ、あらすじ挿入など
+  SYSTEM
+}
+
+enum ModelTier {
+  STANDARD
+  CINEMATIC
+}
+
+/// Categories of the Canon ledger (SCR-024 / AIF-001).
+enum CanonCategory {
+  PERSON
+  RELATIONSHIP
+  PROMISE
+  WORLD
+  EVENT
+  TRAIT
+}
+
+enum CanonSource {
+  AI_EXTRACTED
+  USER_ADDED
+  USER_EDITED
+  CREATOR_SEED
+}
+
+enum Comparator {
+  GTE
+  LT
+}
+
+enum EndingRarity {
+  N
+  R
+  SR
+  SSR
 }
 
 enum ModerationKind {
-  IP_DETECTED       // 二次創作/既存IP検出(禁止 → 公開ブロック)
-  CONTENT_OVER_LINE // 寸止めライン超過
-  BANNED_EXPRESSION // 規約禁止表現(未成年性描写・実在人物等)
+  IP_DETECTED
+  CONTENT_OVER_LINE
+  BANNED_EXPRESSION
 }
 
 enum ModerationStatus {
   FLAGGED
-  APPROVED // 人手レビューで問題なし
-  REJECTED // 確定違反 → 対象を SUSPENDED に
+  APPROVED
+  REJECTED
 }
 
 enum ReportStatus {
@@ -62,255 +157,503 @@ enum ReportStatus {
   DISMISSED
 }
 
+/// Compliance evidence. NY GBL Art. 47 and CA SB 243 both create liability
+/// per violation, so every disclosure and every crisis hand-off is logged.
+enum SafetyEventKind {
+  AI_DISCLOSURE
+  BREAK_REMINDER
+  CRISIS_RESOURCE_SHOWN
+  INPUT_BLOCKED
+  OUTPUT_BLOCKED
+}
+
 // ============ User / Auth ============
 
-// teardown: USER
 model User {
   id             String    @id @default(cuid())
   email          String?   @unique
-  nickname       String    // 表示名。初期値は自動生成(例: "読者A1B2")
+  handle         String    @unique
+  displayName    String
   avatarUrl      String?
-  birthDate      DateTime? // 年齢確認。null = 未確認 = 安心フィルター強制ON
-  safeFilterOff  Boolean   @default(false) // trueにできるのは birthDate で18歳以上のみ(サーバー側で強制)
-  preferenceTags String[]  // SCR-001で選んだ嗜好タグ名
-  isCreatorBadge Boolean   @default(false) // 将来: 認定クリエイター
-  role           String    @default("USER") // USER | ADMIN
+  bio            String    @default("")
+  birthDate      DateTime?
+  /// Only settable to true once birthDate proves 18+. Enforced server-side.
+  matureOptIn    Boolean   @default(false)
+  preferenceTags String[]
+  isCreator      Boolean   @default(false)
+  role           String    @default("USER")
+  /// "US" | "CA" — selects the policy documents shown (OOC ships en-US / en-CA).
+  region         String    @default("US")
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  accounts   AuthAccount[]
-  personas   Persona[]
-  situations Situation[]
-  stories    Story[]
-  likes      Like[]
-  reports    Report[]
+  // --- plan & quota (teardown §6) ---
+  plan              Plan      @default(FREE)
+  planRenewsAt      DateTime?
+  /// Cinematic-tier generations consumed in the current quota window.
+  cinematicUsed     Int       @default(0)
+  cinematicWindowAt DateTime  @default(now())
+  /// Top-up credits. Never expire, never forfeited on account deletion.
+  creditBalance     Int       @default(0)
+
+  accounts     AuthAccount[]
+  personas     Persona[]
+  stories      Story[]
+  routes       Route[]
+  likes        Like[]
+  reports      Report[]
+  tagBlocks    TagBlock[]
+  endingsFound EndingReached[]
+  safetyEvents SafetyEvent[]
 }
 
-// NextAuth互換 [ASSUMED: Auth.js利用。Google/Apple/メール(magic link)]
 model AuthAccount {
   id                String @id @default(cuid())
   userId            String
-  provider          String // google | apple | email
+  provider          String
   providerAccountId String
   user              User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
 }
 
-// teardown: PERSONA(ユーザー側の「わたし」設定)
+/// The reader's own character. "You" in the second-person narration.
 model Persona {
   id        String  @id @default(cuid())
   userId    String
-  name      String  // 作中での自分の名前(夢小説の名前変換に相当)
-  callName  String? // キャラからの呼ばれ方(例: "お前", "〇〇さん")
-  profile   String? // 自由記述(容姿・設定)。AIプロンプトに注入
+  name      String
+  callName  String?
+  profile   String?
   isDefault Boolean @default(false)
   user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  stories   Story[]
+  routes    Route[]
 }
 
-// ============ Situation (第一階級) ============
+// ============ Story (the authored work) ============
 
-// teardown: SITUATION
-model Situation {
-  id            String          @id @default(cuid())
+model Story {
+  id            String       @id @default(cuid())
+  /// Stable, human-readable URL segment. Public story pages are server-rendered
+  /// and indexable — name search is the demand engine in this market.
+  slug          String       @unique
   authorId      String
-  title         String          // 例: "3年ぶりに帰還した夫は私を毒婦と呼びました"
-  catchphrase   String          // カード用の一言(60字以内)
-  worldSetting  String          // 世界観・設定(長文)。AIプロンプトの土台
-  coverImageUrl String?         // MVPはアップロード or 運営プリセットから選択
-  contentLevel  ContentLevel    @default(ALL_AGES)
-  status        SituationStatus @default(DRAFT)
-  aiDraftInput  String?         // AIF-002に入力した「妄想の一文」(再生成用に保持)
+  title         String
+  logline       String       @default("")
+  worldSetting  String       @default("")
+  coverImageUrl String?
+  contentLevel  ContentLevel @default(ALL_AGES)
+  status        StoryStatus  @default(DRAFT)
+  aiDraftInput  String?
   publishedAt   DateTime?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
-  // 集計(非正規化。書き込みはサーバーのみ)
   likeCount   Int @default(0)
-  storyCount  Int @default(0) // 開始されたStory数(ランキング指標)
-  readerCount Int @default(0) // ユニーク読者数
+  routeCount  Int @default(0)
+  playerCount Int @default(0)
+  endingCount Int @default(0)
 
   author     User             @relation(fields: [authorId], references: [id])
   characters Character[]
-  intros     IntroVariant[]
-  tags       SituationTag[]
-  stories    Story[]
+  intros     Intro[]
+  keywords   KeywordEntry[]
+  tags       StoryTag[]
+  routes     Route[]
   likes      Like[]
   flags      ModerationFlag[]
+  endings    EndingReached[]
+  earnings   CreatorEarning[]
 
   @@index([status, contentLevel, publishedAt])
   @@index([authorId])
 }
 
-// teardown: CHARACTER(Situationの子。単体では存在しない)
 model Character {
   id              String  @id @default(cuid())
-  situationId     String
+  storyId         String
   name            String
   profileImageUrl String?
-  personality     String  // 性格
-  speechStyle     String  // 口調(一人称・語尾・敬語等)
-  relationship    String  // 主人公({user})との関係性
-  exampleDialogs  Json    // [{user: "...", char: "..."}] few-shot(最大5組)
-  sortOrder       Int     @default(0) // 0 = 主演
-  situation       Situation @relation(fields: [situationId], references: [id], onDelete: Cascade)
+  personality     String  @default("")
+  speechStyle     String  @default("")
+  relationship    String  @default("")
+  exampleDialogs  Json    @default("[]")
+  sortOrder       Int     @default(0)
+  story           Story   @relation(fields: [storyId], references: [id], onDelete: Cascade)
 }
 
-// teardown: INTRO_VARIANT(開始シチュエーション、最大3)
-model IntroVariant {
+/// A start setting. One world, several doors into it.
+model Intro {
+  id           String      @id @default(cuid())
+  storyId      String
+  label        String
+  introText    String      @default("")
+  firstMessage String      @default("")
+  /// Shown to the player, never sent to the model (OOC calls this the Play Guide).
+  playGuide    String      @default("")
+  sortOrder    Int         @default(0)
+  story        Story       @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  routes       Route[]
+  stats        StatDef[]
+  endings      EndingDef[]
+}
+
+// ============ Stats (SCR-021 / AIF-003) ============
+
+model StatDef {
   id           String @id @default(cuid())
-  situationId  String
-  label        String // 例: "放課後の教室で"
-  introText    String // 導入の地の文(ノベル冒頭)
-  firstMessage String // キャラの最初の応答(地の文+セリフ)
+  introId      String
+  key          String
+  name         String
+  icon         String @default("")
+  unit         String @default("")
+  initialValue Int    @default(0)
+  minValue     Int    @default(0)
+  maxValue     Int    @default(100)
+  /// Natural-language rule telling the model when and how far this moves.
+  changeRule   String @default("")
   sortOrder    Int    @default(0)
-  situation    Situation @relation(fields: [situationId], references: [id], onDelete: Cascade)
-  stories      Story[]
+
+  intro  Intro        @relation(fields: [introId], references: [id], onDelete: Cascade)
+  levels StatLevel[]
+  values StatValue[]
+  deltas StatDelta[]
+  rules  EndingRule[]
+
+  @@unique([introId, key])
 }
 
-// teardown: TAG(欲望タグを第一階級に)
+/// A named band on a stat. Crossing into it changes how the character speaks.
+model StatLevel {
+  id         String     @id @default(cuid())
+  statDefId  String
+  name       String
+  comparator Comparator @default(GTE)
+  threshold  Int
+  prompt     String     @default("")
+  sortOrder  Int        @default(0)
+  statDef    StatDef    @relation(fields: [statDefId], references: [id], onDelete: Cascade)
+}
+
+model StatValue {
+  routeId   String
+  statDefId String
+  value     Int
+  route     Route   @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  statDef   StatDef @relation(fields: [statDefId], references: [id], onDelete: Cascade)
+
+  @@id([routeId, statDefId])
+}
+
+/// Why a number moved. Shown to the player one line at a time — a stat that
+/// changes for a visible reason becomes a goal the player plays toward.
+model StatDelta {
+  id        String       @id @default(cuid())
+  messageId String
+  statDefId String
+  delta     Int
+  reason    String       @default("")
+  message   RouteMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  statDef   StatDef      @relation(fields: [statDefId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+}
+
+// ============ Endings (SCR-022 / AIF-004) ============
+
+model EndingDef {
+  id        String       @id @default(cuid())
+  introId   String
+  name      String
+  rarity    EndingRarity @default(N)
+  minTurns  Int          @default(10)
+  prompt    String       @default("")
+  epilogue  String       @default("")
+  /// Teaser shown while the ending is still locked.
+  hint      String       @default("")
+  sortOrder Int          @default(0)
+
+  intro   Intro           @relation(fields: [introId], references: [id], onDelete: Cascade)
+  rules   EndingRule[]
+  reached EndingReached[]
+}
+
+model EndingRule {
+  id          String     @id @default(cuid())
+  endingDefId String
+  statDefId   String
+  comparator  Comparator @default(GTE)
+  value       Int
+  sortOrder   Int        @default(0)
+  endingDef   EndingDef  @relation(fields: [endingDefId], references: [id], onDelete: Cascade)
+  statDef     StatDef    @relation(fields: [statDefId], references: [id], onDelete: Cascade)
+}
+
+model EndingReached {
+  id           String   @id @default(cuid())
+  userId       String
+  storyId      String
+  endingDefId  String
+  routeId      String
+  turnCount    Int      @default(0)
+  statSnapshot Json     @default("{}")
+  reachedAt    DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  story     Story     @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  endingDef EndingDef @relation(fields: [endingDefId], references: [id], onDelete: Cascade)
+  route     Route     @relation(fields: [routeId], references: [id], onDelete: Cascade)
+
+  @@index([userId, storyId])
+}
+
+// ============ Keyword Book (SCR-011) ============
+
+/// OOC caps active keyword notes at 3. We do not cap them; selection is the
+/// model's job, not the reader's.
+model KeywordEntry {
+  id        String   @id @default(cuid())
+  storyId   String
+  /// Any of these appearing in recent text pulls `body` into context.
+  keywords  String[]
+  body      String
+  /// null = applies to every intro of this story.
+  introId   String?
+  sortOrder Int      @default(0)
+  story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+}
+
+// ============ Tags ============
+
 model Tag {
-  id       String  @id @default(cuid())
-  name     String  @unique // 例: "溺愛", "執着", "幼なじみ", "身分差"
-  category String  // desire(欲望) | genre | relationship
-  isR15    Boolean @default(false) // trueは安心フィルターON時に非表示
-  situations SituationTag[]
+  id       String     @id @default(cuid())
+  name     String     @unique
+  /// "trope" | "genre" | "relationship" | "warning"  — AO3-shaped vocabulary.
+  category String
+  isMature Boolean    @default(false)
+  stories  StoryTag[]
+  blocks   TagBlock[]
 }
 
-model SituationTag {
-  situationId String
-  tagId       String
-  situation   Situation @relation(fields: [situationId], references: [id], onDelete: Cascade)
-  tag         Tag       @relation(fields: [tagId], references: [id], onDelete: Cascade)
+model StoryTag {
+  storyId String
+  tagId   String
+  story   Story  @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  tag     Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
-  @@id([situationId, tagId])
+  @@id([storyId, tagId])
 }
 
-// ============ Story (プレイスルー = 本棚の1冊) ============
+/// "Stop showing me this." Avoidance shapes discovery as much as preference.
+model TagBlock {
+  userId String
+  tagId  String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
-// teardown: SESSION → 「Story」に命名(本棚メタファ) [USER-REQ]
-model Story {
-  id                  String      @id @default(cuid())
-  userId              String
-  situationId         String
-  introVariantId      String
-  personaId           String?
-  status              StoryStatus @default(ACTIVE)
-  lastRecap           String?     // AIF-004: 前回までのあらすじ(キャッシュ)
-  lastRecapAtIdx      Int         @default(0) // recap生成時点のメッセージidx
-  branchedFromStoryId String?     // IFルート派生元(MVPではUI無し、データだけ準備)
-  lastMessageAt       DateTime    @default(now())
-  createdAt           DateTime    @default(now())
+  @@id([userId, tagId])
+}
 
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  situation    Situation     @relation(fields: [situationId], references: [id])
-  introVariant IntroVariant  @relation(fields: [introVariantId], references: [id])
-  persona      Persona?      @relation(fields: [personaId], references: [id])
-  messages     StoryMessage[]
-  memory       StoryMemory?
+// ============ Route (one playthrough) ============
+
+model Route {
+  id                String      @id @default(cuid())
+  userId            String
+  storyId           String
+  introId           String
+  personaId         String?
+  status            RouteStatus @default(ACTIVE)
+  lastRecap         String?
+  lastRecapAtIdx    Int         @default(0)
+  /// Route Map (SCR-008): a fork carries its parent's history up to forkedAtIdx.
+  forkedFromRouteId String?
+  forkedAtIdx       Int?
+  /// Compliance clocks (NY GBL Art. 47 §1701: disclosure every three hours).
+  sessionStartedAt  DateTime    @default(now())
+  lastDisclosureAt  DateTime    @default(now())
+  lastMessageAt     DateTime    @default(now())
+  createdAt         DateTime    @default(now())
+
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  story    Story           @relation(fields: [storyId], references: [id])
+  intro    Intro           @relation(fields: [introId], references: [id])
+  persona  Persona?        @relation(fields: [personaId], references: [id])
+  messages RouteMessage[]
+  memory   RouteMemory?
+  canon    CanonFact[]
+  stats    StatValue[]
+  endings  EndingReached[]
 
   @@index([userId, lastMessageAt])
+  @@index([storyId])
 }
 
-// teardown: MESSAGE
-model StoryMessage {
+model RouteMessage {
   id             String      @id @default(cuid())
-  storyId        String
-  idx            Int         // Story内連番(0始まり)。巻き戻し = idx以降を isDeleted
+  routeId        String
+  idx            Int
   role           MessageRole
-  content        String      // ノベル本文(地の文+「」セリフ)
-  choices        Json?       // AIF-005: [{id, text}] 提示した選択肢
-  selectedChoice String?     // ユーザーが選んだ選択肢id(自由入力ならnull)
-  isDeleted      Boolean     @default(false) // 巻き戻しで論理削除(復元可能に)
-  modelUsed      String?     // LLM抽象化レイヤが記録
+  content        String
+  choices        Json?
+  selectedChoice String?
+  isDeleted      Boolean     @default(false)
+  modelUsed      String?
+  tier           ModelTier   @default(STANDARD)
   createdAt      DateTime    @default(now())
 
-  story Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  route  Route       @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  deltas StatDelta[]
 
-  @@unique([storyId, idx])
+  @@unique([routeId, idx])
 }
 
-// teardown: MEMORY(要約メモリ+ユーザーノートの二層)
-model StoryMemory {
-  storyId        String @id
-  summary        String @default("") // AIF-003: rolling summary(自動)
-  summaryAtIdx   Int    @default(0)  // 要約済み位置
-  userNote       String @default("") // ユーザー手書きの恒久設定
-  story          Story  @relation(fields: [storyId], references: [id], onDelete: Cascade)
+/// Layer 2 of memory: lossy rolling summary, for narrative flow.
+/// Layer 1 is CanonFact, which is lossless and never compressed.
+model RouteMemory {
+  routeId      String @id
+  summary      String @default("")
+  summaryAtIdx Int    @default(0)
+  userNote     String @default("")
+  route        Route  @relation(fields: [routeId], references: [id], onDelete: Cascade)
+}
+
+// ============ Canon ledger — the differentiator (SCR-024 / AIF-001) ============
+
+/// One settled fact about this route. Append-only from the model's side,
+/// fully editable from the reader's. Editing is never metered.
+model CanonFact {
+  id         String        @id @default(cuid())
+  routeId    String
+  category   CanonCategory
+  /// Who or what the fact is about. Used for grouping and conflict detection.
+  subject    String
+  statement  String
+  sourceTurn Int           @default(0)
+  /// Pinned facts are always injected, ahead of any relevance selection.
+  pinned     Boolean       @default(false)
+  isActive   Boolean       @default(true)
+  source     CanonSource   @default(AI_EXTRACTED)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  route Route @relation(fields: [routeId], references: [id], onDelete: Cascade)
+
+  @@index([routeId, isActive])
+  @@index([routeId, subject])
 }
 
 // ============ Social ============
 
-// teardown: LIKE
 model Like {
-  userId      String
-  situationId String
-  createdAt   DateTime @default(now())
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  situation   Situation @relation(fields: [situationId], references: [id], onDelete: Cascade)
+  userId    String
+  storyId   String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
 
-  @@id([userId, situationId])
+  @@id([userId, storyId])
+}
+
+/// Creator revenue share. Accrues from the first turn of the first story —
+/// there is no follower gate, and the platform takes a licence, not a copyright.
+model CreatorEarning {
+  id          String   @id @default(cuid())
+  storyId     String
+  periodStart DateTime
+  turns       Int      @default(0)
+  amountCents Int      @default(0)
+  story       Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  @@unique([storyId, periodStart])
 }
 
 // ============ Trust & Safety ============
 
-// teardown: REPORT
 model Report {
   id         String       @id @default(cuid())
   reporterId String
-  targetType String       // situation | message
+  targetType String
   targetId   String
-  reason     String       // 定型: 二次創作 | 過度な性的表現 | 実在人物 | その他
+  reason     String
   detail     String?
   status     ReportStatus @default(OPEN)
   createdAt  DateTime     @default(now())
   reporter   User         @relation(fields: [reporterId], references: [id])
 }
 
-// teardown: MODERATION_FLAG(AIF-006/007が書き込む)
 model ModerationFlag {
-  id          String           @id @default(cuid())
-  situationId String?          // 公開前チェック対象
-  targetType  String           // situation | message
-  targetId    String
-  kind        ModerationKind
-  detail      String           // 検出根拠(例: 検出したIP名)
-  status      ModerationStatus @default(FLAGGED)
-  createdAt   DateTime         @default(now())
-  situation   Situation?       @relation(fields: [situationId], references: [id], onDelete: Cascade)
+  id         String           @id @default(cuid())
+  storyId    String?
+  targetType String
+  targetId   String
+  kind       ModerationKind
+  detail     String
+  status     ModerationStatus @default(FLAGGED)
+  createdAt  DateTime         @default(now())
+  story      Story?           @relation(fields: [storyId], references: [id], onDelete: Cascade)
+}
+
+/// Evidence trail for NY GBL Art. 47 and CA SB 243. Both statutes are
+/// enforced per violation, so "we showed the disclosure" has to be provable.
+model SafetyEvent {
+  id        String          @id @default(cuid())
+  userId    String
+  routeId   String?
+  kind      SafetyEventKind
+  detail    String          @default("")
+  createdAt DateTime        @default(now())
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
 ```
 
-## ER図
+## Mermaid ER
 
 ```mermaid
 erDiagram
-    User ||--o{ AuthAccount : has
-    User ||--o{ Persona : has
-    User ||--o{ Situation : authors
-    User ||--o{ Story : plays
-    User ||--o{ Like : likes
-    User ||--o{ Report : files
-    Situation ||--|{ Character : contains
-    Situation ||--|{ IntroVariant : "開始シチュ(1..3)"
-    Situation ||--o{ SituationTag : tagged
-    Tag ||--o{ SituationTag : maps
-    Situation ||--o{ Story : instantiated_as
-    Situation ||--o{ Like : receives
-    Situation ||--o{ ModerationFlag : flagged
-    Story ||--o{ StoryMessage : contains
-    Story ||--|| StoryMemory : remembers
-    Story }o--o| Persona : played_as
-    IntroVariant ||--o{ Story : starts
+    USER ||--o{ STORY : writes
+    USER ||--o{ ROUTE : plays
+    USER ||--o{ PERSONA : has
+    USER ||--o{ TAG_BLOCK : blocks
+    USER ||--o{ ENDING_REACHED : collects
+    USER ||--o{ SAFETY_EVENT : "disclosure trail"
+    STORY ||--|{ CHARACTER : contains
+    STORY ||--|{ INTRO : "start settings"
+    STORY ||--o{ KEYWORD_ENTRY : has
+    STORY ||--o{ STORY_TAG : tagged
+    STORY ||--o{ CREATOR_EARNING : earns
+    TAG ||--o{ STORY_TAG : maps
+    INTRO ||--o{ STAT_DEF : defines
+    STAT_DEF ||--o{ STAT_LEVEL : bands
+    INTRO ||--o{ ENDING_DEF : offers
+    ENDING_DEF ||--o{ ENDING_RULE : requires
+    STORY ||--o{ ROUTE : "played as"
+    ROUTE ||--o{ ROUTE_MESSAGE : contains
+    ROUTE ||--o| ROUTE_MEMORY : summarised
+    ROUTE ||--o{ CANON_FACT : "memory ledger"
+    ROUTE ||--o{ STAT_VALUE : tracks
+    ROUTE ||--o| ENDING_REACHED : "ended by"
+    ROUTE }o--o| ROUTE : "forked from"
+    ROUTE_MESSAGE ||--o{ STAT_DELTA : causes
 ```
 
-## 不変条件(サーバー側で強制)
+## 記憶の二層構造(v2 の中核)
 
-1. `safeFilterOff = true` は `birthDate` が18歳以上の場合のみ設定可(SCR-018)
-2. 安心フィルターON(またはbirthDate未設定)のユーザーへのレスポンスから `contentLevel = R15` のSituation/タグを常に除外(ホーム/検索/詳細/直リンク全て。フィルタはAPI層で一元化)
-3. `Situation.status = PUBLISHED` への遷移は AIF-006(公開前チェック)通過が必須。`ModerationKind = IP_DETECTED` があれば遷移不可(二次創作禁止 [USER-REQ])
-4. `IntroVariant` は1 Situationにつき1〜3件。`Character` は1〜3件 [ASSUMED: MVP上限。コスト・UI簡素化]
-5. `StoryMessage.idx` はStory内で連番。巻き戻しは論理削除のみ(物理削除しない)
-6. 集計カラム(likeCount等)の更新はトランザクション内でインクリメント(集計クエリをリクエスト経路に置かない)
 ```
+Layer 1  CanonFact      追記型・非可逆圧縮なし・無制限・ユーザー編集可・常に無料
+Layer 2  RouteMemory    ローリング要約。圧縮で情報が落ちることを前提とする
+```
+
+ベンチマークは Layer 2 相当(要約)+ Keyword Note 3件しか持たない。
+だから長いセッションで固有名詞と確定事実を落とし、**教え直すのにまたクレジットを使わせる**
+(`../research/ooc.md` §9)。Layer 1 はその構造的な解であり、**編集は無料**という不変条件(#4)と
+セットでなければ意味がない。
+
+## 注入の優先順位(`app/src/server/canon.ts` `selectCanon`)
+
+1. `pinned = true`(ユーザーが留めた事実)— 常に注入
+2. 直近テキストに `subject` が出現
+3. 直近テキストと本文の語が一致した数
+4. 新しさ
+
+上限は40件だが、ユーザーが見る上限は**ない**。選抜はモデルの仕事であって読者の仕事ではない。
