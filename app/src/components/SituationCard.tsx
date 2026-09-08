@@ -2,6 +2,7 @@
 import { BookOpen, Heart, MessageCircle } from "lucide-react";
 
 import Link from "next/link";
+import Image from "next/image";
 import { fmtCount } from "@/lib/format";
 
 export interface CardData {
@@ -56,13 +57,17 @@ const GRADIENTS = [
  * 表紙。画像がない作品は「和書のジャケット」に見えるよう、
  * グラデーション+内枠+縦組みタイトルで組む(のっぺりした色面にしない)。
  */
-export function Cover({ s, className }: { s: CardData; className?: string }) {
+export function Cover({ s, className, priority = false }: { s: CardData; className?: string; priority?: boolean }) {
   const frame =
     "inset 0 0 0 1px rgb(255 255 255 / 0.1), 0 6px 18px -10px color-mix(in oklab, var(--c-shadow) 60%, transparent)";
   return s.coverImageUrl ? (
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src={s.coverImageUrl}
+      width={480}
+      height={640}
+      loading={priority ? "eager" : "lazy"}
+      fetchPriority={priority ? "high" : undefined}
       alt=""
       data-testid="card-cover"
       className={`aspect-[3/4] w-full rounded-[14px] object-cover ${className ?? ""}`}
@@ -74,8 +79,7 @@ export function Cover({ s, className }: { s: CardData; className?: string }) {
       className={`relative aspect-[3/4] w-full overflow-hidden rounded-[14px] bg-[var(--c-surfaceAlt)] ${className ?? ""}`}
       style={{ boxShadow: frame }}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={getFallbackCover(s)} alt="" className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 hover:scale-[1.04]" />
+      <Image src={getFallbackCover(s)} alt="" fill sizes="(max-width: 480px) 50vw, 240px" loading={priority ? "eager" : "lazy"} fetchPriority={priority ? "high" : undefined} className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 hover:scale-[1.04]" />
       {/* 上からの光と足元の暗幕で奥行きを作る */}
       <span
         aria-hidden
@@ -158,7 +162,7 @@ export function PlotGridCard({ s, rank }: { s: CardData; rank?: number }) {
   return (
     <Link href={`/s/${s.id}`} data-testid="situation-card" className="pressable block">
       <div className="relative">
-        <Cover s={s} />
+        <Cover s={s} priority={rank === 1} />
         {rank !== undefined && (
           <span
             data-testid="card-rank"
