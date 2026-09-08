@@ -2,6 +2,7 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { brand } from "@/lib/theme";
+import { pageMetadata } from "@/lib/seo";
 
 // SCR-020: 規約・法令ページ
 const DOCS: Record<string, { title: string; body: string }> = {
@@ -49,6 +50,19 @@ const DOCS: Record<string, { title: string; body: string }> = {
   },
 };
 
+export async function generateMetadata({ params }: { params: Promise<{ doc: string }> }) {
+  const { doc } = await params;
+  const content = DOCS[doc];
+  if (!content) notFound();
+  return pageMetadata({
+    title: content.title,
+    description: `${brand.name}の${content.title}。オリジナル作品の創作・閲覧に関する方針をご案内します。`,
+    path: `/legal/${doc}`,
+    // Other documents contain unresolved operator/privacy placeholders.
+    index: doc === "guideline",
+  });
+}
+
 export function generateStaticParams() {
   return Object.keys(DOCS).map((doc) => ({ doc }));
 }
@@ -59,7 +73,7 @@ export default async function LegalPage({ params }: { params: Promise<{ doc: str
   if (!content) notFound();
   return (
     <main className="px-5 py-8">
-      <Link href="/me" className="text-sm" style={{ color: "var(--c-textMuted)" }}>
+      <Link href="/" className="text-sm" style={{ color: "var(--c-textMuted)" }}>
         <ArrowLeft size={15} className="mr-1 inline align-[-2px]" /> もどる
       </Link>
       <h1 className="mt-4 text-xl font-bold">{content.title}</h1>

@@ -1,168 +1,55 @@
-"use client";
-import { Search } from "lucide-react";
-
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { BottomTab } from "@/components/BottomTab";
-import { PlotGridCard, type CardData } from "@/components/SituationCard";
-import { Logo } from "@/components/Logo";
+import HomeClient, { type HomeSection } from "@/components/HomeClient";
+import { db } from "@/lib/db";
+import { homeSections } from "@/server/situations";
+import { absoluteUrl, pageMetadata, serializeJsonLd, SITE_DESCRIPTION, SITE_NAME } from "@/lib/seo";
 
-interface Section {
-  key: string;
-  title: string;
-  situations: CardData[];
-}
+export const dynamic = "force-dynamic";
+export const metadata = pageMetadata({
+  title: "女性向けノベルAIチャット・オリジナル恋愛小説",
+  description: SITE_DESCRIPTION,
+  path: "/",
+});
 
-// ホームのタブ(Zeta型: トレンド/ベスト/新作)。keyは/api/homeのセクションkeyに対応
-const HOME_TABS = [
-  { key: "forYou", label: "トレンド" },
-  { key: "popular", label: "ベスト" },
-  { key: "new", label: "新作" },
-] as const;
-type TabKey = (typeof HOME_TABS)[number]["key"];
-
-// SCR-002: ホーム(Zeta型グリッド)
-export default function HomePage() {
-  const router = useRouter();
-  const [sections, setSections] = useState<Section[] | null>(null);
-  const [tags, setTags] = useState<{ id: string; name: string }[]>([]);
-  const [error, setError] = useState(false);
-  const [tab, setTab] = useState<TabKey>("forYou");
-  const [activeTag, setActiveTag] = useState<string | null>(null);
-  const [tagResults, setTagResults] = useState<{ key: string; items: CardData[] } | null>(null);
-
-  useEffect(() => {
-    (async () => {
-      const meRes = await fetch("/api/me");
-      const meData = meRes.ok ? await meRes.json() : null;
-      if (!meData && !localStorage.getItem("bukucha_visited")) {
-        router.replace("/welcome");
-        return;
-      }
-      try {
-        const [homeRes, tagsRes] = await Promise.all([
-          fetch("/api/home"),
-          fetch("/api/tags?category=desire"),
-        ]);
-        setSections((await homeRes.json()).sections);
-        setTags(await tagsRes.json());
-      } catch {
-        setError(true);
-      }
-    })();
-  }, [router]);
-
-  // タグチップはZeta同様その場でグリッドを絞り込む
-  useEffect(() => {
-    if (!activeTag) return;
-    const key = `${activeTag}:${tab}`;
-    (async () => {
-      try {
-        const r = await fetch(
-          `/api/search?tags=${encodeURIComponent(activeTag)}&sort=${tab === "new" ? "new" : "popular"}`
-        );
-        const j = await r.json();
-        setTagResults({ key, items: j.items });
-      } catch {
-        /* 全体表示にフォールバック */
-      }
-    })();
-  }, [activeTag, tab]);
-
-  const gridItems: CardData[] | null = activeTag
-    ? tagResults?.key === `${activeTag}:${tab}`
-      ? tagResults.items
-      : null
-    : (sections?.find((s) => s.key === tab)?.situations ?? (sections ? [] : null));
-
+export default async function HomePage() {
+  const [sections, tags] = await Promise.all([
+    homeSections(null),
+    db.tag.findMany({ where: { category: "desire", isR15: false }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+  ]);
+  // Pass public card fields only. No account preferences, age, or session data enter this HTML.
+  const initialSections: HomeSection[] = sections.map((section) => ({
+    key: section.key,
+    title: section.title,
+    situations: section.situations.map((card) => ({
+      id: card.id, title: card.title, catchphrase: card.catchphrase, coverImageUrl: card.coverImageUrl,
+      contentLevel: card.contentLevel, likeCount: card.likeCount, readerCount: card.readerCount,
+      storyCount: card.storyCount, tags: card.tags, author: card.author,
+    })),
+  }));
   return (
-    <div className="flex min-h-dvh flex-col">
-      <header className="app-header">
-        <div className="flex items-center justify-between px-4 pt-3">
-          <h1>
-            <Logo size={26} wordSize="1.1rem" />
-          </h1>
-          <Link href="/search" aria-label="検索" className="pressable p-1">
-            <Search size={20} strokeWidth={1.8} />
-          </Link>
-        </div>
-
-        {/* トレンド / ベスト / 新作 */}
-        <nav className="mt-1 flex gap-5 px-4">
-          {HOME_TABS.map((t) => (
-            <button
-              key={t.key}
-              data-testid={`tab-${t.key}`}
-              className="relative pb-2 text-[0.95rem] font-bold"
-              style={{ color: tab === t.key ? "var(--c-text)" : "var(--c-textMuted)", transition: "color 0.2s ease" }}
-              onClick={() => setTab(t.key)}
-            >
-              {t.label}
-              <span
-                aria-hidden
-                className="absolute inset-x-0 -bottom-px h-[3px] rounded-full"
-                style={{
-                  background:
-                    tab === t.key ? "linear-gradient(90deg, var(--c-primary), var(--c-accent))" : "transparent",
-                }}
-              />
-            </button>
-          ))}
-        </nav>
-      </header>
-
-      {/* カテゴリチップ(その場絞り込み) */}
-      <div data-testid="home-tags" className="hide-scrollbar flex gap-2 overflow-x-auto px-4 pb-1 pt-3">
-        <button className="chip" data-on={activeTag === null} onClick={() => setActiveTag(null)}>
-          全体
-        </button>
-        {tags.map((t) => (
-          <button
-            key={t.id}
-            className="chip"
-            data-on={activeTag === t.name}
-            onClick={() => setActiveTag(activeTag === t.name ? null : t.name)}
-          >
-            {t.name}
-          </button>
-        ))}
-      </div>
-
-      <main className="flex-1 px-4 pb-6 pt-3">
-        {error && (
-          <div className="card p-4 text-center text-sm">
-            読み込みに失敗しました
-            <button className="btn-ghost mt-2 w-full" onClick={() => location.reload()}>
-              再試行
-            </button>
-          </div>
-        )}
-        {!error && !gridItems && (
-          <div className="grid grid-cols-2 gap-x-3 gap-y-5">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="space-y-2">
-                <div className="skeleton aspect-[3/4] rounded-[14px]" />
-                <div className="skeleton h-4 w-11/12" />
-                <div className="skeleton h-3 w-2/3" />
-              </div>
-            ))}
-          </div>
-        )}
-        {gridItems && gridItems.length === 0 && (
-          <p className="py-10 text-center text-xs" style={{ color: "var(--c-textMuted)" }}>
-            該当する物語がまだありません
-          </p>
-        )}
-        {gridItems && gridItems.length > 0 && (
-          <div data-testid={`section-${tab}`} className="grid grid-cols-2 gap-x-3 gap-y-5">
-            {gridItems.map((s, i) => (
-              <PlotGridCard key={s.id} s={s} rank={tab !== "new" && !activeTag ? i + 1 : undefined} />
-            ))}
-          </div>
-        )}
-      </main>
-      <BottomTab />
-    </div>
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd({
+        "@context": "https://schema.org", "@type": "WebSite", "@id": absoluteUrl("/#website"),
+        name: SITE_NAME, url: absoluteUrl("/"), description: SITE_DESCRIPTION, inLanguage: "ja",
+      }) }} />
+      <HomeClient initialSections={initialSections} initialTags={tags}>
+        <section className="mt-8 space-y-3 border-t pt-5" style={{ borderColor: "var(--c-border)" }}>
+          <h2 className="text-base font-bold">読む・作るヒント</h2>
+          <p className="text-sm leading-relaxed">物語の選び方から、オリジナルの世界観や登場人物の作り方まで。</p>
+          <nav aria-label="読み方と創作ガイド" className="grid gap-3 text-sm" style={{ color: "var(--c-primary)" }}>
+            <Link href="/guides/ai-novel-chat">AIノベルチャットとは？ はじめ方ガイド</Link>
+            <Link href="/guides/create-original-story">オリジナル恋愛シチュエーションの作り方</Link>
+            <Link href="/guides/ai-roleplay-tips">AIとの物語を続ける言葉のヒント</Link>
+          </nav>
+          <nav aria-label="サービス情報" className="flex flex-wrap gap-4 pt-3 text-xs" style={{ color: "var(--c-textMuted)" }}>
+            <Link href="/about">Bukuchaについて</Link>
+            <Link href="/guides">ガイド一覧</Link>
+            <Link href="/legal/guideline">投稿ガイドライン</Link>
+            <Link href="/legal/terms">利用規約</Link>
+            <Link href="/legal/privacy">プライバシー</Link>
+          </nav>
+        </section>
+      </HomeClient>
+    </>
   );
 }

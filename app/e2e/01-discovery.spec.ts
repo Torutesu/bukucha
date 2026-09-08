@@ -4,6 +4,8 @@ import { loginAs, E2E_SITUATION } from "./helpers";
 test.describe("発見フロー", () => {
   test("E2E-001: 初回訪問→タグ選択→おすすめから読み始める", async ({ page }) => {
     await page.goto("/");
+    await expect(page).toHaveURL(/\/$/);
+    await page.getByRole("link", { name: "好みから物語を選ぶ" }).click();
     await expect(page).toHaveURL(/\/welcome/);
     const chips = page.getByTestId("onboarding-tag");
     await expect(chips.first()).toBeVisible();

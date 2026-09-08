@@ -1,23 +1,24 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { buildThemeCss, brand } from "@/lib/theme";
+import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from "@/lib/seo";
 
 export const metadata: Metadata = {
-  title: `${brand.name} - ${brand.tagline}`,
-  description:
-    "妄想がそのまま物語になる、女性向けノベルAIチャット。シチュエーションを選んで、あなただけのラノベを読もう。",
+  metadataBase: new URL(SITE_URL),
+  title: { default: SITE_NAME, template: `%s | ${SITE_NAME}` },
+  description: SITE_DESCRIPTION,
+  // Pages opt in individually; personal and future app routes stay out of search by default.
+  robots: { index: false, follow: true },
   icons: { icon: "/icon.svg", apple: "/icon.svg" },
-  openGraph: {
-    title: `${brand.name} - ${brand.tagline}`,
-    description: "妄想がそのまま物語になる、女性向けノベルAIチャット。",
-    images: ["/icon.svg"],
+  verification: {
+    google: process.env.GOOGLE_SITE_VERIFICATION,
+    other: process.env.BING_SITE_VERIFICATION ? { "msvalidate.01": process.env.BING_SITE_VERIFICATION } : undefined,
   },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
   viewportFit: "cover", // iOSセーフエリア(env(safe-area-inset-*))を有効化
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: brand.colors.light.bg },
